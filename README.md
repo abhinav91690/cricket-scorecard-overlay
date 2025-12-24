@@ -23,6 +23,25 @@ npm run build
 ```
 The output will be in the `dist` directory.
 
+
+## Testing
+
+This project includes a unit testing framework powered by [Vitest](https://vitest.dev/).
+
+### Running Tests
+To run the automated tests:
+
+1.  **Watch Mode:** (Useful during development)
+    ```bash
+    npm run test
+    ```
+2.  **Single Run:** (Used in CI/Build)
+    ```bash
+    npm run test:run
+    ```
+
+> Tests are automatically run before every build to prevent regressions.
+
 ## Quick Start
 
 1.  **Start a Local Server**
@@ -61,7 +80,7 @@ To use the classic theme:
 http://localhost:8000/?matchId=1939&theme=classic
 ```
 
-## Debugging & Testing
+## Visual Debugging
 
 You can test the overlay layouts without a live match ID by using the `debug` parameter:
 

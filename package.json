@@ -5,8 +5,10 @@
   "main": "index.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "build": "tsc && npm run test:run && vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "repository": {
     "type": "git",
@@ -20,8 +22,11 @@
   },
   "homepage": "https://github.com/abhinav91690/topguns-stream-overlay#readme",
   "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
     "@types/node": "^25.0.3",
+    "jsdom": "^27.3.0",
     "typescript": "^5.9.3",
-    "vite": "^7.3.0"
+    "vite": "^7.3.0",
+    "vitest": "^4.0.16"
   }
 }
