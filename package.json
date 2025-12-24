@@ -1,0 +1,27 @@
+{
+  "name": "topguns-stream-overlay",
+  "version": "1.0.0",
+  "description": "A professional, lightweight cricket scorecard overlay designed for live streaming. This overlay fetches real-time data from CricClubs or can be used with mock data for testing.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abhinav91690/topguns-stream-overlay.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/abhinav91690/topguns-stream-overlay/issues"
+  },
+  "homepage": "https://github.com/abhinav91690/topguns-stream-overlay#readme",
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.0"
+  }
+}

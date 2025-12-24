@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cricket Score Overlay</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="./assets/index-BsbfetDu.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-CLB3XpW1.css">
+</head>
+
+<body>
+    <div class="overlay">
+        <img alt="Overlay" id="overlay-image" class="overlay-image" style="display: none;">
+
+        <div id="result" class="score-overlay" style="display: none;">
+            <div id="match-result"></div>
+        </div>
+
+        <div id="firstInnings" class="score-overlay">
+
+            <div class="batting-team-info">
+                <img id="batting-team-logo" class="team-logo" alt="Team Logo">
+            </div>
+
+            <div class="batsman-info" id="batsman-info">
+                <div class="batsman-row">
+                    <div class="batsman-name" id="batsman1-name"></div>
+                    <div class="batsman-runs-balls" id="batsman1-runs-balls"></div>
+                </div>
+                <div class="batsman-row">
+                    <div class="batsman-name" id="batsman2-name"></div>
+                    <div class="batsman-runs-balls" id="batsman2-runs-balls"></div>
+                </div>
+            </div>
+
+            <div class="scorecard-pill">
+                <div class="team-name" id="team-name">Loading...</div>
+                <div class="score-and-overs">
+                    <span class="score" id="team-score"></span><span class="wickets" id="team-wickets"></span> <span
+                        class="overs" id="team-overs"></span>
+                </div>
+            </div>
+
+            <div class="bowler-info" id="bowler-info">
+                <div class="bowler-row">
+                    <div class="bowler-name" id="bowler-name"></div>
+                    <div class="bowler-figures" id="bowler-figures">
+                        <span id="bowler-wickets-runs"></span>
+                        <span id="bowler-overs" class="bowler-overs-data"></span>
+                    </div>
+                </div>
+                <div class="bowler-row">
+                    <div class="ball-by-ball-container" id="ball-by-ball">
+                        <!-- Ball indicators will be injected here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="bowling-team-info">
+                <img id="bowling-team-logo" class="team-logo" alt="Team Logo">
+            </div>
+
+        </div>
+        <div id="secondInnings" class="score-overlay" style="display: none;">
+            <div>
+                <span id="second-team-name"></span>
+                <span id="second-team-score"></span>/<span id="second-team-wickets"></span> <span
+                    id="second-team-overs"></span>
+            </div>
+            <div class="spacer" id="score-needed"></div>
+        </div>
+    </div>
+
+</body>
+
+</html>

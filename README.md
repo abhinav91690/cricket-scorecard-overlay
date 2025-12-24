@@ -2,6 +2,27 @@
 
 A professional, lightweight cricket scorecard overlay designed for live streaming. This overlay fetches real-time data from CricClubs or can be used with mock data for testing.
 
+## Development
+
+1.  **Install Dependencies:**
+    ```bash
+    npm install
+    ```
+
+2.  **Start Dev Server:**
+    ```bash
+    npm run dev
+    ```
+    This will start a local server (usually at `http://localhost:5173`).
+
+## Build
+
+To create a production build:
+```bash
+npm run build
+```
+The output will be in the `dist` directory.
+
 ## Quick Start
 
 1.  **Start a Local Server**
