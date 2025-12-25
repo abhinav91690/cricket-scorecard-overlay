@@ -28,5 +28,8 @@
     "typescript": "^5.9.3",
     "vite": "^7.3.0",
     "vitest": "^4.0.16"
+  },
+  "dependencies": {
+    "@fontsource/montserrat": "^5.2.8"
   }
 }
