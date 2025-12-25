@@ -1,99 +1,83 @@
 # Cricket Scorecard Overlay
 
-A professional, lightweight cricket scorecard overlay designed for live streaming. This overlay fetches real-time data from CricClubs or can be used with mock data for testing.
+A professional, lightweight, and responsive cricket scorecard overlay designed for live streaming (OBS, vMix, etc.). It fetches real-time match data from the **CricClubs** API or runs in debug mode with mock data.
 
-## Development
+## Features
+- **Real-Time Updates**: Polls the API automatically for live scores.
+- **Two Themes**:
+  - **Modern**: Vibrant, glassmorphism-inspired design with animations.
+  - **Classic**: Traditional broadcast style (clean & simple).
+- **Self-Hosted Fonts**: Uses **Montserrat** (bundled) for consistent rendering across all devices without external dependencies.
+- **Performance Optimized**: Zero layout shifts (CLS), minimal network footprint, and bundled CSS.
+- **Developer Experience**: Built with **Vite** and **TypeScript**.
+- **Automated Deployment**: One-click deployment to GitHub Pages via GitHub Actions.
 
-1.  **Install Dependencies:**
-    ```bash
-    npm install
-    ```
-
-2.  **Start Dev Server:**
-    ```bash
-    npm run dev
-    ```
-    This will start a local server (usually at `http://localhost:5173`).
-
-## Build
-
-To create a production build:
-```bash
-npm run build
-```
-The output will be in the `dist` directory.
-
-
-## Testing
-
-This project includes a unit testing framework powered by [Vitest](https://vitest.dev/).
-
-### Running Tests
-To run the automated tests:
-
-1.  **Watch Mode:** (Useful during development)
-    ```bash
-    npm run test
-    ```
-2.  **Single Run:** (Used in CI/Build)
-    ```bash
-    npm run test:run
-    ```
-
-> Tests are automatically run before every build to prevent regressions.
+---
 
 ## Quick Start
 
-1.  **Start a Local Server**
-    You need to serve the files over HTTP. You can use Python's built-in server:
-    ```bash
-    python3 -m http.server 8000
-    ```
+### 1. Install & Run Locally
+```bash
+# Install dependencies
+npm install
 
-2.  **Open in Browser / OBS**
-    Navigate to the URL with your match ID:
-    ```
-    http://localhost:8000/?matchId=YOUR_MATCH_ID
-    ```
-    Add this URL as a **Browser Source** in OBS or your streaming software.
+# Start development server
+npm run dev
+```
+The server usually starts at `http://localhost:5173`.
 
-## Query Parameters
+### 2. Add to OBS
+1.  Add a **Browser Source** in OBS.
+2.  Set the URL to your local server (or deployed GitHub Pages URL).
+3.  Set Width: `1920`, Height: `1080` (or your canvas size).
+4.  Append the necessary query parameters (see below).
 
-Customize the overlay using the following URL parameters:
+---
 
-| Parameter | Description | Default | Example |
+## Configuration (URL Parameters)
+
+Control the behavior and look of the overlay using URL parameters:
+
+| Parameter | Required? | Description | Example |
 | :--- | :--- | :--- | :--- |
-| `matchId` | **Required**. The unique ID of the match on CricClubs. | None | `?matchId=1939` |
-| `clubId` | The Club ID on CricClubs. | `1089463` (LPCL) | `?clubId=12345` |
-| `theme` | The visual style of the overlay. Options: `modern`, `classic`. | `modern` | `?theme=classic` |
-| `logo` | Displays a pre-configured sponsor/tournament logo. | None | `?logo=1` |
-| `debug` | Uses mock data for testing without a live match. | None | `?debug=1` |
-| `mode` | Enable special modes like `replay`. | `?mode=replay` |
+| `matchId` | **Yes** | The unique Match ID from CricClubs. | `?matchId=1939` |
+| `clubId` | No | The Club ID (Default: `1089463`). | `?clubId=12345` |
+| `theme` | No | `modern` (default) or `classic`. | `?theme=classic` |
+| `debug` | No | Use mock data (1-5) instead of live API. | `?debug=1` |
+| `mode` | No | Special modes like `replay`. | `?mode=replay` |
+| `logo` | No | Displays specific sponsor logos. | `?logo=1` |
 
-## Themes
+### Debug Modes
+Test layouts without a live match:
+- `?debug=1`: 1st Innings (Standard)
+- `?debug=2`: 2nd Innings (Chasing)
+- `?debug=3`: Match Ended
+- `?debug=4`: Pre-match / Toss
+- `?debug=5`: No Team Logos
 
-- **Modern (Default)**: A vibrant, glassmorphism-inspired design with animations.
-- **Classic**: A traditional, cleaner broadcast look.
+---
 
-To use the classic theme:
+## Deployment
+
+This project expects to be hosted on **GitHub Pages**.
+
+### Automated Deployment
+A GitHub Actions workflow is included in `.github/workflows/deploy.yml`.
+1.  Push changes to the `main` branch.
+2.  The action builds the project and deploys it as an artifact.
+3.  Ensure your repository settings are set to **Deploy from GitHub Actions** (Settings > Pages > Source).
+
+---
+
+## Development commands
+
+```bash
+# Run unit tests
+npm run test
+
+# Build for production (outputs to /dist)
+npm run build
+
+# Preview the production build locally
+npm run preview
 ```
-http://localhost:8000/?matchId=1939&theme=classic
-```
-
-## Visual Debugging
-
-You can test the overlay layouts without a live match ID by using the `debug` parameter:
-
-- `?debug=1` : **1st Innings** (Batting view)
-- `?debug=2` : **2nd Innings** (Chase view)
-- `?debug=3` : **Match Ended** (Result view)
-- `?debug=4` : **Toss** (Pre-match view)
-
-## Customization
-
-### Logos
-The `logo` parameter maps to images defined in `script.js`.
-- `?logo=1` -> Pulte Homes
-- `?logo=2` -> Perry Homes
-
-To add more logos, update the `LOGO_MAP` in `script.js`.
