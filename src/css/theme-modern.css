@@ -1,4 +1,4 @@
-:root {
+.theme-modern {
     /* Brand Colors - Modern & Vibrant */
     --brand-primary: #2962ff;
     --brand-secondary: #0039cb;
@@ -36,9 +36,7 @@
     --border-glass: 1px solid rgba(255, 255, 255, 0.4);
     --radius-large: 16px;
     --radius-pill: 50px;
-}
 
-body {
     margin: 0;
     font-family: 'Montserrat', sans-serif;
     overflow: hidden;
@@ -46,7 +44,7 @@ body {
 
 /* --- Layout --- */
 
-.overlay {
+.theme-modern .overlay {
     text-transform: uppercase;
     position: fixed;
     top: 0;
@@ -62,7 +60,7 @@ body {
     padding-bottom: 20px;
 }
 
-.overlay-image {
+.theme-modern .overlay-image {
     position: absolute;
     top: 20px;
     right: 20px;
@@ -74,7 +72,7 @@ body {
 
 /* --- Components --- */
 
-.score-overlay {
+.theme-modern .score-overlay {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -91,15 +89,15 @@ body {
     transition: all 0.3s ease;
 }
 
-.team-logo {
+.theme-modern .team-logo {
     height: 60px;
     width: 60px;
     object-fit: contain;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
-.batting-team-info,
-.bowling-team-info {
+.theme-modern .batting-team-info,
+.theme-modern .bowling-team-info {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -111,7 +109,7 @@ body {
 
 /* --- Scorecard Pill (Center) --- */
 
-.scorecard-pill {
+.theme-modern .scorecard-pill {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -129,7 +127,7 @@ body {
     overflow: hidden;
 }
 
-.scorecard-pill::after {
+.theme-modern .scorecard-pill::after {
     content: '';
     position: absolute;
     top: 0;
@@ -140,7 +138,7 @@ body {
     pointer-events: none;
 }
 
-.team-name {
+.theme-modern .team-name {
     font-weight: 700;
     font-size: 22px;
     margin-bottom: 4px;
@@ -148,25 +146,25 @@ body {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.score-and-overs {
+.theme-modern .score-and-overs {
     display: flex;
     align-items: baseline;
     gap: 8px;
 }
 
-.score {
+.theme-modern .score {
     font-size: 28px;
     font-weight: 700;
     line-height: 1;
 }
 
-.wickets {
+.theme-modern .wickets {
     font-size: 20px;
     font-weight: 600;
     opacity: 0.9;
 }
 
-.overs {
+.theme-modern .overs {
     font-size: 18px;
     font-weight: 400;
     opacity: 0.9;
@@ -187,8 +185,8 @@ body {
 
 /* --- Player Info --- */
 
-.batsman-info,
-.bowler-info {
+.theme-modern .batsman-info,
+.theme-modern .bowler-info {
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -196,8 +194,8 @@ body {
     flex: 1;
 }
 
-.batsman-row,
-.bowler-row {
+.theme-modern .batsman-row,
+.theme-modern .bowler-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -208,23 +206,23 @@ body {
     gap: 15px;
 }
 
-.batsman-name,
-.bowler-name {
+.theme-modern .batsman-name,
+.theme-modern .bowler-name {
     font-weight: 600;
     font-size: 15px;
     color: var(--text-primary);
     white-space: nowrap;
 }
 
-.batsman-runs-balls,
-.bowler-figures {
+.theme-modern .batsman-runs-balls,
+.theme-modern .bowler-figures {
     font-weight: 700;
     font-size: 15px;
     color: var(--brand-primary);
     white-space: nowrap;
 }
 
-.bowler-overs-data {
+.theme-modern .bowler-overs-data {
     border-left: 2px solid rgba(0, 0, 0, 0.2);
     padding-left: 8px;
     font-weight: 700;
@@ -233,13 +231,13 @@ body {
 
 /* --- Ball by Ball --- */
 
-.ball-by-ball-container {
+.theme-modern .ball-by-ball-container {
     display: flex;
     align-items: center;
     gap: 6px;
 }
 
-.ball-indicator {
+.theme-modern .ball-indicator {
     width: 24px;
     height: 24px;
     border-radius: 50%;
@@ -267,56 +265,56 @@ body {
     }
 }
 
-.ball-indicator.run-1,
-.ball-indicator.run-2,
-.ball-indicator.run-3,
-.ball-indicator.run-5 {
+.theme-modern .ball-indicator.run-1,
+.theme-modern .ball-indicator.run-2,
+.theme-modern .ball-indicator.run-3,
+.theme-modern .ball-indicator.run-5 {
     background-color: var(--ball-run);
     color: var(--text-white);
 }
 
-.ball-indicator.run-4 {
+.theme-modern .ball-indicator.run-4 {
     background-color: var(--ball-four);
     color: var(--text-white);
 }
 
-.ball-indicator.run-6 {
+.theme-modern .ball-indicator.run-6 {
     background-color: var(--ball-six);
     color: var(--text-white);
 }
 
-.ball-indicator.wicket {
+.theme-modern .ball-indicator.wicket {
     background-color: var(--ball-wicket);
     color: var(--text-white);
 }
 
-.ball-indicator.wide {
+.theme-modern .ball-indicator.wide {
     background-color: var(--ball-wide);
     color: var(--text-white);
     font-size: 10px;
 }
 
-.ball-indicator.no-ball {
+.theme-modern .ball-indicator.no-ball {
     background-color: var(--ball-noball);
     color: black;
     font-size: 10px;
 }
 
-.ball-indicator.leg-bye,
-.ball-indicator.bye {
+.theme-modern .ball-indicator.leg-bye,
+.theme-modern .ball-indicator.bye {
     background-color: var(--ball-extra);
     color: var(--text-white);
     font-size: 10px;
 }
 
-.ball-indicator.dot {
+.theme-modern .ball-indicator.dot {
     background-color: var(--ball-default);
     color: transparent;
     position: relative;
     font-size: 0;
 }
 
-.ball-indicator.dot::after {
+.theme-modern .ball-indicator.dot::after {
     content: '';
     position: absolute;
     top: 50%;
@@ -330,8 +328,8 @@ body {
 
 /* --- Innings & Result --- */
 
-#secondInnings,
-#result {
+.theme-modern #secondInnings,
+.theme-modern #result {
     background: var(--gradient-dark);
     color: var(--text-white);
     padding: 10px 25px;
@@ -342,11 +340,11 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-#secondInnings span {
+.theme-modern #secondInnings span {
     margin: 0 4px;
 }
 
-.spacer {
+.theme-modern .spacer {
     margin-left: 20px;
     padding-left: 20px;
     border-left: 1px solid rgba(255, 255, 255, 0.2);

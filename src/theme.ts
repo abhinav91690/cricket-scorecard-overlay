@@ -1,16 +1,18 @@
 import { CONFIG } from './config';
 import { DOM } from './dom';
+import './css/theme-classic.css';
+import './css/theme-modern.css';
 
 /**
  * Applies the selected CSS theme to the application.
  * @param theme - The theme name ('classic' or 'modern').
  */
 export function applyTheme(theme: string | null) {
-    const themeLink = document.getElementById('theme-stylesheet') as HTMLLinkElement;
+    document.body.classList.remove('theme-classic', 'theme-modern');
     if (theme === 'classic') {
-        themeLink.href = 'css/theme-classic.css';
+        document.body.classList.add('theme-classic');
     } else {
-        themeLink.href = 'css/theme-modern.css';
+        document.body.classList.add('theme-modern');
     }
 }
 
