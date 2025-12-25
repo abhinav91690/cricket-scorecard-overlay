@@ -1,11 +1,11 @@
-# System Architecture - Topguns Stream Overlay
+# System Architecture - Cricket Scorecard Overlay
 
-The Topguns Stream Overlay is a lightweight, client-side web application designed to display real-time cricket scores during live broadcasts. It leverages the CricClubs API to fetch data and provides a customizable UI through a modular CSS theming system.
+The Cricket Scorecard Overlay is a lightweight, client-side web application designed to display real-time cricket scores during live broadcasts. It leverages the CricClubs API to fetch data and provides a customizable UI through a modular CSS theming system.
 
 ## Project Structure
 
 ```text
-topguns-stream-overlay/
+cricket-scorecard-overlay/
 ├── assets/             # Static assets (images, logos)
 ├── css/                # Visual themes
 │   ├── theme-classic.css # Traditional broadcast look

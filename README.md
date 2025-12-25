@@ -1,4 +1,4 @@
-# Stream Overlay
+# Cricket Scorecard Overlay
 
 A professional, lightweight cricket scorecard overlay designed for live streaming. This overlay fetches real-time data from CricClubs or can be used with mock data for testing.
 
