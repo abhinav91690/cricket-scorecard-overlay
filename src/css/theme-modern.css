@@ -334,14 +334,24 @@
 
 /* --- Innings & Result --- */
 
-.theme-modern #secondInnings,
-.theme-modern #result {
+.theme-modern #secondInnings {
     background: var(--gradient-dark);
     color: var(--text-white);
     padding: 10px 25px;
     border-radius: var(--radius-large);
     font-size: 16px;
     font-weight: 600;
+    letter-spacing: 0.5px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.theme-modern #result {
+    background: var(--gradient-dark);
+    color: var(--text-white);
+    padding: 15px 40px;
+    border-radius: var(--radius-large);
+    font-size: 24px;
+    font-weight: 700;
     letter-spacing: 0.5px;
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
