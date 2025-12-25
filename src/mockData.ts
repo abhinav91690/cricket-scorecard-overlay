@@ -207,7 +207,7 @@ export const mock_1stInnings: CricketAPIData = {
         "isDls": false,
         "isSuperOverSecondInningsStarted": "false",
         "t1Name": "TOPGUNS UNITED",
-        "batsman2Name": "Ravi A",
+        "batsman2Name": "Raja K",
         "batsman1Runs": "43",
         "bowlerRuns": "0",
         "batsman2Sixers": "0",
