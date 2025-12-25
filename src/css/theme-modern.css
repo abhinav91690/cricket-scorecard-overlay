@@ -94,6 +94,7 @@
     width: 60px;
     object-fit: contain;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+    aspect-ratio: 1 / 1;
 }
 
 .theme-modern .batting-team-info,
@@ -105,6 +106,9 @@
     background: rgba(255, 255, 255, 0.5);
     border-radius: var(--radius-large);
     min-width: 80px;
+    min-height: 80px;
+    /* Ensure height doesn't collapse */
+    box-sizing: border-box;
 }
 
 /* --- Scorecard Pill (Center) --- */
@@ -122,6 +126,8 @@
     color: var(--text-white);
     border-radius: var(--radius-large);
     min-width: 200px;
+    min-height: 84px;
+    /* Reserve vertical space */
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
     position: relative;
     overflow: hidden;
