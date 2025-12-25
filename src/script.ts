@@ -11,6 +11,10 @@ import { CricketAPIData } from './types';
 
 let replayIndex = 0;
 
+/**
+ * Main update function that fetches data (or uses mock data) and updates the UI.
+ * Handles theme application, logging, and polling logic.
+ */
 async function updateScore() {
     const params = getQueryParams();
     applyTheme(params.theme);

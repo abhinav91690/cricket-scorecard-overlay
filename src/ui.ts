@@ -9,6 +9,11 @@ const imageCache = {
 
 let lastBallState = { balls: '', overs: '' };
 
+/**
+ * Updates the team logos in the DOM based on the API data.
+ * Caches images to avoid unnecessary re-fetching.
+ * @param data - The full API data object containing logo URLs.
+ */
 export async function updateTeamLogos(data: CricketAPIData) {
     const getFullUrl = (path?: string) => {
         if (!path) return '';
@@ -42,6 +47,11 @@ export async function updateTeamLogos(data: CricketAPIData) {
     }
 }
 
+/**
+ * Updates the ball-by-ball indicator in the UI.
+ * @param ballsArray - Array of strings representing recent ball outcomes.
+ * @param teamOvers - Current overs string (e.g. "10.2") to determine balls remaining.
+ */
 export function updateBallByBall(ballsArray: string[], teamOvers: string) {
     const currentBallsJson = JSON.stringify(ballsArray);
     if (currentBallsJson === lastBallState.balls && teamOvers === lastBallState.overs) {
@@ -68,20 +78,32 @@ export function updateBallByBall(ballsArray: string[], teamOvers: string) {
     }
 }
 
-// Helper to update text only if changed
+/**
+ * Updates the text content of a DOM element only if it has changed.
+ * @param element - The DOM element to update.
+ * @param text - The new text content.
+ */
 function setText(element: HTMLElement | null, text: string) {
     if (element && element.textContent !== text) {
         element.textContent = text;
     }
 }
 
-// Helper to update display style only if changed
+/**
+ * Updates the display style of a DOM element only if it has changed.
+ * @param element - The DOM element to update.
+ * @param display - The new display value (e.g. 'none', 'block', 'flex').
+ */
 function setDisplay(element: HTMLElement | null, display: string) {
     if (element && element.style.display !== display) {
         element.style.display = display;
     }
 }
 
+/**
+ * Updates the entire scoreboard UI with new data.
+ * @param data - The full CricketAPIData object.
+ */
 export function updateScoreboard(data: CricketAPIData) {
     const { values } = data;
 
