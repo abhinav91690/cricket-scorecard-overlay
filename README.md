@@ -64,7 +64,7 @@ Customize the overlay using the following URL parameters:
 | Parameter | Description | Default | Example |
 | :--- | :--- | :--- | :--- |
 | `matchId` | **Required**. The unique ID of the match on CricClubs. | None | `?matchId=1939` |
-| `cId` | The Club ID on CricClubs. | `1089463` (LPCL) | `?cId=12345` |
+| `clubId` | The Club ID on CricClubs. | `1089463` (LPCL) | `?clubId=12345` |
 | `theme` | The visual style of the overlay. Options: `modern`, `classic`. | `modern` | `?theme=classic` |
 | `logo` | Displays a pre-configured sponsor/tournament logo. | None | `?logo=1` |
 | `debug` | Uses mock data for testing without a live match. | None | `?debug=1` |
