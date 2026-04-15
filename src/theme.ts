@@ -3,8 +3,18 @@ import { DOM } from './dom';
 import './css/theme-classic.css';
 import './css/theme-modern.css';
 import './css/theme-neon.css';
+import './css/theme-kkr.css';
+import './css/theme-rcb.css';
+import './css/theme-mi.css';
+import './css/theme-csk.css';
+import './css/theme-dc.css';
+import './css/theme-rr.css';
+import './css/theme-srh.css';
+import './css/theme-pbks.css';
+import './css/theme-gt.css';
+import './css/theme-lsg.css';
 
-const AVAILABLE_THEMES = ['classic', 'modern', 'neon'] as const;
+const AVAILABLE_THEMES = ['classic', 'modern', 'neon', 'kkr', 'rcb', 'mi', 'csk', 'dc', 'rr', 'srh', 'pbks', 'gt', 'lsg'] as const;
 
 /**
  * Applies the selected CSS theme to the application.
