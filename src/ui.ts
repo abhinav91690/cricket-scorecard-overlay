@@ -101,6 +101,22 @@ function setDisplay(element: HTMLElement | null, display: string) {
 }
 
 /**
+ * Toggles visibility of an element while preserving its layout space.
+ * Uses visibility + opacity so the element still occupies space when hidden.
+ * @param element - The DOM element to toggle.
+ * @param visible - Whether the element should be visible.
+ */
+function setVisible(element: HTMLElement | null, visible: boolean) {
+    if (!element) return;
+    const current = element.classList.contains('is-visible');
+    if (visible && !current) {
+        element.classList.add('is-visible');
+    } else if (!visible && current) {
+        element.classList.remove('is-visible');
+    }
+}
+
+/**
  * Updates the entire scoreboard UI with new data.
  * @param data - The full CricketAPIData object.
  */
@@ -132,7 +148,7 @@ export function updateScoreboard(data: CricketAPIData) {
     setText(DOM.teamOvers, `${currentTeamOvers || '0.0'}`);
 
     if (!isSecondInnings) {
-        setDisplay(DOM.secondInnings, 'none');
+        setVisible(DOM.secondInnings, false);
         setDisplay(DOM.result, 'none');
     } else {
         // Second Team (The team that batted first)
@@ -150,7 +166,7 @@ export function updateScoreboard(data: CricketAPIData) {
 
         const isMatchEnded = values.isMatchEnded === "1";
 
-        setDisplay(DOM.secondInnings, 'flex');
+        setVisible(DOM.secondInnings, true);
         setDisplay(DOM.result, isMatchEnded ? 'flex' : 'none');
         setDisplay(DOM.scoreNeeded, isMatchEnded ? 'none' : 'block');
 

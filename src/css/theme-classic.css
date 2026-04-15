@@ -49,6 +49,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: flex-end;
+    padding-bottom: 8px;
+    gap: 4px;
 }
 
 .theme-classic .overlay-image {
@@ -300,6 +302,14 @@
     font-size: 18px;
     color: var(--text-primary);
     padding: 5px 15px;
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0.3s, opacity 0.3s ease;
+}
+
+.theme-classic #secondInnings.is-visible {
+    visibility: visible;
+    opacity: 1;
 }
 
 .theme-classic #result {
