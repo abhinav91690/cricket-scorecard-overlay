@@ -2,15 +2,18 @@ import { CONFIG } from './config';
 import { DOM } from './dom';
 import './css/theme-classic.css';
 import './css/theme-modern.css';
+import './css/theme-neon.css';
+
+const AVAILABLE_THEMES = ['classic', 'modern', 'neon'] as const;
 
 /**
  * Applies the selected CSS theme to the application.
- * @param theme - The theme name ('classic' or 'modern').
+ * @param theme - The theme name ('classic', 'modern', or 'neon').
  */
 export function applyTheme(theme: string | null) {
-    document.body.classList.remove('theme-classic', 'theme-modern');
-    if (theme === 'classic') {
-        document.body.classList.add('theme-classic');
+    document.body.classList.remove(...AVAILABLE_THEMES.map(t => `theme-${t}`));
+    if (theme && AVAILABLE_THEMES.includes(theme as any)) {
+        document.body.classList.add(`theme-${theme}`);
     } else {
         document.body.classList.add('theme-modern');
     }
