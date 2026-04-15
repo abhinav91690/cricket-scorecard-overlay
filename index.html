@@ -9,6 +9,44 @@
 </head>
 
 <body>
+    <div id="instructions" class="instructions" style="display: none;">
+        <div class="instructions-card">
+            <h1>Cricket Scorecard Overlay</h1>
+            <p>Add query parameters to the URL to start the overlay.</p>
+
+            <h2>Required</h2>
+            <table>
+                <tr><td><code>matchId</code></td><td>The CricClubs match ID</td></tr>
+            </table>
+
+            <h2>Optional</h2>
+            <table>
+                <tr><td><code>clubId</code></td><td>CricClubs club ID (default: <code>LPCL</code>)</td></tr>
+                <tr><td><code>theme</code></td><td>Overlay theme (default: <code>modern</code>)</td></tr>
+            </table>
+
+            <h2>Example</h2>
+            <code class="example-url">?matchId=2169&amp;clubId=1089463&amp;theme=kkr</code>
+
+            <h2>Available Themes</h2>
+            <div class="theme-grid">
+                <span class="theme-tag tag-classic">classic</span>
+                <span class="theme-tag tag-modern">modern</span>
+                <span class="theme-tag tag-neon">neon</span>
+                <span class="theme-tag tag-kkr">kkr</span>
+                <span class="theme-tag tag-rcb">rcb</span>
+                <span class="theme-tag tag-mi">mi</span>
+                <span class="theme-tag tag-csk">csk</span>
+                <span class="theme-tag tag-dc">dc</span>
+                <span class="theme-tag tag-rr">rr</span>
+                <span class="theme-tag tag-srh">srh</span>
+                <span class="theme-tag tag-pbks">pbks</span>
+                <span class="theme-tag tag-gt">gt</span>
+                <span class="theme-tag tag-lsg">lsg</span>
+            </div>
+        </div>
+    </div>
+
     <div class="overlay">
         <img alt="Overlay" id="overlay-image" class="overlay-image" style="display: none;" width="120" height="120">
 

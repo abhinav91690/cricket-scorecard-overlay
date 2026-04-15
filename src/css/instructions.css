@@ -1,0 +1,116 @@
+.instructions {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: linear-gradient(135deg, #e8eaf6, #ffffff);
+    color: #1a237e;
+    font-family: 'Montserrat', sans-serif;
+    overflow-y: auto;
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px;
+}
+
+.instructions-card {
+    max-width: 640px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+    padding: 36px 40px;
+    height: fit-content;
+}
+
+.instructions h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: #1a237e;
+}
+
+.instructions > .instructions-card > p {
+    color: #455a64;
+    font-size: 15px;
+    margin: 0 0 32px;
+}
+
+.instructions h2 {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #455a64;
+    margin: 24px 0 10px;
+    border-bottom: 1px solid rgba(41, 98, 255, 0.15);
+    padding-bottom: 6px;
+}
+
+.instructions table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.instructions td {
+    padding: 6px 0;
+    vertical-align: top;
+    color: #455a64;
+}
+
+.instructions td:first-child {
+    width: 120px;
+    font-weight: 600;
+}
+
+.instructions td code {
+    background: rgba(41, 98, 255, 0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #2962ff;
+}
+
+.instructions .example-url {
+    display: block;
+    background: rgba(41, 98, 255, 0.06);
+    border: 1px solid rgba(41, 98, 255, 0.15);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #2962ff;
+    word-break: break-all;
+}
+
+.instructions .theme-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.instructions .theme-tag {
+    padding: 5px 14px;
+    border-radius: 50px;
+    font-size: 13px;
+    font-weight: 600;
+    background: rgba(41, 98, 255, 0.08);
+    color: #1a237e;
+    letter-spacing: 0.5px;
+}
+
+.instructions .tag-classic { background: #1846A0; color: #ffffff; }
+.instructions .tag-modern { background: #2962ff; color: #ffffff; }
+.instructions .tag-neon { background: #0a0a1a; color: #00e5ff; border: 1px solid #00e5ff33; }
+.instructions .tag-kkr { background: #2d1566; color: #d4a843; }
+.instructions .tag-rcb { background: #cc0000; color: #ffffff; }
+.instructions .tag-mi { background: #004ba0; color: #d4a843; }
+.instructions .tag-csk { background: #1a56a0; color: #f9cd05; }
+.instructions .tag-dc { background: #0044aa; color: #ff4444; }
+.instructions .tag-rr { background: #254aa5; color: #ea1a85; }
+.instructions .tag-srh { background: #1a1a1a; color: #ff822e; border: 1px solid #333; }
+.instructions .tag-pbks { background: #dd1f2d; color: #ffffff; }
+.instructions .tag-gt { background: #1c2c4a; color: #cfb53b; }
+.instructions .tag-lsg { background: #00a5b5; color: #ffffff; }

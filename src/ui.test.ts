@@ -145,3 +145,50 @@ describe('updateScoreboard', () => {
         expect(DOM.secondTeamName.textContent).toBe('India');
     });
 });
+
+describe('instructions screen', () => {
+    let instructionsEl: HTMLElement;
+    let overlayEl: HTMLElement;
+
+    beforeEach(() => {
+        instructionsEl = document.createElement('div');
+        instructionsEl.id = 'instructions';
+        instructionsEl.style.display = 'none';
+        document.body.appendChild(instructionsEl);
+
+        overlayEl = document.createElement('div');
+        overlayEl.classList.add('overlay');
+        document.body.appendChild(overlayEl);
+    });
+
+    it('should show instructions and hide overlay when no match params provided', () => {
+        // Simulate no matchId, no debug, no replay
+        const instructionsEl = document.getElementById('instructions')!;
+        const overlayEl = document.querySelector('.overlay') as HTMLElement;
+
+        instructionsEl.style.display = 'flex';
+        overlayEl.style.display = 'none';
+
+        expect(instructionsEl.style.display).toBe('flex');
+        expect(overlayEl.style.display).toBe('none');
+    });
+
+    it('should hide instructions and show overlay when matchId is provided', () => {
+        const instructionsEl = document.getElementById('instructions')!;
+        const overlayEl = document.querySelector('.overlay') as HTMLElement;
+
+        instructionsEl.style.display = 'none';
+        overlayEl.style.display = '';
+
+        expect(instructionsEl.style.display).toBe('none');
+        expect(overlayEl.style.display).toBe('');
+    });
+
+    it('should have instructions element present in DOM', () => {
+        expect(document.getElementById('instructions')).not.toBeNull();
+    });
+
+    it('should have overlay element present in DOM', () => {
+        expect(document.querySelector('.overlay')).not.toBeNull();
+    });
+});

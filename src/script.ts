@@ -1,6 +1,7 @@
 import '@fontsource/montserrat/400.css';
 import '@fontsource/montserrat/600.css';
 import '@fontsource/montserrat/700.css';
+import './css/instructions.css';
 import { mock_1stInnings, mock_2ndInnings, mock_matchEnded, mock_toss, mock_noTeamImage } from './mockData';
 import { sampleReplayData } from './replayData';
 import { CONFIG } from './config';
@@ -19,6 +20,19 @@ let replayIndex = 0;
  */
 async function updateScore() {
     const params = getQueryParams();
+    const instructionsEl = document.getElementById('instructions');
+    const overlayEl = document.querySelector('.overlay') as HTMLElement;
+
+    // Show instructions if no match context is provided
+    if (!params.matchId && !params.debug && params.mode !== 'replay') {
+        if (instructionsEl) instructionsEl.style.display = 'flex';
+        if (overlayEl) overlayEl.style.display = 'none';
+        return;
+    }
+
+    if (instructionsEl) instructionsEl.style.display = 'none';
+    if (overlayEl) overlayEl.style.display = '';
+
     applyTheme(params.theme);
     updateLogo(params.logo);
 
@@ -30,8 +44,6 @@ async function updateScore() {
     }
 
     if (!params.matchId && !params.debug) {
-        console.error('matchId query parameter is missing in the URL.');
-        DOM.teamName.textContent = 'Missing matchId';
         return;
     }
 
