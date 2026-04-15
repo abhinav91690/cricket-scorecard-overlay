@@ -141,7 +141,7 @@ describe('updateScoreboard', () => {
 
         expect(DOM.teamName.textContent).toBe('Australia');
         expect(DOM.teamScore.textContent).toBe('50');
-        expect(DOM.secondInnings.style.display).toBe('flex');
+        expect(DOM.secondInnings.classList.contains('is-visible')).toBe(true);
         expect(DOM.secondTeamName.textContent).toBe('India');
     });
 });
