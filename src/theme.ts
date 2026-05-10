@@ -13,8 +13,12 @@ import './css/theme-srh.css';
 import './css/theme-pbks.css';
 import './css/theme-gt.css';
 import './css/theme-lsg.css';
+import './css/theme-tel.css';
+import './css/theme-ted.css';
+import './css/theme-tul.css';
+import './css/theme-tud.css';
 
-const AVAILABLE_THEMES = ['classic', 'modern', 'neon', 'kkr', 'rcb', 'mi', 'csk', 'dc', 'rr', 'srh', 'pbks', 'gt', 'lsg'] as const;
+const AVAILABLE_THEMES = ['classic', 'modern', 'neon', 'kkr', 'rcb', 'mi', 'csk', 'dc', 'rr', 'srh', 'pbks', 'gt', 'lsg', 'tel', 'ted', 'tul', 'tud'] as const;
 
 /**
  * Applies the selected CSS theme to the application.

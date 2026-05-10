@@ -114,3 +114,7 @@
 .instructions .tag-pbks { background: #dd1f2d; color: #ffffff; }
 .instructions .tag-gt { background: #1c2c4a; color: #cfb53b; }
 .instructions .tag-lsg { background: #00a5b5; color: #ffffff; }
+.instructions .tag-topguns { background: #c8c8d4; color: #3344dd; border: 1px solid #3344dd; }
+.instructions .tag-topguns-dark { background: #0a0a0a; color: #c8c8d4; border: 1px solid #3344dd; }
+.instructions .tag-tul { background: #c8c8d4; color: #d42b2b; border: 1px solid #d42b2b; }
+.instructions .tag-tud { background: #0a0a0a; color: #c8c8d4; border: 1px solid #d42b2b; }
