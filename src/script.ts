@@ -11,8 +11,46 @@ import { applyTheme, updateLogo } from './theme';
 import { fetchScoreData } from './api';
 import { updateTeamLogos, updateScoreboard } from './ui';
 import { CricketAPIData } from './types';
+import { linkLiveStream } from './liveStream';
+import { showToast } from './toast';
 
 let replayIndex = 0;
+
+/**
+ * Wires up the "Link Live Stream" form shown on the instructions screen.
+ * Prefills the club ID and submits the CricClubs control-panel call on submit.
+ */
+function setupLinkStreamForm() {
+    const form = document.getElementById('link-stream-form') as HTMLFormElement | null;
+    const clubIdInput = document.getElementById('link-club-id') as HTMLInputElement | null;
+    const matchIdInput = document.getElementById('link-match-id') as HTMLInputElement | null;
+    const streamUrlInput = document.getElementById('link-stream-url') as HTMLInputElement | null;
+    const submitButton = document.getElementById('link-stream-submit') as HTMLButtonElement | null;
+
+    if (!form || !clubIdInput || !matchIdInput || !streamUrlInput || !submitButton) return;
+
+    clubIdInput.value = CONFIG.DEFAULT_CLUB_ID;
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const clubId = clubIdInput.value.trim();
+        const matchId = matchIdInput.value.trim();
+        const liveStreamURL = streamUrlInput.value.trim();
+        if (!clubId || !matchId || !liveStreamURL) return;
+
+        submitButton.disabled = true;
+        try {
+            await linkLiveStream({ clubId, matchId, liveStreamURL });
+            showToast('Live stream linked successfully!', 'success');
+        } catch (error) {
+            console.error('Error linking live stream:', error);
+            showToast('Failed to link live stream. Make sure you are logged into CricClubs and try again.', 'error');
+        } finally {
+            submitButton.disabled = false;
+        }
+    });
+}
 
 /**
  * Main update function that fetches data (or uses mock data) and updates the UI.
@@ -86,6 +124,7 @@ async function updateScore() {
 }
 
 // Initial call
+setupLinkStreamForm();
 updateScore();
 // Update loop
 setInterval(updateScore, CONFIG.REFRESH_RATE);
