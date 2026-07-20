@@ -39,15 +39,21 @@ function setupLinkStreamForm() {
         const liveStreamURL = streamUrlInput.value.trim();
         if (!clubId || !matchId || !liveStreamURL) return;
 
+        const originalLabel = submitButton.textContent;
         submitButton.disabled = true;
+        submitButton.textContent = 'Linking...';
         try {
             await linkLiveStream({ clubId, matchId, liveStreamURL });
             showToast('Live stream linked successfully!', 'success');
         } catch (error) {
             console.error('Error linking live stream:', error);
-            showToast('Failed to link live stream. Make sure you are logged into CricClubs and try again.', 'error');
+            const message = error instanceof Error && error.message
+                ? error.message
+                : 'Failed to link live stream. Please try again.';
+            showToast(message, 'error');
         } finally {
             submitButton.disabled = false;
+            submitButton.textContent = originalLabel;
         }
     });
 }
