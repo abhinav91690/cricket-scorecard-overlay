@@ -10,6 +10,7 @@
 
 <body>
     <div id="instructions" class="instructions" style="display: none;">
+        <div class="instructions-content">
         <div class="instructions-card">
             <h1>Cricket Scorecard Overlay</h1>
             <p>Add query parameters to the URL to start the overlay.</p>
@@ -49,7 +50,27 @@
                 <span class="theme-tag tag-tud">tud</span>
             </div>
         </div>
+
+        <div class="instructions-card link-stream-card">
+            <h1>Link Live Stream</h1>
+            <p>Attach a YouTube live stream link to a CricClubs match.</p>
+            <form id="link-stream-form" class="link-stream-form" autocomplete="off">
+                <label for="link-club-id">Club ID</label>
+                <input type="text" id="link-club-id" name="clubId" required>
+
+                <label for="link-match-id">Match ID</label>
+                <input type="text" id="link-match-id" name="matchId" placeholder="e.g. 2079" required>
+
+                <label for="link-stream-url">YouTube Live Stream URL</label>
+                <input type="url" id="link-stream-url" name="liveStreamURL" placeholder="https://www.youtube.com/watch?v=..." required>
+
+                <button type="submit" id="link-stream-submit">Link Stream</button>
+            </form>
+        </div>
+        </div>
     </div>
+
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
     <div class="overlay">
         <img alt="Overlay" id="overlay-image" class="overlay-image" style="display: none;" width="120" height="120">
