@@ -44,7 +44,7 @@ function setupLinkStreamForm() {
         submitButton.textContent = 'Linking...';
         try {
             await linkLiveStream({ clubId, matchId, liveStreamURL });
-            showToast('Live stream linked successfully!', 'success');
+            showToast('Live stream link submitted!', 'success');
         } catch (error) {
             console.error('Error linking live stream:', error);
             const message = error instanceof Error && error.message
