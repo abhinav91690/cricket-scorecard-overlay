@@ -1,8 +1,6 @@
 /* Home screen: URL builder, theme previews, Link Live Stream, parameter reference. */
 
 :root {
-    color-scheme: light dark;
-
     --h-bg: #f3f5fa;
     --h-surface: #ffffff;
     --h-text: #0f172a;
@@ -47,6 +45,9 @@
 }
 
 .instructions {
+    /* Only the home page opts into the system colour scheme. The overlay pages must keep a
+       transparent, scheme-neutral canvas so OBS composites them over video. */
+    color-scheme: light dark;
     position: fixed;
     inset: 0;
     z-index: 200;
