@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { updateScoreboard } from './ui';
+import { updateScoreboard, updateTeamLogos } from './ui';
 import { DOM } from './dom';
 
 // Simple mock data for elements
@@ -45,6 +45,13 @@ beforeEach(() => {
     createMockElement('bowling-team-logo');
     createMockElement('batsman-info');
     createMockElement('bowler-info');
+});
+
+// Stub image loading: jsdom never fires onload, so control success/failure per URL.
+const loadImageMock = vi.fn();
+vi.mock('./utils', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('./utils')>();
+    return { ...actual, loadImage: (url: string) => loadImageMock(url) };
 });
 
 // Mock the DOM module to return our dynamically created elements
@@ -190,5 +197,66 @@ describe('instructions screen', () => {
 
     it('should have overlay element present in DOM', () => {
         expect(document.querySelector('.overlay')).not.toBeNull();
+    });
+});
+
+describe('updateTeamLogos', () => {
+    // logoSlots is module-level state, so each test uses distinct URLs.
+    const data = (firstLogo: string | undefined, secondLogo: string | undefined): any => ({
+        values: { firstLogo, secondLogo },
+        balls: [],
+    });
+
+    beforeEach(() => {
+        loadImageMock.mockReset();
+        loadImageMock.mockImplementation(async (url: string) => {
+            if (url.includes('bad')) throw new Error(`Failed to load image: ${url}`);
+            const img = document.createElement('img');
+            img.src = url;
+            return img;
+        });
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    it('prefixes relative paths with the cricclubs origin and sets the img src', async () => {
+        await updateTeamLogos(data('/documentsRep/a.jpg', 'https://cdn.example.com/b.jpg'));
+
+        expect(loadImageMock).toHaveBeenCalledWith('https://cricclubs.com/documentsRep/a.jpg');
+        expect(loadImageMock).toHaveBeenCalledWith('https://cdn.example.com/b.jpg');
+        expect((DOM.battingTeamLogo as HTMLImageElement).src).toBe('https://cricclubs.com/documentsRep/a.jpg');
+        expect((DOM.bowlingTeamLogo as HTMLImageElement).src).toBe('https://cdn.example.com/b.jpg');
+    });
+
+    it('does not re-fetch when the URLs are unchanged between polls', async () => {
+        await updateTeamLogos(data('/c.jpg', '/d.jpg'));
+        await updateTeamLogos(data('/c.jpg', '/d.jpg'));
+        await updateTeamLogos(data('/c.jpg', '/d.jpg'));
+
+        expect(loadImageMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('retries a failed URL only once, not on every poll', async () => {
+        await updateTeamLogos(data('/bad-1.jpg', '/e.jpg'));
+        await updateTeamLogos(data('/bad-1.jpg', '/e.jpg'));
+
+        const badCalls = loadImageMock.mock.calls.filter(([url]) => url.includes('bad-1'));
+        expect(badCalls).toHaveLength(1);
+    });
+
+    it('re-fetches once a failed URL changes to a new one', async () => {
+        await updateTeamLogos(data('/bad-2.jpg', '/f.jpg'));
+        await updateTeamLogos(data('/g.jpg', '/f.jpg'));
+
+        expect(loadImageMock).toHaveBeenCalledWith('https://cricclubs.com/g.jpg');
+        expect((DOM.battingTeamLogo as HTMLImageElement).src).toBe('https://cricclubs.com/g.jpg');
+    });
+
+    it('does not attempt to load an empty logo URL', async () => {
+        await updateTeamLogos(data(undefined, '/h.jpg'));
+        await updateTeamLogos(data(undefined, '/h.jpg'));
+
+        const emptyCalls = loadImageMock.mock.calls.filter(([url]) => url === '');
+        expect(emptyCalls).toHaveLength(0);
+        expect(DOM.battingTeamLogo.hasAttribute('src')).toBe(false);
     });
 });

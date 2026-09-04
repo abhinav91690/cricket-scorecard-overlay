@@ -6,8 +6,8 @@ The Cricket Scorecard Overlay is a lightweight, client-side web application desi
 
 ```text
 cricket-scorecard-overlay/
-├── assets/images/       # Static sponsor logos
 ├── src/
+│   ├── assets/images/  # Sponsor logos, imported by config.ts so Vite bundles them
 │   ├── script.ts       # Entry point: polling loop, mode/debug/replay branching, form wiring
 │   ├── config.ts       # CONFIG constant (refresh rate, default club ID, logo map)
 │   ├── types.ts        # CricketAPIData/CricketAPIValues interfaces modeling the CricClubs response
@@ -32,7 +32,7 @@ cricket-scorecard-overlay/
 ## Core Components
 
 ### 1. Data Polling Engine
-Located in `src/script.ts`, `updateScore()` runs once on load and then on a `setInterval` loop.
+Located in `src/script.ts`, `updateScore()` runs once on load and then is re-scheduled with `setTimeout` *after* each run completes (`pollLoop()`), so a slow response can never overlap the next poll. On a failed fetch it keeps the last good frame on screen once at least one has rendered; before that it shows "Error" so a wrong `matchId` is visible during setup.
 - **Refresh Rate**: `CONFIG.REFRESH_RATE`, default 5000ms.
 - **Fetch Logic**: `fetchScoreData()` (`src/api.ts`) calls the CricClubs `liveScoreOverlayData.do` endpoint and parses the JSON response. This endpoint is public/CORS-open, so it works directly from any origin without credentials.
 - **Mode branching**: `updateScore()` decides between showing the home screen (no `matchId`/`debug`/`mode=replay`), mock data (`?debug=1-5`, from `mockData.ts`), replay data (`?mode=replay`, cycling through `replayData.ts`), or a live fetch.

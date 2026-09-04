@@ -15,6 +15,8 @@ import { linkLiveStream } from './liveStream';
 import { showToast } from './toast';
 
 let replayIndex = 0;
+/** True once the overlay has painted at least one successful frame of live/mock data. */
+let hasRenderedScore = false;
 
 /**
  * Wires up the "Link Live Stream" form shown on the instructions screen.
@@ -122,15 +124,32 @@ async function updateScore() {
 
         await updateTeamLogos(data);
         updateScoreboard(data);
+        hasRenderedScore = true;
 
     } catch (error) {
         console.error('Error fetching score data:', error);
-        DOM.teamName.textContent = 'Error';
+        // Once we've shown real data, keep the last good frame on screen: a single
+        // dropped poll mid-broadcast should not flash "Error" at viewers. Before the
+        // first successful render there's nothing to keep, so surface the problem
+        // (most likely a wrong matchId/clubId) to whoever is setting up the source.
+        if (!hasRenderedScore) {
+            DOM.teamName.textContent = 'Error';
+        }
     }
 }
 
-// Initial call
+/**
+ * Polls with a fixed gap *after* each update finishes, so a slow response can't
+ * overlap with the next poll and paint stale data over fresher data.
+ */
+async function pollLoop() {
+    try {
+        await updateScore();
+    } catch (error) {
+        console.error('Unexpected error in update loop:', error);
+    }
+    setTimeout(pollLoop, CONFIG.REFRESH_RATE);
+}
+
 setupLinkStreamForm();
-updateScore();
-// Update loop
-setInterval(updateScore, CONFIG.REFRESH_RATE);
+pollLoop();
