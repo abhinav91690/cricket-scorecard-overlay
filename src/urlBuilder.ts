@@ -1,5 +1,5 @@
 import { CONFIG } from './config';
-import { AVAILABLE_THEMES, DEFAULT_THEME, isThemeName, ThemeName } from './theme';
+import { AVAILABLE_THEMES, DEFAULT_THEME, resolveTheme, ThemeName } from './theme';
 import { showToast } from './toast';
 
 export interface OverlayLinkParams {
@@ -16,13 +16,15 @@ export function buildOverlayUrl({ matchId, clubId, theme }: OverlayLinkParams, b
     const params = new URLSearchParams();
     params.set('matchId', matchId.trim());
     if (clubId.trim() && clubId.trim() !== CONFIG.DEFAULT_CLUB_ID) params.set('clubId', clubId.trim());
-    if (isThemeName(theme) && theme !== DEFAULT_THEME) params.set('theme', theme);
+    const resolved = resolveTheme(theme);
+    if (resolved !== DEFAULT_THEME) params.set('theme', resolved);
     return `${base.origin}${base.pathname}?${params.toString()}`;
 }
 
-/** Human label for the theme <select>: franchise codes upper-cased, the three core names as-is. */
+/** Human label for the theme <select>: franchise codes upper-cased, core names title-cased. */
 export function themeLabel(theme: ThemeName): string {
-    return theme.length <= 4 ? theme.toUpperCase() : theme.charAt(0).toUpperCase() + theme.slice(1);
+    if (theme.length <= 4) return theme.toUpperCase();
+    return theme.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
 /**

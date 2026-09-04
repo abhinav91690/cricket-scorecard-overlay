@@ -12,13 +12,17 @@ const base = { origin: 'https://score.abhinav.dev', pathname: '/' };
 
 describe('buildOverlayUrl', () => {
     it('includes only what differs from the defaults', () => {
-        expect(buildOverlayUrl({ matchId: '2079', clubId: CONFIG.DEFAULT_CLUB_ID, theme: 'modern' }, base))
+        expect(buildOverlayUrl({ matchId: '2079', clubId: CONFIG.DEFAULT_CLUB_ID, theme: 'modern-light' }, base))
             .toBe('https://score.abhinav.dev/?matchId=2079');
     });
 
     it('adds club and theme when they are non-default', () => {
         expect(buildOverlayUrl({ matchId: ' 2079 ', clubId: ' 42 ', theme: 'kkr' }, base))
             .toBe('https://score.abhinav.dev/?matchId=2079&clubId=42&theme=kkr');
+    });
+
+    it('treats the legacy "modern" name as the default and omits it', () => {
+        expect(buildOverlayUrl({ matchId: '1', clubId: '', theme: 'modern' }, base)).toBe('https://score.abhinav.dev/?matchId=1');
     });
 
     it('ignores unknown themes and keeps the path', () => {
@@ -31,7 +35,8 @@ describe('themeLabel', () => {
     it('upper-cases short franchise codes and capitalises the core themes', () => {
         expect(themeLabel('kkr')).toBe('KKR');
         expect(themeLabel('pbks')).toBe('PBKS');
-        expect(themeLabel('modern')).toBe('Modern');
+        expect(themeLabel('modern-light')).toBe('Modern Light');
+        expect(themeLabel('neon')).toBe('NEON');
     });
 });
 
@@ -57,7 +62,7 @@ describe('setupUrlBuilder', () => {
     it('lists every theme with modern selected and prefills the club id', () => {
         const options = Array.from(el<HTMLSelectElement>('build-theme').options);
         expect(options.map(o => o.value)).toEqual([...AVAILABLE_THEMES]);
-        expect(el<HTMLSelectElement>('build-theme').value).toBe('modern');
+        expect(el<HTMLSelectElement>('build-theme').value).toBe('modern-light');
         expect(el<HTMLInputElement>('build-club-id').value).toBe(CONFIG.DEFAULT_CLUB_ID);
     });
 

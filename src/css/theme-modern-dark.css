@@ -1,5 +1,5 @@
-/* MODERN (default): neutral dark slab with a blue score block. Layout lives in overlay-base.css. */
-.theme-modern {
+/* MODERN DARK: neutral dark bar with a blue score tab. Layout lives in overlay-base.css. */
+.theme-modern-dark {
     --radius: 12px;
 
     /* Brand */

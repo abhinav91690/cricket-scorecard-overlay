@@ -44,7 +44,7 @@ Control the behavior and look of the overlay using URL parameters:
 | :--- | :--- | :--- | :--- |
 | `matchId` | **Yes** | The unique Match ID from CricClubs. | `?matchId=1939` |
 | `clubId` | No | The Club ID (Default: `1089463`, LPCL). | `?clubId=12345` |
-| `theme` | No | One of the themes listed below (default: `modern`). | `?theme=kkr` |
+| `theme` | No | One of the themes listed below (default: `modern-light`; `modern` still works as an alias). | `?theme=kkr` |
 | `debug` | No | Use mock data (1-5) instead of live API. | `?debug=1` |
 | `mode` | No | Special modes like `replay`. | `?mode=replay` |
 | `logo` | No | Displays specific sponsor logos. | `?logo=1` |
@@ -59,7 +59,7 @@ Test layouts without a live match:
 
 ### Available Themes
 Every theme shares the same layout (`src/css/overlay-base.css`); a theme is a palette of colour tokens.
-- **Core**: `classic` (light), `modern` (dark, default), `neon` (dark, cyan)
+- **Core**: `classic` (cream/navy), `modern-light` (default), `modern-dark`, `neon`
 - **IPL Franchises**: `kkr`, `rcb`, `mi`, `csk`, `dc`, `rr`, `srh`, `pbks`, `gt`, `lsg`
 - **Topguns**: `tel`, `ted`, `tul`, `tud`
 

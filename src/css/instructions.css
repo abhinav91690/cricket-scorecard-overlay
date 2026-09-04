@@ -287,7 +287,8 @@ code {
 .theme-tag:focus-visible { filter: brightness(1.1); transform: translateY(-1px); }
 
 .tag-classic { background: #14213d; color: #ffffff; }
-.tag-modern  { background: #2563eb; color: #ffffff; }
+.tag-modern-light { background: #fafbfd; color: #1d4ed8; border-color: #2563eb; }
+.tag-modern-dark  { background: #0f1218; color: #93c5fd; border-color: #2563eb; }
 .tag-neon    { background: #06080f; color: #67e8f9; border-color: rgba(34, 211, 238, 0.4); }
 .tag-kkr     { background: #2d1566; color: #d4a843; }
 .tag-rcb     { background: #cc0000; color: #ffffff; }

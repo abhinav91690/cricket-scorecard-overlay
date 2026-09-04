@@ -15,11 +15,16 @@ describe('applyTheme', () => {
         expect(document.body.className).toBe('theme-kkr');
     });
 
-    it('falls back to modern for unknown or missing names', () => {
+    it('falls back to modern-light for unknown or missing names', () => {
         applyTheme('not-a-theme');
-        expect(document.body.className).toBe('theme-modern');
+        expect(document.body.className).toBe('theme-modern-light');
         applyTheme(null);
-        expect(document.body.className).toBe('theme-modern');
+        expect(document.body.className).toBe('theme-modern-light');
+    });
+
+    it('keeps the old "modern" name working as an alias', () => {
+        applyTheme('modern');
+        expect(document.body.className).toBe('theme-modern-light');
     });
 
     it('removes the previous theme when switching', () => {
@@ -30,7 +35,7 @@ describe('applyTheme', () => {
 
     it('exposes every theme listed on the instructions screen', () => {
         expect(AVAILABLE_THEMES).toEqual([
-            'classic', 'modern', 'neon',
+            'classic', 'modern-light', 'modern-dark', 'neon',
             'kkr', 'rcb', 'mi', 'csk', 'dc', 'rr', 'srh', 'pbks', 'gt', 'lsg',
             'tel', 'ted', 'tul', 'tud',
         ]);
