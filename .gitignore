@@ -126,3 +126,7 @@ dist/
 
 # MacOS
 .DS_Store
+
+# Cloudflare Worker
+.wrangler/
+worker/.dev.vars

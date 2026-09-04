@@ -11,11 +11,21 @@ export interface LinkLiveStreamOptions {
 
 const DEFAULT_POPUP_CLOSE_DELAY_MS = 2000;
 
+export type LinkLiveStreamErrorCode = 'invalid_url' | 'popup_blocked';
+
+/** Thrown by linkLiveStream() so callers can tell the two user-facing failures apart. */
+export class LinkLiveStreamError extends Error {
+    constructor(public readonly code: LinkLiveStreamErrorCode, message: string) {
+        super(message);
+        this.name = 'LinkLiveStreamError';
+    }
+}
+
 function delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function extractYouTubeVideoId(url: string): string | null {
+export function extractYouTubeVideoId(url: string): string | null {
     const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{6,})/);
     return match ? match[1] : null;
 }
@@ -42,7 +52,7 @@ export async function linkLiveStream(
 ): Promise<void> {
     const videoId = extractYouTubeVideoId(liveStreamURL);
     if (!videoId) {
-        throw new Error('Could not find a YouTube video ID in that URL.');
+        throw new LinkLiveStreamError('invalid_url', 'Could not find a YouTube video ID in that URL.');
     }
 
     const updateParams = new URLSearchParams({ clubId, matchId, liveStreamURL });
@@ -50,7 +60,7 @@ export async function linkLiveStream(
 
     const popup = window.open(updateUrl, 'linkLiveStreamPopup', 'width=480,height=360');
     if (!popup) {
-        throw new Error('Your browser blocked the request popup. Please allow popups for this site and try again.');
+        throw new LinkLiveStreamError('popup_blocked', 'Your browser blocked the request popup. Please allow popups for this site and try again.');
     }
 
     await delay(popupCloseDelayMs);

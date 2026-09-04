@@ -6,9 +6,17 @@ The Cricket Scorecard Overlay is a lightweight, client-side web application desi
 
 ```text
 cricket-scorecard-overlay/
+├── worker/             # Cloudflare Worker: /api/collect (D1 insert) and /stats (private report)
+│   ├── src/index.ts    # Router + request handling
+│   ├── src/collect.ts  # Event validation / normalisation (pure, tested)
+│   ├── src/stats.ts    # Aggregate queries + server-rendered stats page
+│   ├── src/access.ts   # Cloudflare Access JWT verification for /stats
+│   ├── migrations/     # D1 schema
+│   └── wrangler.toml   # Routes, D1 binding, Access vars
 ├── src/
 │   ├── assets/images/  # Sponsor logos, imported by config.ts so Vite bundles them
 │   ├── script.ts       # Entry point: polling loop, mode/debug/replay branching, form wiring
+│   ├── analytics.ts    # track()/trackOnce(), client detection, opt-out rules
 │   ├── config.ts       # CONFIG constant (refresh rate, default club ID, logo map)
 │   ├── types.ts        # CricketAPIData/CricketAPIValues interfaces modeling the CricClubs response
 │   ├── dom.ts          # DOM element lookup map
@@ -57,6 +65,12 @@ When no `matchId`/`debug`/`mode=replay` is present, `updateScore()` shows `#inst
 
 `linkLiveStream()` (`src/liveStream.ts`) attaches a YouTube URL to a CricClubs match via `updateLiveStreamURLFromCP.do`. That endpoint blocks cross-origin subresource requests outright — `fetch` (including `mode: 'no-cors'`) and `<img>`/`<iframe>` embeds all get rejected by a `Cross-Origin-Resource-Policy` check plus WAF heuristics that flag embedded/automated-looking requests. A genuine top-level navigation isn't a subresource load, so it isn't subject to either check. The workaround: open the URL in a small popup synchronously from the click handler (required for the browser to allow it), then close the popup shortly after. This only confirms the request was *sent*; CricClubs' own feed can take up to a minute to reflect the change, so there's no fast, reliable way to verify it client-side, and the toast/copy is worded accordingly ("submitted", not "linked").
 
+### 5. Usage Analytics
+- **Client** (`src/analytics.ts`): `track()` POSTs a small JSON event to `CONFIG.ANALYTICS_ENDPOINT` (`/api/collect`, same origin) with `keepalive`, swallowing every error. `trackOnce()` guards the events fired from the 5-second poll loop so each is sent once per page load. `isTrackingEnabled()` returns false on localhost, in `?debug=`/`?mode=replay`, with `?nostats`, or when Do Not Track is on. `detectClient()` identifies OBS via the injected `window.obsstudio` object or the `OBS/<version>` user-agent token, and vMix / Streamlabs / Prism via user agent.
+- **Events**: `overlay_start` (club, match, theme, logo), `home_view`, `link_stream_submit` (club, match, YouTube video ID, outcome from `LinkLiveStreamError.code`). There is deliberately no heartbeat; session length is not tracked.
+- **Worker** (`worker/`): Cloudflare proxies `score.abhinav.dev` in front of Netlify, and Worker routes claim only `/api/collect` and `/stats*`. `normalizeEvent()` allow-lists event names, clients and outcomes, requires numeric IDs and caps string lengths before a single `INSERT` into the D1 `events` table. Cloudflare's request metadata supplies country/city/colo; a salted `sha256(ip|ua|day)` gives a per-day visitor count without identifying anyone.
+- **Stats page**: `/stats?days=30` runs the aggregate queries in `stats.ts` as one D1 batch and renders HTML. It is protected by Cloudflare Access (JWT verified in `access.ts` against the team JWKS) or, until Access is configured, by a `STATS_KEY` secret passed as `?key=`.
+
 ## Data Flow
 
 ```mermaid
@@ -73,6 +87,12 @@ graph TD
 
     J[Link Live Stream form] -->|popup navigation| K[CricClubs updateLiveStreamURLFromCP.do]
     J -->|success/error| L[toast.ts]
+
+    B -->|overlay_start / home_view| M(analytics.ts)
+    J -->|link_stream_submit| M
+    M -->|POST /api/collect| N[Cloudflare Worker]
+    N --> O[(D1 events)]
+    O -->|/stats, behind Access| P[Stats page]
 ```
 
 ## Testing & Debugging Modes
@@ -85,3 +105,5 @@ graph TD
 ## External Dependencies
 - **`@fontsource/montserrat`**: Self-hosted Montserrat font, bundled at build time (no external font requests at runtime).
 - **CricClubs**: `liveScoreOverlayData.do` (public, CORS-open, read) for score polling; `updateLiveStreamURLFromCP.do` (write, cross-origin-restricted) for the Link Live Stream feature.
+- **Netlify**: builds `main` and hosts the static site as `score.abhinav.dev`.
+- **Cloudflare**: DNS/proxy for the domain; Workers + D1 for the analytics collector and stats page; Access to gate `/stats`.

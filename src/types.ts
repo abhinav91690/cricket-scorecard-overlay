@@ -434,4 +434,6 @@ export interface Config {
     DEFAULT_CLUB_ID: string;
     /** Map of team names/codes to logo URLs */
     LOGO_MAP: { [key: string]: string };
+    /** Same-origin endpoint of the analytics Worker (see worker/) */
+    ANALYTICS_ENDPOINT: string;
 }

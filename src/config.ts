@@ -11,5 +11,6 @@ export const CONFIG: Config = {
     LOGO_MAP: {
         '1': pulteHomesLogo,
         '2': perryHomesLogo,
-    }
+    },
+    ANALYTICS_ENDPOINT: '/api/collect',
 };

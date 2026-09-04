@@ -1,0 +1,28 @@
+# Cloudflare Worker: first-party usage analytics for score.abhinav.dev.
+# Deploy from this directory with `npm run deploy` (needs `npx wrangler login` once).
+name = "overlay-analytics"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+
+# The zone is proxied by Cloudflare with Netlify as origin; only these paths hit the Worker.
+routes = [
+  { pattern = "score.abhinav.dev/api/collect", zone_name = "abhinav.dev" },
+  { pattern = "score.abhinav.dev/stats", zone_name = "abhinav.dev" },
+  { pattern = "score.abhinav.dev/stats/*", zone_name = "abhinav.dev" },
+]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "overlay-analytics"
+database_id = "REPLACE_WITH_ID_FROM_wrangler_d1_create"
+migrations_dir = "migrations"
+
+[vars]
+# Cloudflare Access protection for /stats. Fill both in once the Access application exists
+# (Zero Trust > Access > Applications > Self-hosted, path score.abhinav.dev/stats*).
+ACCESS_TEAM_DOMAIN = ""   # e.g. "abhinav.cloudflareaccess.com"
+ACCESS_AUD = ""           # the application's Audience (AUD) tag
+
+# Secrets, set with `npx wrangler secret put <NAME>`:
+#   STATS_KEY     fallback: /stats?key=<STATS_KEY> works until Access is configured
+#   VISITOR_SALT  salt for the anonymous per-day visitor hash

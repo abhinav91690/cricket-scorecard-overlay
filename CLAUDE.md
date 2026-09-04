@@ -19,16 +19,25 @@ npm run build          # tsc && test:run && vite build -> dist/ (dist is gitigno
 npm run preview        # serve the production build
 ```
 
-There is no linter. `npm run build` fails on type errors *and* test failures, so run it before opening a PR.
+```bash
+cd worker                # Cloudflare Worker: analytics collector + /stats page
+npm run dev              # local Worker with a local D1 (needs worker/.dev.vars with STATS_KEY for /stats)
+npm run test:run         # Worker unit tests
+npm run typecheck
+npm run db:migrate       # apply D1 migrations remotely (wrangler login first)
+npm run deploy
+```
 
-Deployment is automatic: pushing to `main` triggers `.github/workflows/deploy.yml`, which builds and publishes `dist/` to GitHub Pages. `vite.config.ts` sets `base: './'` so the built assets resolve under the Pages subpath; don't change it.
+There is no linter. `npm run build` fails on type errors *and* test failures, so run it before opening a PR. CI (`.github/workflows/ci.yml`) runs the site build and the Worker typecheck/tests on every PR.
+
+Deployment: Netlify builds `main` and serves it as `score.abhinav.dev`, proxied by Cloudflare. There is nothing to deploy for the site beyond merging. The Worker deploys via `.github/workflows/deploy-worker.yml` on pushes to `main` touching `worker/**` (skipped until a `CLOUDFLARE_API_TOKEN` secret exists) or manually with `npm run deploy` in `worker/`. `vite.config.ts` sets `base: './'`; don't change it.
 
 ## Architecture
 
 Entry is `src/script.ts`, loaded directly from `index.html` as a module. It:
 1. Imports the Montserrat font CSS and `css/instructions.css` (theme CSS is imported by `theme.ts`).
 2. Wires the Link Live Stream form once (`setupLinkStreamForm`).
-3. Runs `updateScore()` immediately and then on `setInterval(CONFIG.REFRESH_RATE)`.
+3. Runs `pollLoop()`, which awaits `updateScore()` and then re-arms a `setTimeout(CONFIG.REFRESH_RATE)`. It is a timeout chain, not `setInterval`, so a slow CricClubs response can't overlap the next poll. A failed fetch keeps the last rendered frame once one has painted, and shows "Error" only before the first successful render.
 
 `updateScore()` is the mode switch. In order: no `matchId`/`debug`/`mode=replay` → show `#instructions` and hide `.overlay`; `mode=replay` → cycle `replayData.ts`; `debug=1..5` → static state from `mockData.ts`; otherwise fetch live. Mock/replay data is cast `as unknown as CricketAPIData` because those fixtures don't fill every field of the (large) type in `types.ts`.
 
@@ -43,9 +52,9 @@ Rendering is in `src/ui.ts`. `updateScoreboard()` picks team 1 vs team 2 fields 
 
 ### Theming
 
-A theme is a `theme-<name>` class on `<body>`; all styling lives under that selector in one `src/css/theme-<name>.css` file that defines CSS custom properties (brand colors, ball colors, shadows) and then every component rule. Themes are fully independent stylesheets, not overrides of a base; copy an existing one (the IPL ones share a layout) when adding a new one. `applyTheme()` falls back to `modern` for unknown names.
+`applyTheme()` puts a `theme-<name>` class on `<body>` and consults the `THEMES` map in `theme.ts`, which tags each theme `standalone` or `broadcast`. `classic`, `modern` and `neon` are standalone: each `theme-*.css` is a complete, independent stylesheet. The 14 broadcast themes (IPL franchises + `tel`/`ted`/`tul`/`tud`) share `src/css/broadcast-base.css`, scoped under the `skin-broadcast` class that `applyTheme()` also adds; their `theme-*.css` files are only colour tokens (surfaces, lines, glows, text, `--ball-*`) plus the odd explicit override (RCB, CSK). Change layout in the base, never in a broadcast theme file. Unknown names fall back to `modern`.
 
-Adding a theme touches five places: the CSS file, the `import` in `theme.ts`, the `AVAILABLE_THEMES` array in `theme.ts`, a `theme-tag tag-<name>` span in `index.html` plus its `.tag-<name>` color in `instructions.css`, and the theme lists in README.md/architecture.md.
+Adding a broadcast theme: copy any broadcast `theme-*.css` and change the tokens, `import` it in `theme.ts`, add it to `THEMES` as `'broadcast'`, add a `theme-tag tag-<name>` span in `index.html` plus its `.tag-<name>` colour in `instructions.css`, and update the theme lists in README.md/architecture.md.
 
 Ball indicator colors come from `getBallStyleClass()` in `utils.ts`, which maps outcome strings (`W`, `1wd`, `nb`, `4`, `.`) to classes (`wicket`, `wide`, `run-4`, `dot`, …) that each theme styles.
 
@@ -53,9 +62,13 @@ Ball indicator colors come from `getBallStyleClass()` in `utils.ts`, which maps 
 
 Attaches a YouTube URL to a CricClubs match via `updateLiveStreamURLFromCP.do`. CricClubs blocks this endpoint as a cross-origin subresource (CORP + WAF), so `fetch` (even `no-cors`), `<img>`, and `<iframe>` all fail. The working approach is a real top-level navigation: `window.open` in a small popup, synchronously inside the submit handler, closed after ~2s. Do not "simplify" this back to `fetch`; commits `25ceb63` and `f7459e3` document the failed attempts. There is also no client-side way to verify the update landed (the feed lags by up to a minute), so success copy says "submitted", not "linked".
 
+### Analytics (`src/analytics.ts`, `worker/`)
+
+`track()` POSTs to the same-origin `/api/collect`, handled by the Cloudflare Worker in `worker/` and stored in D1. Use `trackOnce()` for anything called from the poll loop; there is deliberately no heartbeat and no per-poll event. `isTrackingEnabled()` disables everything on localhost, `?debug=`, `?mode=replay`, `?nostats`, and Do Not Track, so nothing you do locally is recorded. Adding a new event means adding it to `EVENTS` in `worker/src/collect.ts` (the Worker rejects unknown names) and, if it needs new columns, a new file in `worker/migrations/`. The Worker's `wrangler.toml` routes claim only `/api/collect` and `/stats*`; everything else on the domain passes through to Netlify.
+
 ## Notes
 
-- `CONFIG` (`src/config.ts`) holds the refresh rate, the default club ID (LPCL, `1089463`), and the `?logo=` → sponsor image map pointing at `assets/images/`.
+- `CONFIG` (`src/config.ts`) holds the refresh rate, the default club ID (LPCL, `1089463`), the `?logo=` → sponsor image map (images imported from `src/assets/images/` so Vite bundles them), and the analytics endpoint.
 - Team logo URLs from the API may be relative; `updateTeamLogos()` prefixes `https://cricclubs.com` and caches by URL so polling doesn't refetch images.
 - `feature-ideas.md` lists unused API fields (run rates, partnership, last wicket, MOM, etc.) that are already typed in `types.ts` if you're asked to add overlay features.
 - Branch naming in history is `feature/…`, `fix/…`, `docs/…`; commit subjects use conventional prefixes (`feat:`, `fix:`, `docs:`, `ci:`, `test:`).
