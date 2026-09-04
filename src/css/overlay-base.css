@@ -41,8 +41,8 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: flex-end;
-    gap: 12px;
-    padding-block-end: 30px;
+    gap: 26px;
+    padding-block-end: 16px;
     overflow: hidden;
     font-family: 'Montserrat', system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
@@ -146,6 +146,18 @@ body {
     text-overflow: ellipsis;
 }
 
+/* Bowler: a ball icon after the name */
+.bowler-name::after {
+    content: '';
+    flex: none;
+    inline-size: 15px;
+    block-size: 15px;
+    margin-inline-start: 9px;
+    background: var(--brand-accent);
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20zM9.2 4.4c3.2 4.3 3.2 10.9 0 15.2.9 0 3.4-4.5 3.4-7.6s-2.5-7.6-3.4-7.6z'/%3E%3C/svg%3E") center / contain no-repeat;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20zM9.2 4.4c3.2 4.3 3.2 10.9 0 15.2.9 0 3.4-4.5 3.4-7.6s-2.5-7.6-3.4-7.6z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
 /* Batsman 1 is always on strike in the CricClubs feed: a bat icon after the name */
 .batsman-row.on-strike .batsman-name::after {
     content: '';
@@ -243,6 +255,83 @@ body {
     border-inline-start: 1px solid currentColor;
     opacity: 0.8;
 }
+
+/* ---- Score block variants (review) ---- */
+
+/* inset: the previous idea, a rounded block sitting inside the bar */
+body[data-score-style="inset"] .scorecard-pill {
+    align-self: stretch;
+    block-size: auto;
+    margin-block: 10px;
+    margin-inline: 6px;
+    border-radius: calc(var(--radius) + 2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* rails: flush with the bar, brand colour only as top and bottom rails */
+body[data-score-style="rails"] .scorecard-pill {
+    align-self: stretch;
+    block-size: auto;
+    background: transparent;
+    color: var(--fg);
+    border: 0;
+    border-block: 4px solid var(--brand-accent);
+    border-inline: 1px solid var(--divider);
+    border-radius: 0;
+    box-shadow: none;
+}
+body[data-score-style="rails"] .team-name { color: var(--fg-accent); }
+
+/* folder: team name on a tab above the bar, score inside the bar */
+body[data-score-style="folder"] #firstInnings { margin-block-start: 34px; }
+body[data-score-style="folder"] .scorecard-pill {
+    position: relative;
+    align-self: stretch;
+    block-size: auto;
+    gap: 0;
+    background: transparent;
+    color: var(--fg);
+    border: 0;
+    border-inline: 1px solid var(--divider);
+    border-radius: 0;
+    box-shadow: none;
+}
+body[data-score-style="folder"] .team-name {
+    position: absolute;
+    inset-block-end: 100%;
+    inset-inline-start: 50%;
+    transform: translateX(-50%);
+    padding: 9px 22px 8px;
+    background: var(--surface-pill);
+    color: var(--fg-title);
+    border: 1px solid var(--border-frame);
+    border-block-end: 0;
+    border-radius: var(--radius) var(--radius) 0 0;
+    font-size: 18px;
+}
+body[data-score-style="folder"] .score { font-size: 44px; }
+
+/* left: score block anchored at the batting end, ICC-style */
+body[data-score-style="left"] #firstInnings {
+    grid-template-columns: 96px auto minmax(320px, 1fr) minmax(340px, 1fr) 96px;
+    margin-block-start: 0;
+}
+body[data-score-style="left"] .batting-team-info { order: 1; }
+body[data-score-style="left"] .scorecard-pill {
+    order: 2;
+    align-self: stretch;
+    align-items: flex-start;
+    block-size: auto;
+    min-inline-size: 250px;
+    padding-inline: 24px;
+    border: 0;
+    border-inline-end: 1px solid var(--divider);
+    border-radius: 0;
+    box-shadow: none;
+}
+body[data-score-style="left"] .batsman-info { order: 3; }
+body[data-score-style="left"] .bowler-info { order: 4; border-inline-start: 1px solid var(--divider); }
+body[data-score-style="left"] .bowling-team-info { order: 5; }
 
 /* ---- This over ---- */
 
