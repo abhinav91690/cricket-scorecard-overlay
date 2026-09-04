@@ -1,5 +1,6 @@
 import { CONFIG } from './config';
 import { DOM } from './dom';
+import './css/broadcast-base.css';
 import './css/theme-classic.css';
 import './css/theme-modern.css';
 import './css/theme-neon.css';
@@ -18,18 +19,51 @@ import './css/theme-ted.css';
 import './css/theme-tul.css';
 import './css/theme-tud.css';
 
-const AVAILABLE_THEMES = ['classic', 'modern', 'neon', 'kkr', 'rcb', 'mi', 'csk', 'dc', 'rr', 'srh', 'pbks', 'gt', 'lsg', 'tel', 'ted', 'tul', 'tud'] as const;
+/**
+ * `standalone` themes ship a complete stylesheet of their own.
+ * `broadcast` themes are a block of colour tokens layered on `broadcast-base.css`,
+ * which is activated by the `skin-broadcast` class on <body>.
+ */
+const THEMES = {
+    classic: 'standalone',
+    modern: 'standalone',
+    neon: 'standalone',
+    kkr: 'broadcast',
+    rcb: 'broadcast',
+    mi: 'broadcast',
+    csk: 'broadcast',
+    dc: 'broadcast',
+    rr: 'broadcast',
+    srh: 'broadcast',
+    pbks: 'broadcast',
+    gt: 'broadcast',
+    lsg: 'broadcast',
+    tel: 'broadcast',
+    ted: 'broadcast',
+    tul: 'broadcast',
+    tud: 'broadcast',
+} as const satisfies Record<string, 'standalone' | 'broadcast'>;
+
+export type ThemeName = keyof typeof THEMES;
+
+export const AVAILABLE_THEMES = Object.keys(THEMES) as ThemeName[];
+const DEFAULT_THEME: ThemeName = 'modern';
+const BROADCAST_SKIN_CLASS = 'skin-broadcast';
+
+function isThemeName(theme: string | null): theme is ThemeName {
+    return theme !== null && Object.prototype.hasOwnProperty.call(THEMES, theme);
+}
 
 /**
- * Applies the selected CSS theme to the application.
- * @param theme - The theme name ('classic', 'modern', or 'neon').
+ * Applies the selected theme to <body>, falling back to the default for unknown names.
+ * @param theme - The theme name from the `?theme=` query parameter.
  */
 export function applyTheme(theme: string | null) {
-    document.body.classList.remove(...AVAILABLE_THEMES.map(t => `theme-${t}`));
-    if (theme && AVAILABLE_THEMES.includes(theme as any)) {
-        document.body.classList.add(`theme-${theme}`);
-    } else {
-        document.body.classList.add('theme-modern');
+    const name = isThemeName(theme) ? theme : DEFAULT_THEME;
+    document.body.classList.remove(BROADCAST_SKIN_CLASS, ...AVAILABLE_THEMES.map(t => `theme-${t}`));
+    document.body.classList.add(`theme-${name}`);
+    if (THEMES[name] === 'broadcast') {
+        document.body.classList.add(BROADCAST_SKIN_CLASS);
     }
 }
 

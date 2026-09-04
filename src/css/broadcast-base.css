@@ -1,0 +1,333 @@
+/* Shared skin for the broadcast-style themes (IPL franchises + Topguns).
+   Layout, typography and geometry live here; each theme-*.css only sets the
+   colour tokens below. Applied via the `skin-broadcast` class on <body>. */
+
+.skin-broadcast {
+    --ball-four: #00c853;
+    --ball-wicket: #ff1744;
+    --ball-wide: #ff9100;
+
+    margin: 0;
+    font-family: 'Montserrat', sans-serif;
+    overflow: hidden;
+}
+
+.skin-broadcast .overlay {
+    text-transform: uppercase;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: transparent;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding-bottom: 8px;
+    gap: 4px;
+}
+
+.skin-broadcast .overlay-image {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 120px;
+    height: auto;
+    z-index: 101;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, calc(var(--depth) + 0.1)));
+}
+
+.skin-broadcast .score-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 0;
+    background: var(--surface-frame);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 6px;
+    border: 1px solid var(--border-frame);
+    box-shadow: var(--shadow-frame);
+    color: var(--fg);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.skin-broadcast .team-logo {
+    height: 50px;
+    width: 50px;
+    object-fit: contain;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, var(--depth)));
+    aspect-ratio: 1 / 1;
+}
+
+.skin-broadcast .batting-team-info, .skin-broadcast .bowling-team-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 14px;
+    background: var(--surface-panel);
+    min-width: 70px;
+    min-height: 70px;
+    box-sizing: border-box;
+    border-radius: 0;
+}
+
+.skin-broadcast .batting-team-info {
+    border-right: 2px solid var(--divider);
+}
+
+.skin-broadcast .bowling-team-info {
+    border-left: 2px solid var(--divider);
+}
+
+.skin-broadcast .scorecard-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 28px;
+    background: var(--surface-pill);
+    border-left: 3px solid var(--brand-accent);
+    border-right: 3px solid var(--brand-accent);
+    border-top: none;
+    border-bottom: none;
+    color: var(--fg);
+    border-radius: 0;
+    min-width: 180px;
+    min-height: 70px;
+    box-shadow: inset 0 0 20px var(--glow-pill);
+    position: relative;
+    overflow: hidden;
+}
+
+.skin-broadcast .scorecard-pill::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--brand-accent), transparent);
+    pointer-events: none;
+}
+
+.skin-broadcast .team-name {
+    font-weight: 700;
+    font-size: 18px;
+    margin-bottom: 2px;
+    letter-spacing: 1.5px;
+    color: var(--fg-title);
+}
+
+.skin-broadcast .score-and-overs {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.skin-broadcast .score {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--fg);
+}
+
+.skin-broadcast .wickets {
+    font-size: 20px;
+    font-weight: 600;
+    opacity: 0.9;
+    color: var(--fg);
+}
+
+.skin-broadcast .overs {
+    font-size: 16px;
+    font-weight: 400;
+    opacity: 0.85;
+    background: transparent;
+    padding: 0;
+    border-left: 2px solid var(--divider-overs);
+    padding-left: 10px;
+    border-radius: 0;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    color: var(--fg-overs);
+}
+
+.skin-broadcast .batsman-info, .skin-broadcast .bowler-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 300px;
+    flex: 1;
+}
+
+.skin-broadcast .batsman-row, .skin-broadcast .bowler-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface-row);
+    padding: 6px 14px;
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid var(--divider-row);
+    gap: 15px;
+}
+
+.skin-broadcast .batsman-name, .skin-broadcast .bowler-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--fg);
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+}
+
+.skin-broadcast .batsman-runs-balls, .skin-broadcast .bowler-figures {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--fg-accent);
+    white-space: nowrap;
+}
+
+.skin-broadcast .bowler-overs-data {
+    border-left: 2px solid var(--divider);
+    padding-left: 8px;
+    font-weight: 700;
+    color: var(--fg-muted);
+}
+
+.skin-broadcast .ball-by-ball-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.skin-broadcast .ball-indicator {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: var(--ball-default);
+    color: var(--fg-ball-idle);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 700;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, var(--depth));
+    border: 1px solid var(--border-ball);
+    animation: broadcast-pop-in 0.25s ease-out;
+}
+
+@keyframes broadcast-pop-in {
+    from { transform: scale(0); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.skin-broadcast .ball-indicator.run-1, .skin-broadcast .ball-indicator.run-2, .skin-broadcast .ball-indicator.run-3, .skin-broadcast .ball-indicator.run-5 {
+    background-color: var(--ball-run);
+    color: #ffffff;
+}
+
+.skin-broadcast .ball-indicator.run-4 {
+    background-color: var(--ball-four);
+    color: #ffffff;
+    box-shadow: 0 0 8px rgba(0, 200, 83, 0.4);
+}
+
+.skin-broadcast .ball-indicator.run-6 {
+    background-color: var(--ball-six);
+    color: var(--fg-on-six);
+    box-shadow: 0 0 10px var(--glow-six);
+}
+
+.skin-broadcast .ball-indicator.wicket {
+    background-color: var(--ball-wicket);
+    color: #ffffff;
+    box-shadow: 0 0 8px rgba(255, 23, 68, 0.4);
+}
+
+.skin-broadcast .ball-indicator.wide {
+    background-color: var(--ball-wide);
+    color: var(--fg-on-bright);
+    font-size: 10px;
+}
+
+.skin-broadcast .ball-indicator.no-ball {
+    background-color: var(--ball-noball);
+    color: var(--fg-on-bright);
+    font-size: 10px;
+}
+
+.skin-broadcast .ball-indicator.leg-bye, .skin-broadcast .ball-indicator.bye {
+    background-color: var(--ball-extra);
+    color: #ffffff;
+    font-size: 10px;
+}
+
+.skin-broadcast .ball-indicator.dot {
+    background-color: var(--ball-default);
+    color: transparent;
+    position: relative;
+    font-size: 0;
+}
+
+.skin-broadcast .ball-indicator.dot::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    background-color: var(--fg-ball-idle);
+    border-radius: 50%;
+}
+
+.skin-broadcast #secondInnings {
+    background: var(--surface-innings);
+    color: var(--fg);
+    padding: 8px 24px;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    border: 1px solid var(--border-innings);
+    visibility: hidden;
+    opacity: 0;
+    transition: visibility 0.3s, opacity 0.3s ease;
+}
+
+.skin-broadcast #secondInnings.is-visible {
+    visibility: visible;
+    opacity: 1;
+}
+
+.skin-broadcast #result {
+    background: var(--surface-pill);
+    color: var(--fg-result);
+    padding: 12px 36px;
+    border-radius: 6px;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    border: 1px solid var(--border-result);
+    box-shadow: 0 0 20px var(--glow-result);
+}
+
+.skin-broadcast #secondInnings span {
+    margin: 0 4px;
+}
+
+.skin-broadcast .spacer {
+    margin-left: 18px;
+    padding-left: 18px;
+    border-left: 1px solid var(--divider);
+    color: var(--fg-accent);
+}

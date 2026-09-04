@@ -44,10 +44,11 @@ Located in `src/script.ts`, `updateScore()` runs once on load and then is re-sch
 - **Team Logos**: `updateTeamLogos()` caches loaded logo images and only re-fetches when the URL changes.
 
 ### 3. Theming System
-- **Dynamic CSS**: Themes are applied by toggling a `theme-<name>` class on `<body>` via `applyTheme()` (`src/theme.ts`).
-- **CSS Variables**: Each `src/css/theme-*.css` file defines colors/shadows/radii as CSS custom properties scoped to its theme class, so adding a theme means adding one CSS file plus one entry in the `AVAILABLE_THEMES` list.
-- **Available themes** (17 total): `classic`, `modern`, `neon` (defaults); `kkr`, `rcb`, `mi`, `csk`, `dc`, `rr`, `srh`, `pbks`, `gt`, `lsg` (IPL franchises); `tel`, `ted`, `tul`, `tud` (custom).
-- **Outcome Styling**: `getBallStyleClass()` (`src/utils.ts`) maps cricket outcomes (Wicket, Wide, 4, 6, etc.) to CSS classes for color-coded ball indicators.
+- **Selection**: `applyTheme()` (`src/theme.ts`) toggles a `theme-<name>` class on `<body>`. Its `THEMES` map also tags each theme as `standalone` or `broadcast`; broadcast themes additionally get a `skin-broadcast` class.
+- **Standalone themes** (`classic`, `modern`, `neon`): each `theme-*.css` is a complete, self-contained stylesheet with its own layout rules.
+- **Broadcast themes** (the 10 IPL franchises plus `tel`, `ted`, `tul`, `tud`): all layout, typography, geometry and animation live once in `src/css/broadcast-base.css`, scoped under `.skin-broadcast`. Each `theme-*.css` is only a block of colour tokens on `.theme-<name>` (surfaces, lines, glows, text, ball outcomes) plus, rarely, a one-off override (RCB drops the pill's accent borders and adds a text shadow; CSK uses white text on no-balls).
+- **Adding a broadcast theme**: copy any broadcast `theme-*.css`, change the token values, import it in `theme.ts`, add it to `THEMES` as `'broadcast'`, then add its tag to the theme grid in `index.html` / `instructions.css` and the lists in README.md.
+- **Outcome Styling**: `getBallStyleClass()` (`src/utils.ts`) maps cricket outcomes (Wicket, Wide, 4, 6, etc.) to CSS classes (`wicket`, `wide`, `run-4`, `dot`, …) that the stylesheets colour via the `--ball-*` tokens.
 
 ### 4. Home Screen & Link Live Stream
 When no `matchId`/`debug`/`mode=replay` is present, `updateScore()` shows `#instructions` instead of the overlay. That screen has two cards:
@@ -76,7 +77,7 @@ graph TD
 
 ## Testing & Debugging Modes
 
-- **Unit Tests**: Vitest + jsdom, covering `ui.ts` (scoreboard rendering, instructions visibility), `utils.ts` (query param parsing, ball styling), and `liveStream.ts` (popup navigation, error paths). Run via `npm run test` (watch) or `npm run test:run` (single run, used in `npm run build`).
+- **Unit Tests**: Vitest + jsdom, covering `ui.ts` (scoreboard rendering, logo caching, instructions visibility), `utils.ts` (query param parsing, ball styling), `theme.ts` (theme/skin classes, sponsor logo), and `liveStream.ts` (popup navigation, error paths). Run via `npm run test` (watch) or `npm run test:run` (single run, used in `npm run build`).
 - **Debug Mode**: `?debug=1-5` renders static states from `mockData.ts` (1st/2nd innings, match ended, toss, no team logos).
 - **Replay Mode**: `?mode=replay` cycles through the states in `replayData.ts` to demonstrate transitions and animations.
 - **Theme Previews**: `?theme=<name>` switches between any of the 17 themes.
