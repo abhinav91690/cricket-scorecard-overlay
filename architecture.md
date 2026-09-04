@@ -15,7 +15,8 @@ cricket-scorecard-overlay/
 │   └── wrangler.toml   # Routes, D1 binding, Access vars
 ├── src/
 │   ├── assets/images/  # Sponsor logos, imported by config.ts so Vite bundles them
-│   ├── script.ts       # Entry point: polling loop, mode/debug/replay branching, form wiring
+│   ├── script.ts       # Entry point: imports fonts/CSS, then calls into app.ts
+│   ├── app.ts          # pollLoop(), updateScore() mode switch, Link Live Stream form wiring
 │   ├── analytics.ts    # track()/trackOnce(), client detection, opt-out rules
 │   ├── config.ts       # CONFIG constant (refresh rate, default club ID, logo map)
 │   ├── types.ts        # CricketAPIData/CricketAPIValues interfaces modeling the CricClubs response
@@ -40,7 +41,7 @@ cricket-scorecard-overlay/
 ## Core Components
 
 ### 1. Data Polling Engine
-Located in `src/script.ts`, `updateScore()` runs once on load and then is re-scheduled with `setTimeout` *after* each run completes (`pollLoop()`), so a slow response can never overlap the next poll. On a failed fetch it keeps the last good frame on screen once at least one has rendered; before that it shows "Error" so a wrong `matchId` is visible during setup.
+Located in `src/app.ts` (started from `src/script.ts`), `updateScore()` runs once on load and then is re-scheduled with `setTimeout` *after* each run completes (`pollLoop()`), so a slow response can never overlap the next poll. On a failed fetch it keeps the last good frame on screen once at least one has rendered; before that it shows "Error" so a wrong `matchId` is visible during setup.
 - **Refresh Rate**: `CONFIG.REFRESH_RATE`, default 5000ms.
 - **Fetch Logic**: `fetchScoreData()` (`src/api.ts`) calls the CricClubs `liveScoreOverlayData.do` endpoint and parses the JSON response. This endpoint is public/CORS-open, so it works directly from any origin without credentials.
 - **Mode branching**: `updateScore()` decides between showing the home screen (no `matchId`/`debug`/`mode=replay`), mock data (`?debug=1-5`, from `mockData.ts`), replay data (`?mode=replay`, cycling through `replayData.ts`), or a live fetch.
@@ -61,7 +62,7 @@ Located in `src/script.ts`, `updateScore()` runs once on load and then is re-sch
 ### 4. Home Screen & Link Live Stream
 When no `matchId`/`debug`/`mode=replay` is present, `updateScore()` shows `#instructions` instead of the overlay. That screen has two cards:
 - Setup instructions (required/optional params, example URL, theme list).
-- The **Link Live Stream** form (Club ID, Match ID, YouTube URL), wired up once at startup by `setupLinkStreamForm()` in `src/script.ts`.
+- The **Link Live Stream** form (Club ID, Match ID, YouTube URL), wired up once at startup by `setupLinkStreamForm()` in `src/app.ts`.
 
 `linkLiveStream()` (`src/liveStream.ts`) attaches a YouTube URL to a CricClubs match via `updateLiveStreamURLFromCP.do`. That endpoint blocks cross-origin subresource requests outright — `fetch` (including `mode: 'no-cors'`) and `<img>`/`<iframe>` embeds all get rejected by a `Cross-Origin-Resource-Policy` check plus WAF heuristics that flag embedded/automated-looking requests. A genuine top-level navigation isn't a subresource load, so it isn't subject to either check. The workaround: open the URL in a small popup synchronously from the click handler (required for the browser to allow it), then close the popup shortly after. This only confirms the request was *sent*; CricClubs' own feed can take up to a minute to reflect the change, so there's no fast, reliable way to verify it client-side, and the toast/copy is worded accordingly ("submitted", not "linked").
 
@@ -97,7 +98,7 @@ graph TD
 
 ## Testing & Debugging Modes
 
-- **Unit Tests**: Vitest + jsdom, covering `ui.ts` (scoreboard rendering, logo caching, instructions visibility), `utils.ts` (query param parsing, ball styling), `theme.ts` (theme/skin classes, sponsor logo), and `liveStream.ts` (popup navigation, error paths). Run via `npm run test` (watch) or `npm run test:run` (single run, used in `npm run build`).
+- **Unit Tests**: Vitest + jsdom for the site (`app.ts` mode switch, error handling, poll loop and form; `ui.ts` scoreboard, ball-by-ball and logo caching; `utils.ts`; `theme.ts`; `liveStream.ts`; `analytics.ts`; `api.ts`; `toast.ts`) and Vitest + node for the Worker (`worker/vitest.config.ts`; request handling, stats rendering/escaping, Access JWT verification with a generated RSA key, event normalisation). Run via `npm run test` (watch), `npm run test:run` (single run, used in `npm run build`) or `npm run test:coverage` in either package. Line coverage is ~99% for both; `dom.ts` is excluded in spirit because every test mocks it.
 - **Debug Mode**: `?debug=1-5` renders static states from `mockData.ts` (1st/2nd innings, match ended, toss, no team logos).
 - **Replay Mode**: `?mode=replay` cycles through the states in `replayData.ts` to demonstrate transitions and animations.
 - **Theme Previews**: `?theme=<name>` switches between any of the 17 themes.

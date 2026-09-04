@@ -11,10 +11,12 @@
     "test:run": "vitest run",
     "typecheck": "tsc --noEmit",
     "db:migrate": "wrangler d1 migrations apply overlay-analytics --remote",
-    "db:migrate:local": "wrangler d1 migrations apply overlay-analytics --local"
+    "db:migrate:local": "wrangler d1 migrations apply overlay-analytics --local",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260904.1",
+    "@vitest/coverage-v8": "^4.0.16",
     "typescript": "^5.9.3",
     "vitest": "^4.0.16",
     "wrangler": "^4.129.0"
