@@ -22,10 +22,8 @@
     --fg-muted: #a0b8d0;
     --fg-on-bright: #0f1a30;
 
-    /* Ball outcomes */
-    --ball-default: #1c2c4a;
-    --ball-run: #3a8fd4;
-    --ball-six: #cfb53b;
-    --ball-extra: #e040fb;
-    --ball-noball: #ffd740;
+    /* Balls */
+    --ball-idle: rgba(255, 255, 255, 0.12);
+    --ball-neutral: #ffffff;
+    --ball-neutral-fg: #14171f;
 }

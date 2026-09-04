@@ -1,33 +1,32 @@
-/* CLASSIC: light slab with a navy score block. Layout lives in overlay-base.css. */
+/* CLASSIC: warm cream bar, navy score tab, gold accents, square-ish corners. Layout lives in overlay-base.css. */
 .theme-classic {
+    --radius: 3px;
+
     /* Brand */
-    --brand-accent: #d97706;
+    --brand-accent: #b8860b;
 
     /* Surfaces */
-    --surface-frame: rgba(255, 255, 255, 0.95);
-    --surface-pill: #14213d;
-    --surface-innings: rgba(255, 255, 255, 0.95);
-    --surface-panel: rgba(20, 33, 61, 0.05);
-    --surface-row: rgba(20, 33, 61, 0.03);
-    --logo-well: #ffffff;
+    --surface-frame: rgba(247, 242, 231, 0.96);
+    --surface-pill: #0b2545;
+    --surface-innings: rgba(247, 242, 231, 0.96);
+    --surface-panel: rgba(11, 37, 69, 0.06);
+    --surface-row: rgba(11, 37, 69, 0.03);
 
     /* Lines */
-    --border-frame: rgba(20, 33, 61, 0.15);
-    --divider: rgba(20, 33, 61, 0.14);
-    --divider-row: rgba(20, 33, 61, 0.08);
+    --border-frame: rgba(11, 37, 69, 0.22);
+    --divider: rgba(11, 37, 69, 0.18);
+    --divider-row: rgba(11, 37, 69, 0.10);
 
     /* Text */
-    --fg: #14213d;
+    --fg: #0b2545;
     --fg-pill: #ffffff;
-    --fg-title: #fcd34d;
-    --fg-accent: #1d4ed8;
-    --fg-muted: #64748b;
-    --fg-on-bright: #14213d;
+    --fg-title: #e3b341;
+    --fg-accent: #8a5a00;
+    --fg-muted: #5c6b7a;
+    --fg-on-bright: #0b2545;
 
-    /* Ball outcomes */
-    --ball-default: rgba(20, 33, 61, 0.08);
-    --ball-run: #2563eb;
-    --ball-six: #f59e0b;
-    --ball-extra: #7c3aed;
-    --ball-noball: #eab308;
+    /* Balls */
+    --ball-idle: rgba(11, 37, 69, 0.10);
+    --ball-neutral: #0b2545;
+    --ball-neutral-fg: #ffffff;
 }

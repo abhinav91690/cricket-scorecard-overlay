@@ -1,5 +1,7 @@
 /* MODERN (default): neutral dark slab with a blue score block. Layout lives in overlay-base.css. */
 .theme-modern {
+    --radius: 12px;
+
     /* Brand */
     --brand-accent: #60a5fa;
 
@@ -22,10 +24,8 @@
     --fg-muted: #9aa3b5;
     --fg-on-bright: #0b1220;
 
-    /* Ball outcomes */
-    --ball-default: rgba(255, 255, 255, 0.10);
-    --ball-run: #3b82f6;
-    --ball-six: #f59e0b;
-    --ball-extra: #a855f7;
-    --ball-noball: #eab308;
+    /* Balls */
+    --ball-idle: rgba(255, 255, 255, 0.12);
+    --ball-neutral: #ffffff;
+    --ball-neutral-fg: #14171f;
 }
