@@ -2,49 +2,57 @@ import { DOM } from './dom';
 import { loadImage, getBallStyleClass } from './utils';
 import { CricketAPIData } from './types';
 
-const imageCache = {
-    team1Logo: { url: null as string | null, image: null as HTMLImageElement | null },
-    team2Logo: { url: null as string | null, image: null as HTMLImageElement | null },
+interface LogoSlot {
+    /** Last URL we attempted (successfully or not), so a bad URL is only tried once. */
+    attemptedUrl: string | null;
+}
+
+const logoSlots = {
+    team1: { attemptedUrl: null } as LogoSlot,
+    team2: { attemptedUrl: null } as LogoSlot,
 };
 
 let lastBallState = { balls: '', overs: '' };
 
+function getFullLogoUrl(path?: string): string {
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+        return path;
+    }
+    return `https://cricclubs.com${path}`;
+}
+
+/**
+ * Loads one team logo into its <img> if the URL changed since the last attempt.
+ * Failures (and empty URLs) are remembered so the same URL isn't retried on every poll.
+ */
+async function updateTeamLogo(slot: LogoSlot, url: string, target: HTMLImageElement, label: string) {
+    if (slot.attemptedUrl === url) return;
+    slot.attemptedUrl = url;
+
+    if (!url) {
+        target.removeAttribute('src');
+        return;
+    }
+
+    try {
+        const img = await loadImage(url);
+        target.src = img.src;
+    } catch (error) {
+        console.error(`Error loading ${label} logo:`, error);
+    }
+}
+
 /**
  * Updates the team logos in the DOM based on the API data.
- * Caches images to avoid unnecessary re-fetching.
+ * Only re-fetches when a logo URL changes; a URL that failed is not retried until it changes.
  * @param data - The full API data object containing logo URLs.
  */
 export async function updateTeamLogos(data: CricketAPIData) {
-    const getFullUrl = (path?: string) => {
-        if (!path) return '';
-        if (path.startsWith('http://') || path.startsWith('https://')) {
-            return path;
-        }
-        return `https://cricclubs.com${path}`;
-    };
-
-    const team1LogoUrl = getFullUrl(data.values.firstLogo);
-    const team2LogoUrl = getFullUrl(data.values.secondLogo);
-
-    if (imageCache.team1Logo.url !== team1LogoUrl || !imageCache.team1Logo.image) {
-        try {
-            const img = await loadImage(team1LogoUrl);
-            imageCache.team1Logo = { url: team1LogoUrl, image: img };
-            DOM.battingTeamLogo.src = img.src;
-        } catch (error) {
-            console.error('Error loading first logo:', error);
-        }
-    }
-
-    if (imageCache.team2Logo.url !== team2LogoUrl || !imageCache.team2Logo.image) {
-        try {
-            const img = await loadImage(team2LogoUrl);
-            imageCache.team2Logo = { url: team2LogoUrl, image: img };
-            DOM.bowlingTeamLogo.src = img.src;
-        } catch (error) {
-            console.error('Error loading second logo:', error);
-        }
-    }
+    await Promise.all([
+        updateTeamLogo(logoSlots.team1, getFullLogoUrl(data.values.firstLogo), DOM.battingTeamLogo, 'first'),
+        updateTeamLogo(logoSlots.team2, getFullLogoUrl(data.values.secondLogo), DOM.bowlingTeamLogo, 'second'),
+    ]);
 }
 
 /**
