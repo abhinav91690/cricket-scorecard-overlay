@@ -30,7 +30,11 @@ npm run deploy
 
 There is no linter. `npm run build` fails on type errors *and* test failures, so run it before opening a PR. CI (`.github/workflows/ci.yml`) runs the site build and the Worker typecheck/tests on every PR.
 
-Deployment: Netlify builds `main` and serves it as `score.abhinav.dev`, proxied by Cloudflare. There is nothing to deploy for the site beyond merging. The Worker deploys via `.github/workflows/deploy-worker.yml` on pushes to `main` touching `worker/**` (skipped until a `CLOUDFLARE_API_TOKEN` secret exists) or manually with `npm run deploy` in `worker/`. `vite.config.ts` sets `base: './'`; don't change it.
+Deployment: Netlify builds `main` and serves it as `score.abhinav.dev`, proxied by Cloudflare. There is nothing to deploy for the site beyond merging. `vite.config.ts` sets `base: './'`; don't change it.
+
+The analytics Worker is deployed **manually**, on purpose: after changing anything under `worker/`, run `npm run deploy` there (and `npm run db:migrate` first if you added a migration). `.github/workflows/deploy-worker.yml` exists but skips itself until a `CLOUDFLARE_API_TOKEN` repo secret is added; that is deliberate until the data proves useful, so don't add the secret without asking. The D1 database id in `wrangler.toml` is the real one. Wrangler needs a logged-in session (`npx wrangler login`); on the dev machine Node also needs the corporate root CA, which `~/.zshrc` provides via `NODE_EXTRA_CA_CERTS` (if wrangler fails with `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`, that variable isn't set in the current shell).
+
+The stats page is `https://score.abhinav.dev/stats?key=<STATS_KEY>`. The key is a Worker secret, not in the repo, and Cloudflare cannot read it back. The local copy lives at `~/.config/cricket-scorecard-overlay/stats_key` (mode 600). Rotating it means `npx wrangler secret put STATS_KEY` in `worker/` and updating that file. Never paste the key into the repo or docs; the repository is public.
 
 ## Architecture
 
