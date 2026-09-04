@@ -5,16 +5,16 @@ main = "src/index.ts"
 compatibility_date = "2025-09-01"
 
 # The zone is proxied by Cloudflare with Netlify as origin; only these paths hit the Worker.
+# Note: a route without a trailing * does not match when the URL carries a query string.
 routes = [
   { pattern = "score.abhinav.dev/api/collect", zone_name = "abhinav.dev" },
-  { pattern = "score.abhinav.dev/stats", zone_name = "abhinav.dev" },
-  { pattern = "score.abhinav.dev/stats/*", zone_name = "abhinav.dev" },
+  { pattern = "score.abhinav.dev/stats*", zone_name = "abhinav.dev" },   # wildcard so ?key=... matches too
 ]
 
 [[d1_databases]]
 binding = "DB"
 database_name = "overlay-analytics"
-database_id = "REPLACE_WITH_ID_FROM_wrangler_d1_create"
+database_id = "6dfabd3d-532e-4a0d-b49e-bba668358259"
 migrations_dir = "migrations"
 
 [vars]
