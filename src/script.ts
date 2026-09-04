@@ -11,7 +11,8 @@ import { applyTheme, updateLogo } from './theme';
 import { fetchScoreData } from './api';
 import { updateTeamLogos, updateScoreboard } from './ui';
 import { CricketAPIData } from './types';
-import { linkLiveStream } from './liveStream';
+import { linkLiveStream, LinkLiveStreamError, extractYouTubeVideoId } from './liveStream';
+import { trackOnce, track, LinkOutcome } from './analytics';
 import { showToast } from './toast';
 
 let replayIndex = 0;
@@ -44,16 +45,20 @@ function setupLinkStreamForm() {
         const originalLabel = submitButton.textContent;
         submitButton.disabled = true;
         submitButton.textContent = 'Linking...';
+        const videoId = extractYouTubeVideoId(liveStreamURL);
+        let outcome: LinkOutcome = 'submitted';
         try {
             await linkLiveStream({ clubId, matchId, liveStreamURL });
             showToast('Live stream link submitted!', 'success');
         } catch (error) {
             console.error('Error linking live stream:', error);
+            outcome = error instanceof LinkLiveStreamError ? error.code : 'error';
             const message = error instanceof Error && error.message
                 ? error.message
                 : 'Failed to link live stream. Please try again.';
             showToast(message, 'error');
         } finally {
+            track('link_stream_submit', { clubId, matchId, videoId, outcome });
             submitButton.disabled = false;
             submitButton.textContent = originalLabel;
         }
@@ -73,6 +78,7 @@ async function updateScore() {
     if (!params.matchId && !params.debug && params.mode !== 'replay') {
         if (instructionsEl) instructionsEl.style.display = 'flex';
         if (overlayEl) overlayEl.style.display = 'none';
+        trackOnce('home_view');
         return;
     }
 
@@ -118,6 +124,7 @@ async function updateScore() {
             }
             console.log(`Using mock data: ${params.debug}`);
         } else {
+            trackOnce('overlay_start', { clubId: params.clubId, matchId: params.matchId, theme: params.theme, logo: params.logo });
             const apiUrl = `https://cricclubs.com/liveScoreOverlayData.do?clubId=${params.clubId}&matchId=${params.matchId}`;
             data = await fetchScoreData(apiUrl);
         }

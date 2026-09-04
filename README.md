@@ -9,7 +9,7 @@ A professional, lightweight, and responsive cricket scorecard overlay designed f
 - **Self-Hosted Fonts**: Uses **Montserrat** (bundled) for consistent rendering across all devices without external dependencies.
 - **Performance Optimized**: Zero layout shifts (CLS), minimal network footprint, and bundled CSS.
 - **Developer Experience**: Built with **Vite** and **TypeScript**.
-- **Automated Deployment**: One-click deployment to GitHub Pages via GitHub Actions.
+- **Usage Analytics**: A tiny first-party collector (Cloudflare Worker + D1) records which matches, themes, and streaming apps use the overlay. No cookies, no third parties; see [Usage analytics](#usage-analytics).
 
 ---
 
@@ -69,15 +69,42 @@ The home screen (shown when no `matchId` is provided) includes a form to attach 
 
 ---
 
+## Usage analytics
+
+The production site reports a few anonymous events to a first-party endpoint (`/api/collect`, a Cloudflare Worker in [`worker/`](worker/)) so we can see which matches, clubs, themes and streaming apps actually use the overlay:
+
+| Event | When | What is recorded |
+| :--- | :--- | :--- |
+| `overlay_start` | Once per page load with a real `matchId` | club ID, match ID, theme, logo, client (OBS / vMix / Streamlabs / Prism / browser) and version, OS, screen size |
+| `home_view` | The home screen is shown | client, OS, screen size |
+| `link_stream_submit` | The Link Live Stream form is submitted | club ID, match ID, YouTube video ID, outcome |
+
+Cloudflare adds country, city and a **daily-rotating** salted hash used only to count distinct viewers within a day. There are no cookies, no persistent identifiers, and nothing is sent from `localhost`, `?debug=` mock modes or `?mode=replay`. Add **`?nostats=1`** to any URL to opt out; the browser's Do Not Track setting is honoured too.
+
+Aggregates are served at `https://score.abhinav.dev/stats` (private, behind Cloudflare Access).
+
+---
+
 ## Deployment
 
-This project expects to be hosted on **GitHub Pages**.
+**Site**: [Netlify](https://www.netlify.com/) builds `main` (`npm run build`, publish `dist/`) and serves it as **https://score.abhinav.dev**, proxied through Cloudflare. Nothing to do beyond merging.
 
-### Automated Deployment
-A GitHub Actions workflow is included in `.github/workflows/deploy.yml`.
-1.  Push changes to the `main` branch.
-2.  The action builds the project and deploys it as an artifact.
-3.  Ensure your repository settings are set to **Deploy from GitHub Actions** (Settings > Pages > Source).
+**Analytics Worker**: lives in [`worker/`](worker/) and is deployed with Wrangler.
+
+```bash
+cd worker
+npm install
+npx wrangler login                     # once
+npx wrangler d1 create overlay-analytics   # once; paste the id into wrangler.toml
+npm run db:migrate                     # apply migrations to the remote D1 database
+npx wrangler secret put STATS_KEY      # fallback key for /stats until Access is configured
+npx wrangler secret put VISITOR_SALT   # any long random string
+npm run deploy
+```
+
+Pushes to `main` that touch `worker/**` also deploy automatically via `.github/workflows/deploy-worker.yml` once a `CLOUDFLARE_API_TOKEN` repository secret exists.
+
+To lock `/stats` behind your login, create a Cloudflare Access self-hosted application for `score.abhinav.dev/stats*`, then set `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` in `wrangler.toml` and redeploy.
 
 ---
 
@@ -95,6 +122,11 @@ npm run build
 
 # Preview the production build locally
 npm run preview
+
+# Analytics Worker (run inside worker/)
+npm run dev              # local Worker + local D1 on http://localhost:8787
+npm run test:run         # Worker unit tests
+npm run typecheck
 ```
 
 See [architecture.md](architecture.md) for a deeper look at the project structure and data flow.
