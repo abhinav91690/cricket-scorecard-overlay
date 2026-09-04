@@ -10,17 +10,16 @@
  *   --surface-frame      the lower-third slab
  *   --surface-panel      logo end caps
  *   --surface-row        batter/bowler rows
- *   --surface-pill       score block and result card (brand colour)
- *   --surface-innings    chase strip
+ *   --surface-pill       team block, event cards and result card (brand colour)
  *   --border-frame       hairline around slab, strip and result
  *   --divider            vertical separators
  *   --divider-row        line between the two rows
  *   --fg                 primary text on the slab
  *   --fg-muted           secondary text (overs, idle balls)
  *   --fg-accent          highlighted numbers (runs, figures, chase)
- *   --fg-title           team name inside the score block
- *   --fg-pill            text inside the score block (defaults to --fg)
- *   --radius             corner radius shared by the bar, the score tab, the chase strip and the result
+ *   --fg-title           team name inside the team block
+ *   --fg-pill            text inside the team block and cards (defaults to --fg)
+ *   --radius             corner radius shared by the bar, the cards and the result
  *   --ball-idle          blank / dot ball fill
  *   --ball-neutral       fill for singles, twos, threes and fives
  *   --ball-neutral-fg    digit colour on --ball-neutral
@@ -41,8 +40,8 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: flex-end;
-    gap: 26px;
-    padding-block-end: 16px;
+    gap: 14px;
+    padding-block-end: 28px;
     overflow: hidden;
     font-family: 'Montserrat', system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
@@ -70,11 +69,12 @@ body {
 /* ---- Lower third slab ---- */
 
 #firstInnings {
+    position: relative;
     display: grid;
-    grid-template-columns: 96px minmax(320px, 1fr) auto minmax(340px, 1fr) 96px;
+    grid-template-columns: 96px auto minmax(340px, 1fr) minmax(360px, 1fr) 96px;
+    grid-template-rows: 100px;
     align-items: stretch;
-    block-size: 100px;
-    margin-block-start: 10px; /* room for the raised score tab */
+    overflow: hidden;
     background: var(--surface-frame);
     border: 1px solid var(--border-frame);
     border-radius: var(--radius);
@@ -90,16 +90,11 @@ body {
     background: var(--surface-panel);
 }
 
-.batting-team-info {
-    border-inline-end: 1px solid var(--divider);
-    border-start-start-radius: var(--radius);
-    border-end-start-radius: var(--radius);
-}
-.bowling-team-info {
-    border-inline-start: 1px solid var(--divider);
-    border-start-end-radius: var(--radius);
-    border-end-end-radius: var(--radius);
-}
+.batting-team-info { grid-column: 1; grid-row: 1; }
+.team-block         { grid-column: 2; grid-row: 1; }
+.batsman-info       { grid-column: 3; grid-row: 1; }
+.bowler-info        { grid-column: 4; grid-row: 1; border-inline-start: 1px solid var(--divider); }
+.bowling-team-info  { grid-column: 5; grid-row: 1; border-inline-start: 1px solid var(--divider); }
 
 .team-logo {
     inline-size: 64px;
@@ -197,27 +192,22 @@ body {
     letter-spacing: 0.02em;
 }
 
-/* ---- Score tab (centre): stands a little above and below the bar ---- */
+/* ---- Team block: name, score, and one line of context ---- */
 
-.scorecard-pill {
+.team-block {
     display: flex;
     flex-direction: column;
-    align-items: center;
     justify-content: center;
-    gap: 8px;
-    align-self: center;
-    block-size: calc(100% + 20px);
-    min-inline-size: 260px;
-    padding-inline: 30px;
+    align-items: flex-start;
+    gap: 7px;
+    min-inline-size: 280px;
+    padding-inline: 24px;
     background: var(--surface-pill);
     color: var(--fg-pill, var(--fg));
-    border: 1px solid var(--border-frame);
-    border-radius: var(--radius);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 .team-name {
-    font-size: 20px;
+    font-size: 19px;
     font-weight: 800;
     line-height: 1;
     letter-spacing: 0.06em;
@@ -232,14 +222,14 @@ body {
 }
 
 .score {
-    font-size: 40px;
+    font-size: 38px;
     font-weight: 800;
     line-height: 1;
     letter-spacing: -0.01em;
 }
 
 .wickets {
-    font-size: 26px;
+    font-size: 24px;
     font-weight: 700;
     line-height: 1;
     margin-inline-start: 3px;
@@ -256,82 +246,17 @@ body {
     opacity: 0.8;
 }
 
-/* ---- Score block variants (review) ---- */
-
-/* inset: the previous idea, a rounded block sitting inside the bar */
-body[data-score-style="inset"] .scorecard-pill {
-    align-self: stretch;
-    block-size: auto;
-    margin-block: 10px;
-    margin-inline: 6px;
-    border-radius: calc(var(--radius) + 2px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+/* CRR in the first innings; Target · Need · RRR in a chase. Hidden when empty. */
+.status-line {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.85;
+    white-space: nowrap;
 }
-
-/* rails: flush with the bar, brand colour only as top and bottom rails */
-body[data-score-style="rails"] .scorecard-pill {
-    align-self: stretch;
-    block-size: auto;
-    background: transparent;
-    color: var(--fg);
-    border: 0;
-    border-block: 4px solid var(--brand-accent);
-    border-inline: 1px solid var(--divider);
-    border-radius: 0;
-    box-shadow: none;
-}
-body[data-score-style="rails"] .team-name { color: var(--fg-accent); }
-
-/* folder: team name on a tab above the bar, score inside the bar */
-body[data-score-style="folder"] #firstInnings { margin-block-start: 34px; }
-body[data-score-style="folder"] .scorecard-pill {
-    position: relative;
-    align-self: stretch;
-    block-size: auto;
-    gap: 0;
-    background: transparent;
-    color: var(--fg);
-    border: 0;
-    border-inline: 1px solid var(--divider);
-    border-radius: 0;
-    box-shadow: none;
-}
-body[data-score-style="folder"] .team-name {
-    position: absolute;
-    inset-block-end: 100%;
-    inset-inline-start: 50%;
-    transform: translateX(-50%);
-    padding: 9px 22px 8px;
-    background: var(--surface-pill);
-    color: var(--fg-title);
-    border: 1px solid var(--border-frame);
-    border-block-end: 0;
-    border-radius: var(--radius) var(--radius) 0 0;
-    font-size: 18px;
-}
-body[data-score-style="folder"] .score { font-size: 44px; }
-
-/* left: score block anchored at the batting end, ICC-style */
-body[data-score-style="left"] #firstInnings {
-    grid-template-columns: 96px auto minmax(320px, 1fr) minmax(340px, 1fr) 96px;
-    margin-block-start: 0;
-}
-body[data-score-style="left"] .batting-team-info { order: 1; }
-body[data-score-style="left"] .scorecard-pill {
-    order: 2;
-    align-self: stretch;
-    align-items: flex-start;
-    block-size: auto;
-    min-inline-size: 250px;
-    padding-inline: 24px;
-    border: 0;
-    border-inline-end: 1px solid var(--divider);
-    border-radius: 0;
-    box-shadow: none;
-}
-body[data-score-style="left"] .batsman-info { order: 3; }
-body[data-score-style="left"] .bowler-info { order: 4; border-inline-start: 1px solid var(--divider); }
-body[data-score-style="left"] .bowling-team-info { order: 5; }
+.status-line:empty { display: none; }
 
 /* ---- This over ---- */
 
@@ -390,45 +315,70 @@ body[data-score-style="left"] .bowling-team-info { order: 5; }
     transform: translate(-50%, -50%);
 }
 
-/* ---- Chase strip (second innings) ---- */
+/* ---- Event cards: slide in over the batter and bowler slots, the score stays visible ---- */
 
-#secondInnings {
+.event-card {
+    grid-column: 3 / 5;
+    grid-row: 1;
+    z-index: 2;
     display: flex;
-    align-items: center;
-    padding: 11px 22px;
-    border-radius: var(--radius);
-    background: var(--surface-innings);
-    border: 1px solid var(--border-frame);
-    box-shadow: var(--shadow-slab);
-    font-size: 15px;
-    font-weight: 600;
-    line-height: 1;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--fg);
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    padding-inline: 28px;
+    background: var(--surface-pill);
+    color: var(--fg-pill, var(--fg));
+    border-inline-start: 4px solid var(--brand-accent);
     visibility: hidden;
     opacity: 0;
-    transform: translateY(6px);
-    transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s;
+    transform: translateY(-14px);
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1), visibility 0.3s;
 }
-
-#secondInnings.is-visible {
+.event-card.is-visible {
     visibility: visible;
     opacity: 1;
     transform: none;
 }
 
-#secondInnings span { margin-inline: 3px; }
-#second-team-overs::after { content: ' ov'; font-size: 0.85em; }
+.event-eyebrow {
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--fg-title);
+}
+.event-eyebrow:empty { display: none; }
 
-#secondInnings .spacer {
-    margin-inline-start: 14px;
-    padding-inline-start: 16px;
-    border-inline-start: 1px solid var(--divider);
-    color: var(--fg-accent);
+.event-headline {
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-#secondInnings .numberColorClass { color: var(--fg-accent); font-weight: 800; }
+.event-detail {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.2;
+    opacity: 0.9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.event-detail:empty { display: none; }
+
+/* Boundary flash: one big word, centred */
+.event-card[data-type="boundary"] { align-items: center; }
+.event-card[data-type="boundary"] .event-headline {
+    font-size: 44px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+.event-card[data-type="wicket"] { border-inline-start-color: var(--ob-wicket); }
 
 /* ---- Result card ---- */
 
@@ -448,5 +398,5 @@ body[data-score-style="left"] .bowling-team-info { order: 5; }
 
 @media (prefers-reduced-motion: reduce) {
     .ball-indicator { animation: none; }
-    #secondInnings { transition: none; }
+    .event-card { transition: none; }
 }

@@ -47,7 +47,21 @@ Control the behavior and look of the overlay using URL parameters:
 | `theme` | No | One of the themes listed below (default: `modern-light`; `modern` still works as an alias). | `?theme=kkr` |
 | `debug` | No | Use mock data (1-5) instead of live API. | `?debug=1` |
 | `mode` | No | Special modes like `replay`. | `?mode=replay` |
+| `quiet` | No | Turns off the event cards and shows only the bar. | `?quiet` |
 | `logo` | No | Displays specific sponsor logos. | `?logo=1` |
+
+### Event cards
+The bar stays constant; moments earn a card that slides in over the batter and bowler slots, holds, and leaves. Cards are derived by diffing one poll against the previous one, so nothing extra is requested:
+
+| Card | Trigger | Holds |
+| :--- | :--- | :--- |
+| Wicket | batting side's wicket count rises | 8s |
+| Fifty / Hundred | a batter crosses 50 or 100 | 8s |
+| Four / Six | the newest ball is a boundary | 2s |
+| 50 / 100 partnership | the current stand crosses 50 or 100 | 6s |
+| Target | the second innings starts | 10s |
+
+Cards queue and play one at a time; a wicket suppresses the boundary flash on the same ball. `?quiet` disables them. In debug mode, `&card=wicket` (or `milestone`, `partnership`, `boundary`, `target`) holds a sample card so you can position it in OBS.
 
 ### Debug Modes
 Test layouts without a live match:

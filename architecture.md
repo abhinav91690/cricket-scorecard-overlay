@@ -18,6 +18,8 @@ cricket-scorecard-overlay/
 │   ├── script.ts       # Entry point: imports fonts/CSS, then calls into app.ts
 │   ├── app.ts          # pollLoop(), updateScore() mode switch, Link Live Stream form wiring
 │   ├── analytics.ts    # track()/trackOnce(), client detection, opt-out rules
+│   ├── events.ts       # detectEvents(prev, next): wicket / milestone / partnership / boundary / target from poll diffs
+│   ├── cards.ts        # Event card queue: copy, hold times, one-at-a-time playback, sample cards
 │   ├── urlBuilder.ts   # Home page link builder: theme options, live URL, copy, preview
 │   ├── config.ts       # CONFIG constant (refresh rate, default club ID, logo map)
 │   ├── types.ts        # CricketAPIData/CricketAPIValues interfaces modeling the CricClubs response
@@ -50,12 +52,13 @@ Located in `src/app.ts` (started from `src/script.ts`), `updateScore()` runs onc
 
 ### 2. State Management & DOM Updates
 - **DOM Mapping**: The `DOM` constant in `src/dom.ts` maps HTML IDs to typed element references for efficient, repeated updates.
-- **Normalization**: `updateScoreboard()` (`src/ui.ts`) processes raw API data and updates text content, visibility, and styles, only touching the DOM when a value actually changes (via `setText`/`setDisplay`/`setVisible` helpers) to avoid layout thrash.
+- **Normalization**: `updateScoreboard()` (`src/ui.ts`) processes raw API data and updates text content, visibility, and styles, only touching the DOM when a value actually changes (via `setText`/`setDisplay` helpers) to avoid layout thrash. `statusLine()` computes the line under the score: `CRR x.xx` in the first innings, `Target · Need n off b · RRR` in a chase (from the totals, not CricClubs' pre-built HTML message).
+- **Event cards**: `app.ts` keeps the previous frame and passes `(prev, next)` to `detectEvents()` (`src/events.ts`), a pure diff that yields wicket, fifty/hundred, partnership, boundary and target events (`parseDismissal()` reduces CricClubs' HTML dismissal string to text). `enqueueCards()` (`src/cards.ts`) plays them one at a time over the batter/bowler slots with per-type hold times; `?quiet` disables them and `?debug=…&card=<type>` holds a sample.
 - **Ball-by-Ball Tracking**: `updateBallByBall()` manages the history of the current over, injecting a styled indicator per delivery.
 - **Team Logos**: `updateTeamLogos()` caches loaded logo images and only re-fetches when the URL changes.
 
 ### 3. Theming System
-- **One layout, many palettes.** `src/css/overlay-base.css` holds the entire overlay layout: the lower-third slab (logo end caps, two batter rows, brand-coloured score block, bowler row plus this-over balls), the chase strip, the result card, typography, and the ball pop-in animation. It is written in px on purpose, because the overlay renders on a fixed 1920×1080 broadcast canvas rather than in a browser someone zooms, and it honours `prefers-reduced-motion`.
+- **One layout, many palettes.** `src/css/overlay-base.css` holds the entire overlay layout, an ICC-style lower third: batting logo, then the brand-coloured team block (name, score, overs, status line), two batter rows, bowler row plus this-over balls, bowling logo. Event cards slide in over the batter/bowler slots; the result card sits above the bar. It is written in px on purpose, because the overlay renders on a fixed 1920×1080 broadcast canvas rather than in a browser someone zooms, and it honours `prefers-reduced-motion`.
 - **Themes are tokens.** Each `src/css/theme-<name>.css` sets ~22 colour custom properties on `.theme-<name>` (surfaces, lines, text, ball outcomes; the list is documented at the top of `overlay-base.css`). No theme file contains layout. `applyTheme()` (`src/theme.ts`) toggles the `theme-<name>` class on `<body>` and falls back to `modern-light` for unknown names (`modern` is an alias for it).
 - **Available themes** (17): `classic` (cream/navy), `modern-light` (default), `modern-dark`, `neon`; the 10 IPL franchises `kkr`, `rcb`, `mi`, `csk`, `dc`, `rr`, `srh`, `pbks`, `gt`, `lsg`; and the Topguns set `tel`, `ted`, `tul`, `tud`.
 - **Adding a theme**: copy any `theme-*.css`, change the token values, `import` it in `theme.ts`, add the name to `AVAILABLE_THEMES`, add a `theme-tag tag-<name>` link to the theme grid in `index.html` plus its `.tag-<name>` colours in `instructions.css`, and update the lists in README.md.
@@ -85,10 +88,13 @@ graph TD
     C -->|API Response| D[updateScoreboard]
     C -->|Mock/Replay| D
     D --> E[DOM Updates]
-    E --> F[Scorecard Pill]
-    E --> G[Player Stats]
-    E --> H[Ball-by-Ball Container]
-    F & G & H -->|Styled By| I(theme-*.css, selected via theme.ts)
+    E --> F[Team block + status line]
+    E --> G[Batter / bowler rows]
+    E --> H[This over]
+    B -->|prev, next| Q(events.ts detectEvents)
+    Q -->|wicket / fifty / boundary / target| R(cards.ts queue)
+    R --> S[Event card over the bar]
+    F & G & H & S -->|Styled By| I(overlay-base.css + theme-*.css tokens)
 
     J[Link Live Stream form] -->|popup navigation| K[CricClubs updateLiveStreamURLFromCP.do]
     J -->|success/error| L[toast.ts]

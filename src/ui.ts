@@ -115,20 +115,33 @@ function setDisplay(element: HTMLElement | null, display: string) {
     }
 }
 
+const RATE = /^\d+(\.\d+)?$/;
+
 /**
- * Toggles visibility of an element while preserving its layout space.
- * Uses visibility + opacity so the element still occupies space when hidden.
- * @param element - The DOM element to toggle.
- * @param visible - Whether the element should be visible.
+ * The line under the score: current run rate in the first innings, target / need / required
+ * rate in a chase. Computed here rather than using CricClubs' pre-built HTML message.
  */
-function setVisible(element: HTMLElement | null, visible: boolean) {
-    if (!element) return;
-    const current = element.classList.contains('is-visible');
-    if (visible && !current) {
-        element.classList.add('is-visible');
-    } else if (!visible && current) {
-        element.classList.remove('is-visible');
+export function statusLine(values: CricketAPIData['values'], isSecondInnings: boolean): string {
+    if (!isSecondInnings) {
+        const rr = values.t1RR;
+        return rr && RATE.test(rr) ? `CRR ${rr}` : '';
     }
+    const target = (parseInt(values.t1Total || '0', 10) || 0) + 1;
+    const need = target - (parseInt(values.t2Total || '0', 10) || 0);
+    const parts = [`Target ${target}`];
+    if (need > 0) {
+        const ballsLeft = ballsRemaining(values.totalOvers, values.t2Overs);
+        parts.push(ballsLeft !== null ? `Need ${need} off ${ballsLeft}` : `Need ${need}`);
+    }
+    if (values.RRR && RATE.test(values.RRR)) parts.push(`RRR ${values.RRR}`);
+    return parts.join(' · ');
+}
+
+function ballsRemaining(totalOvers: number | undefined, oversBowled: string | undefined): number | null {
+    if (!totalOvers) return null;
+    const [whole, part] = (oversBowled || '0').split('.');
+    const bowled = (parseInt(whole, 10) || 0) * 6 + (parseInt(part || '0', 10) || 0);
+    return Math.max(0, totalOvers * 6 - bowled);
 }
 
 /**
@@ -150,8 +163,9 @@ export function updateScoreboard(data: CricketAPIData) {
     setText(DOM.bowlerOvers, `${values.bowlerOvers || '0.0'}`);
 
     const isSecondInnings = values.isSecondInningsStarted === "true";
+    const isMatchEnded = values.isMatchEnded === "1";
 
-    // Team 1 (Chasing Team in 2nd Innings, Batting Team in 1st)
+    // The batting side: team 2 in a chase, team 1 otherwise
     const currentTeamName = isSecondInnings ? values.t2Name : values.t1Name;
     const currentTeamScore = isSecondInnings ? values.t2Total : values.t1Total;
     const currentTeamWickets = isSecondInnings ? values.t2Wickets : values.t1Wickets;
@@ -161,33 +175,11 @@ export function updateScoreboard(data: CricketAPIData) {
     setText(DOM.teamScore, currentTeamScore || '0');
     setText(DOM.teamWickets, `/${currentTeamWickets || '0'}`);
     setText(DOM.teamOvers, `${currentTeamOvers || '0.0'}`);
+    setText(DOM.statusLine, isMatchEnded ? '' : statusLine(values, isSecondInnings));
 
-    if (!isSecondInnings) {
-        setVisible(DOM.secondInnings, false);
-        setDisplay(DOM.result, 'none');
-    } else {
-        // Second Team (The team that batted first)
-        setText(DOM.secondTeamName, values.t1Name || 'Team 1');
-        setText(DOM.secondTeamScore, values.t1Total || '0');
-        setText(DOM.secondTeamWickets, values.t1Wickets || '0');
-        setText(DOM.secondTeamOvers, `${values.t1Overs || '0.0'}`);
-
-        if (DOM.scoreNeeded) {
-            const newHTML = values.showMsgForScoreNeeded || '-';
-            if (DOM.scoreNeeded.innerHTML !== newHTML) {
-                DOM.scoreNeeded.innerHTML = newHTML;
-            }
-        }
-
-        const isMatchEnded = values.isMatchEnded === "1";
-
-        setVisible(DOM.secondInnings, true);
-        setDisplay(DOM.result, isMatchEnded ? 'flex' : 'none');
-        setDisplay(DOM.scoreNeeded, isMatchEnded ? 'none' : 'block');
-
-        if (isMatchEnded) {
-            setText(DOM.matchResult, values.result || 'Match Result');
-        }
+    setDisplay(DOM.result, isMatchEnded ? 'flex' : 'none');
+    if (isMatchEnded) {
+        setText(DOM.matchResult, values.result || 'Match Result');
     }
 
     updateBallByBall(data.balls || [], currentTeamOvers || '0.0');

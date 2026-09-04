@@ -114,8 +114,9 @@
                                 <tr><td><code>clubId</code></td><td>No</td><td>CricClubs club ID. Defaults to <code>1089463</code> (LPCL).</td></tr>
                                 <tr><td><code>theme</code></td><td>No</td><td>One of the themes above. Defaults to <code>modern-light</code>.</td></tr>
                                 <tr><td><code>logo</code></td><td>No</td><td>Shows a sponsor logo in the top-right corner (<code>1</code> or <code>2</code>).</td></tr>
-                                <tr><td><code>debug</code></td><td>No</td><td>Sample data instead of a live match: <code>1</code> first innings, <code>2</code> chase, <code>3</code> result, <code>4</code> toss, <code>5</code> no logos.</td></tr>
+                                <tr><td><code>debug</code></td><td>No</td><td>Sample data instead of a live match: <code>1</code> first innings, <code>2</code> chase, <code>3</code> result, <code>4</code> toss, <code>5</code> no logos. Add <code>card=wicket|milestone|partnership|boundary|target</code> to hold a sample card on screen.</td></tr>
                                 <tr><td><code>mode</code></td><td>No</td><td><code>replay</code> cycles through a recorded match to test transitions.</td></tr>
+                                <tr><td><code>quiet</code></td><td>No</td><td>Turns off the event cards (wicket, fifty, boundary, target) and shows only the bar.</td></tr>
                                 <tr><td><code>nostats</code></td><td>No</td><td>Opts this browser out of anonymous usage statistics.</td></tr>
                             </tbody>
                         </table>
@@ -140,7 +141,16 @@
 
         <div id="firstInnings" class="score-overlay">
             <div class="batting-team-info">
-                <img id="batting-team-logo" class="team-logo" alt="" width="56" height="56">
+                <img id="batting-team-logo" class="team-logo" alt="" width="64" height="64">
+            </div>
+
+            <div class="team-block">
+                <div class="team-name" id="team-name">Loading...</div>
+                <div class="score-and-overs">
+                    <span class="score" id="team-score"></span><span class="wickets" id="team-wickets"></span>
+                    <span class="overs" id="team-overs"></span>
+                </div>
+                <div class="status-line" id="status-line"></div>
             </div>
 
             <div class="batsman-info" id="batsman-info">
@@ -151,14 +161,6 @@
                 <div class="batsman-row">
                     <div class="batsman-name" id="batsman2-name"></div>
                     <div class="batsman-runs-balls" id="batsman2-runs-balls"></div>
-                </div>
-            </div>
-
-            <div class="scorecard-pill">
-                <div class="team-name" id="team-name">Loading...</div>
-                <div class="score-and-overs">
-                    <span class="score" id="team-score"></span><span class="wickets" id="team-wickets"></span>
-                    <span class="overs" id="team-overs"></span>
                 </div>
             </div>
 
@@ -176,17 +178,15 @@
             </div>
 
             <div class="bowling-team-info">
-                <img id="bowling-team-logo" class="team-logo" alt="" width="56" height="56">
+                <img id="bowling-team-logo" class="team-logo" alt="" width="64" height="64">
             </div>
-        </div>
 
-        <div id="secondInnings" class="score-overlay">
-            <div>
-                <span id="second-team-name"></span>
-                <span id="second-team-score"></span>/<span id="second-team-wickets"></span>
-                <span id="second-team-overs"></span>
+            <!-- Event cards (wicket, fifty, boundary, target) slide in over the batter and bowler slots -->
+            <div id="event-card" class="event-card" role="status" aria-live="polite">
+                <div class="event-eyebrow" id="event-eyebrow"></div>
+                <div class="event-headline" id="event-headline"></div>
+                <div class="event-detail" id="event-detail"></div>
             </div>
-            <div class="spacer" id="score-needed"></div>
         </div>
     </section>
 
