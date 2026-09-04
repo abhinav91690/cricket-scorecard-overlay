@@ -120,7 +120,7 @@ describe('updateScoreboard', () => {
 
         updateScoreboard(mockData);
 
-        expect(DOM.batsman1Name.textContent).toBe('Kohli *');
+        expect(DOM.batsman1Name.textContent).toBe('Kohli');
         expect(DOM.batsman1RunsBalls.textContent).toBe('50 (30)');
         expect(DOM.batsman2Name.textContent).toBe('Rohit');
         expect(DOM.batsman2RunsBalls.textContent).toBe('40 (25)');
@@ -158,7 +158,7 @@ describe('updateScoreboard edge cases', () => {
 
     it('falls back to placeholders when values are missing', () => {
         updateScoreboard({ values: { ...base, t1Name: '', t1Total: '', t1Wickets: '', t1Overs: '' }, balls: [] } as any);
-        expect(DOM.batsman1Name.textContent).toBe('Batsman 1 *');
+        expect(DOM.batsman1Name.textContent).toBe('Batsman 1');
         expect(DOM.batsman1RunsBalls.textContent).toBe('0 (0)');
         expect(DOM.batsman2Name.textContent).toBe('Batsman 2');
         expect(DOM.bowlerName.textContent).toBe('Bowler Name');
@@ -166,7 +166,7 @@ describe('updateScoreboard edge cases', () => {
         expect(DOM.bowlerOvers.textContent).toBe('0.0');
         expect(DOM.teamName.textContent).toBe('Team 1');
         expect(DOM.teamScore.textContent).toBe('0');
-        expect(DOM.teamWickets.textContent).toBe('/ 0');
+        expect(DOM.teamWickets.textContent).toBe('/0');
         expect(DOM.teamOvers.textContent).toBe('0.0');
     });
 

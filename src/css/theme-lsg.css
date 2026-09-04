@@ -1,4 +1,4 @@
-/* LSG theme colours. Structure comes from broadcast-base.css. */
+/* LSG colours. Layout lives in overlay-base.css. */
 .theme-lsg {
     /* Brand */
     --brand-accent: #d4a843;
@@ -12,30 +12,15 @@
 
     /* Lines */
     --border-frame: rgba(212, 168, 67, 0.15);
-    --border-ball: rgba(212, 168, 67, 0.15);
-    --border-innings: rgba(212, 168, 67, 0.15);
-    --border-result: rgba(212, 168, 67, 0.3);
     --divider: rgba(212, 168, 67, 0.25);
-    --divider-overs: rgba(212, 168, 67, 0.3);
     --divider-row: rgba(212, 168, 67, 0.1);
-
-    /* Shadows & glows */
-    --shadow-frame: 0 4px 20px rgba(0, 0, 0, 0.5);
-    --glow-pill: rgba(212, 168, 67, 0.05);
-    --glow-result: rgba(0, 165, 181, 0.2);
-    --glow-six: rgba(212, 168, 67, 0.5);
-    --depth: 0.3;
 
     /* Text */
     --fg: #ffffff;
     --fg-title: #d4a843;
     --fg-accent: #d4a843;
-    --fg-result: #ffffff;
     --fg-muted: #a0d8e0;
-    --fg-overs: #a0d8e0;
-    --fg-ball-idle: #608890;
     --fg-on-bright: #003d47;
-    --fg-on-six: #003d47;
 
     /* Ball outcomes */
     --ball-default: #004550;

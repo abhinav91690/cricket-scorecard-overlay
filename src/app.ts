@@ -41,16 +41,20 @@ export function setupLinkStreamForm() {
 
     clubIdInput.value = CONFIG.DEFAULT_CLUB_ID;
 
+    let inFlight = false;
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
+        if (inFlight) return;
 
         const clubId = clubIdInput.value.trim();
         const matchId = matchIdInput.value.trim();
         const liveStreamURL = streamUrlInput.value.trim();
         if (!clubId || !matchId || !liveStreamURL) return;
 
+        // Busy state rather than `disabled`: the button stays focusable and announced.
+        inFlight = true;
         const originalLabel = submitButton.textContent;
-        submitButton.disabled = true;
+        submitButton.setAttribute('aria-busy', 'true');
         submitButton.textContent = 'Linking...';
         const videoId = extractYouTubeVideoId(liveStreamURL);
         let outcome: LinkOutcome = 'submitted';
@@ -66,8 +70,9 @@ export function setupLinkStreamForm() {
             showToast(message, 'error');
         } finally {
             track('link_stream_submit', { clubId, matchId, videoId, outcome });
-            submitButton.disabled = false;
+            submitButton.removeAttribute('aria-busy');
             submitButton.textContent = originalLabel;
+            inFlight = false;
         }
     });
 }

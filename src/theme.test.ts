@@ -10,16 +10,9 @@ describe('applyTheme', () => {
         document.body.className = '';
     });
 
-    it('adds the theme class and the broadcast skin for a broadcast theme', () => {
+    it('adds exactly one theme class', () => {
         applyTheme('kkr');
-        expect(document.body.classList.contains('theme-kkr')).toBe(true);
-        expect(document.body.classList.contains('skin-broadcast')).toBe(true);
-    });
-
-    it('adds only the theme class for a standalone theme', () => {
-        applyTheme('classic');
-        expect(document.body.classList.contains('theme-classic')).toBe(true);
-        expect(document.body.classList.contains('skin-broadcast')).toBe(false);
+        expect(document.body.className).toBe('theme-kkr');
     });
 
     it('falls back to modern for unknown or missing names', () => {
@@ -29,7 +22,7 @@ describe('applyTheme', () => {
         expect(document.body.className).toBe('theme-modern');
     });
 
-    it('removes the previous theme and skin when switching', () => {
+    it('removes the previous theme when switching', () => {
         applyTheme('rcb');
         applyTheme('neon');
         expect(document.body.className).toBe('theme-neon');

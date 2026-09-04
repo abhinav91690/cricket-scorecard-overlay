@@ -179,7 +179,7 @@ describe('setupLinkStreamForm', () => {
     const button = () => document.getElementById('link-stream-submit') as HTMLButtonElement;
     const submit = async () => {
         form().dispatchEvent(new Event('submit', { cancelable: true }));
-        await vi.waitFor(() => expect(button().disabled).toBe(false));
+        await vi.waitFor(() => expect(button().hasAttribute('aria-busy')).toBe(false));
     };
 
     beforeEach(() => {
@@ -207,14 +207,19 @@ describe('setupLinkStreamForm', () => {
         expect(button().textContent).toBe('Link Stream');
     });
 
-    it('disables the button and changes its label while the request is in flight', async () => {
+    it('marks the button busy while in flight, ignores repeat submits, then restores it', async () => {
         let release!: () => void;
         vi.mocked(linkLiveStream).mockImplementationOnce(() => new Promise<void>(r => { release = r; }));
         form().dispatchEvent(new Event('submit', { cancelable: true }));
-        expect(button().disabled).toBe(true);
+        expect(button().getAttribute('aria-busy')).toBe('true');
         expect(button().textContent).toBe('Linking...');
+        expect(button().disabled).toBe(false);
+
+        form().dispatchEvent(new Event('submit', { cancelable: true }));
+        expect(linkLiveStream).toHaveBeenCalledTimes(1);
+
         release();
-        await vi.waitFor(() => expect(button().disabled).toBe(false));
+        await vi.waitFor(() => expect(button().hasAttribute('aria-busy')).toBe(false));
         expect(button().textContent).toBe('Link Stream');
     });
 

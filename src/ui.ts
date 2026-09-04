@@ -139,7 +139,7 @@ export function updateScoreboard(data: CricketAPIData) {
     const { values } = data;
 
     // Batsman Info
-    setText(DOM.batsman1Name, `${values.batsman1Name || 'Batsman 1'} *`);
+    setText(DOM.batsman1Name, values.batsman1Name || 'Batsman 1');
     setText(DOM.batsman1RunsBalls, `${values.batsman1Runs || '0'} (${values.batsman1Balls || '0'})`);
     setText(DOM.batsman2Name, values.batsman2Name || 'Batsman 2');
     setText(DOM.batsman2RunsBalls, `${values.batsman2Runs || '0'} (${values.batsman2Balls || '0'})`);
@@ -159,7 +159,7 @@ export function updateScoreboard(data: CricketAPIData) {
 
     setText(DOM.teamName, currentTeamName || 'Team 1');
     setText(DOM.teamScore, currentTeamScore || '0');
-    setText(DOM.teamWickets, `/ ${currentTeamWickets || '0'}`);
+    setText(DOM.teamWickets, `/${currentTeamWickets || '0'}`);
     setText(DOM.teamOvers, `${currentTeamOvers || '0.0'}`);
 
     if (!isSecondInnings) {

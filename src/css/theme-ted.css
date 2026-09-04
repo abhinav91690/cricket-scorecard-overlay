@@ -1,4 +1,4 @@
-/* TED theme colours. Structure comes from broadcast-base.css. */
+/* TED colours. Layout lives in overlay-base.css. */
 .theme-ted {
     /* Brand */
     --brand-accent: #3344dd;
@@ -12,30 +12,15 @@
 
     /* Lines */
     --border-frame: rgba(200, 200, 212, 0.1);
-    --border-ball: rgba(200, 200, 212, 0.1);
-    --border-innings: rgba(51, 68, 221, 0.15);
-    --border-result: rgba(51, 68, 221, 0.3);
     --divider: rgba(51, 68, 221, 0.25);
-    --divider-overs: rgba(51, 68, 221, 0.3);
     --divider-row: rgba(200, 200, 212, 0.06);
-
-    /* Shadows & glows */
-    --shadow-frame: 0 4px 20px rgba(0, 0, 0, 0.6);
-    --glow-pill: rgba(51, 68, 221, 0.05);
-    --glow-result: rgba(51, 68, 221, 0.15);
-    --glow-six: rgba(200, 200, 212, 0.5);
-    --depth: 0.4;
 
     /* Text */
     --fg: #ffffff;
     --fg-title: #c8c8d4;
     --fg-accent: #c8c8d4;
-    --fg-result: #c8c8d4;
     --fg-muted: #b0b0c0;
-    --fg-overs: #b0b0c0;
-    --fg-ball-idle: #707088;
     --fg-on-bright: #0a0a0a;
-    --fg-on-six: #0a0a0a;
 
     /* Ball outcomes */
     --ball-default: #1a1a2e;

@@ -1,4 +1,4 @@
-/* DC theme colours. Structure comes from broadcast-base.css. */
+/* DC colours. Layout lives in overlay-base.css. */
 .theme-dc {
     /* Brand */
     --brand-accent: #cc0000;
@@ -12,30 +12,15 @@
 
     /* Lines */
     --border-frame: rgba(204, 0, 0, 0.15);
-    --border-ball: rgba(204, 0, 0, 0.15);
-    --border-innings: rgba(204, 0, 0, 0.15);
-    --border-result: rgba(204, 0, 0, 0.3);
     --divider: rgba(204, 0, 0, 0.25);
-    --divider-overs: rgba(204, 0, 0, 0.3);
     --divider-row: rgba(204, 0, 0, 0.1);
-
-    /* Shadows & glows */
-    --shadow-frame: 0 4px 20px rgba(0, 0, 0, 0.5);
-    --glow-pill: rgba(204, 0, 0, 0.05);
-    --glow-result: rgba(204, 0, 0, 0.15);
-    --glow-six: rgba(212, 168, 67, 0.5);
-    --depth: 0.3;
 
     /* Text */
     --fg: #ffffff;
     --fg-title: #ff4444;
     --fg-accent: #ff4444;
-    --fg-result: #ff4444;
     --fg-muted: #90b0d0;
-    --fg-overs: #90b0d0;
-    --fg-ball-idle: #607090;
     --fg-on-bright: #002255;
-    --fg-on-six: #002255;
 
     /* Ball outcomes */
     --ball-default: #003388;

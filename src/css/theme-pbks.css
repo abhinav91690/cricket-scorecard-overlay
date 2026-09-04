@@ -1,4 +1,4 @@
-/* PBKS theme colours. Structure comes from broadcast-base.css. */
+/* PBKS colours. Layout lives in overlay-base.css. */
 .theme-pbks {
     /* Brand */
     --brand-accent: #d4a843;
@@ -12,30 +12,15 @@
 
     /* Lines */
     --border-frame: rgba(221, 31, 45, 0.15);
-    --border-ball: rgba(221, 31, 45, 0.15);
-    --border-innings: rgba(221, 31, 45, 0.15);
-    --border-result: rgba(212, 168, 67, 0.3);
     --divider: rgba(221, 31, 45, 0.25);
-    --divider-overs: rgba(221, 31, 45, 0.3);
     --divider-row: rgba(221, 31, 45, 0.1);
-
-    /* Shadows & glows */
-    --shadow-frame: 0 4px 20px rgba(0, 0, 0, 0.5);
-    --glow-pill: rgba(221, 31, 45, 0.05);
-    --glow-result: rgba(221, 31, 45, 0.2);
-    --glow-six: rgba(212, 168, 67, 0.5);
-    --depth: 0.3;
 
     /* Text */
     --fg: #ffffff;
     --fg-title: #d4a843;
     --fg-accent: #d4a843;
-    --fg-result: #d4a843;
     --fg-muted: #d0c0c0;
-    --fg-overs: #d0c0c0;
-    --fg-ball-idle: #908080;
     --fg-on-bright: #1a1a1a;
-    --fg-on-six: #1a1a1a;
 
     /* Ball outcomes */
     --ball-default: #2a2a2a;

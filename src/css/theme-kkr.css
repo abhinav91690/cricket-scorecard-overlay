@@ -1,4 +1,4 @@
-/* KKR theme colours. Structure comes from broadcast-base.css. */
+/* KKR colours. Layout lives in overlay-base.css. */
 .theme-kkr {
     /* Brand */
     --brand-accent: #d4a843;
@@ -12,30 +12,15 @@
 
     /* Lines */
     --border-frame: rgba(212, 168, 67, 0.15);
-    --border-ball: rgba(212, 168, 67, 0.15);
-    --border-innings: rgba(212, 168, 67, 0.15);
-    --border-result: rgba(212, 168, 67, 0.3);
     --divider: rgba(212, 168, 67, 0.25);
-    --divider-overs: rgba(212, 168, 67, 0.3);
     --divider-row: rgba(212, 168, 67, 0.1);
-
-    /* Shadows & glows */
-    --shadow-frame: 0 4px 20px rgba(0, 0, 0, 0.5);
-    --glow-pill: rgba(212, 168, 67, 0.05);
-    --glow-result: rgba(212, 168, 67, 0.15);
-    --glow-six: rgba(212, 168, 67, 0.5);
-    --depth: 0.3;
 
     /* Text */
     --fg: #ffffff;
     --fg-title: #d4a843;
     --fg-accent: #d4a843;
-    --fg-result: #d4a843;
     --fg-muted: #c0b0e0;
-    --fg-overs: #c0b0e0;
-    --fg-ball-idle: #8070a0;
     --fg-on-bright: #1b0a3c;
-    --fg-on-six: #1b0a3c;
 
     /* Ball outcomes */
     --ball-default: #2d1566;

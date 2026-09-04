@@ -1,4 +1,4 @@
-/* GT theme colours. Structure comes from broadcast-base.css. */
+/* GT colours. Layout lives in overlay-base.css. */
 .theme-gt {
     /* Brand */
     --brand-accent: #cfb53b;
@@ -12,30 +12,15 @@
 
     /* Lines */
     --border-frame: rgba(207, 181, 59, 0.15);
-    --border-ball: rgba(207, 181, 59, 0.15);
-    --border-innings: rgba(207, 181, 59, 0.15);
-    --border-result: rgba(207, 181, 59, 0.3);
     --divider: rgba(207, 181, 59, 0.25);
-    --divider-overs: rgba(207, 181, 59, 0.3);
     --divider-row: rgba(207, 181, 59, 0.1);
-
-    /* Shadows & glows */
-    --shadow-frame: 0 4px 20px rgba(0, 0, 0, 0.5);
-    --glow-pill: rgba(207, 181, 59, 0.05);
-    --glow-result: rgba(207, 181, 59, 0.15);
-    --glow-six: rgba(207, 181, 59, 0.5);
-    --depth: 0.3;
 
     /* Text */
     --fg: #ffffff;
     --fg-title: #cfb53b;
     --fg-accent: #cfb53b;
-    --fg-result: #cfb53b;
     --fg-muted: #a0b8d0;
-    --fg-overs: #a0b8d0;
-    --fg-ball-idle: #607890;
     --fg-on-bright: #0f1a30;
-    --fg-on-six: #0f1a30;
 
     /* Ball outcomes */
     --ball-default: #1c2c4a;

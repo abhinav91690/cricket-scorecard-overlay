@@ -1,4 +1,4 @@
-/* TUL theme colours. Structure comes from broadcast-base.css. */
+/* TUL colours. Layout lives in overlay-base.css. */
 .theme-tul {
     /* Brand */
     --brand-accent: #d42b2b;
@@ -12,30 +12,15 @@
 
     /* Lines */
     --border-frame: rgba(200, 200, 212, 0.1);
-    --border-ball: rgba(200, 200, 212, 0.1);
-    --border-innings: rgba(212, 43, 43, 0.15);
-    --border-result: rgba(212, 43, 43, 0.3);
     --divider: rgba(212, 43, 43, 0.25);
-    --divider-overs: rgba(212, 43, 43, 0.3);
     --divider-row: rgba(212, 43, 43, 0.08);
-
-    /* Shadows & glows */
-    --shadow-frame: 0 4px 20px rgba(0, 0, 0, 0.15);
-    --glow-pill: rgba(212, 43, 43, 0.05);
-    --glow-result: rgba(212, 43, 43, 0.1);
-    --glow-six: rgba(212, 43, 43, 0.5);
-    --depth: 0.4;
 
     /* Text */
     --fg: #0a0a1a;
     --fg-title: #d42b2b;
     --fg-accent: #d42b2b;
-    --fg-result: #d42b2b;
     --fg-muted: #2a2a3e;
-    --fg-overs: #2a2a3e;
-    --fg-ball-idle: #606078;
     --fg-on-bright: #0a0a0a;
-    --fg-on-six: #ffffff;
 
     /* Ball outcomes */
     --ball-default: #c0c0d0;

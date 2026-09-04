@@ -1,4 +1,4 @@
-/* RR theme colours. Structure comes from broadcast-base.css. */
+/* RR colours. Layout lives in overlay-base.css. */
 .theme-rr {
     /* Brand */
     --brand-accent: #ea1a85;
@@ -12,30 +12,15 @@
 
     /* Lines */
     --border-frame: rgba(234, 26, 133, 0.15);
-    --border-ball: rgba(234, 26, 133, 0.15);
-    --border-innings: rgba(234, 26, 133, 0.15);
-    --border-result: rgba(234, 26, 133, 0.3);
     --divider: rgba(234, 26, 133, 0.25);
-    --divider-overs: rgba(234, 26, 133, 0.3);
     --divider-row: rgba(234, 26, 133, 0.1);
-
-    /* Shadows & glows */
-    --shadow-frame: 0 4px 20px rgba(0, 0, 0, 0.5);
-    --glow-pill: rgba(234, 26, 133, 0.05);
-    --glow-result: rgba(234, 26, 133, 0.15);
-    --glow-six: rgba(212, 168, 67, 0.5);
-    --depth: 0.3;
 
     /* Text */
     --fg: #ffffff;
     --fg-title: #ea1a85;
     --fg-accent: #ea1a85;
-    --fg-result: #ea1a85;
     --fg-muted: #a0b0d0;
-    --fg-overs: #a0b0d0;
-    --fg-ball-idle: #607090;
     --fg-on-bright: #152a60;
-    --fg-on-six: #152a60;
 
     /* Ball outcomes */
     --ball-default: #1a3580;

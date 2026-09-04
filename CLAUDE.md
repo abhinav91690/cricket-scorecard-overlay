@@ -55,14 +55,13 @@ Rendering is in `src/ui.ts`. `updateScoreboard()` picks team 1 vs team 2 fields 
 - Modules with state expose `reset*ForTests()` hooks (`app.ts`, `ui.ts`, `analytics.ts`); call them in `beforeEach` rather than reaching into module internals.
 - The Worker has its own `worker/vitest.config.ts` (node environment). Without it Vitest walks up and uses the site's jsdom config. The root config restricts `include` to `src/**` so the two suites never mix.
 - Adding a new element means adding it to `index.html`, `dom.ts`, and the `idMap` in `ui.test.ts`.
+- The home page (`#instructions`) is plain HTML in `index.html` styled by `css/instructions.css` (light/dark tokens prefixed `--h-`). Its URL builder lives in `urlBuilder.ts`; keep element ids stable, `app.test.ts` and `urlBuilder.test.ts` mount minimal copies of that markup.
 
 ### Theming
 
-`applyTheme()` puts a `theme-<name>` class on `<body>` and consults the `THEMES` map in `theme.ts`, which tags each theme `standalone` or `broadcast`. `classic`, `modern` and `neon` are standalone: each `theme-*.css` is a complete, independent stylesheet. The 14 broadcast themes (IPL franchises + `tel`/`ted`/`tul`/`tud`) share `src/css/broadcast-base.css`, scoped under the `skin-broadcast` class that `applyTheme()` also adds; their `theme-*.css` files are only colour tokens (surfaces, lines, glows, text, `--ball-*`) plus the odd explicit override (RCB, CSK). Change layout in the base, never in a broadcast theme file. Unknown names fall back to `modern`.
+`applyTheme()` puts a `theme-<name>` class on `<body>`; unknown names fall back to `modern`. All 17 themes share one layout, `src/css/overlay-base.css`, and each `theme-*.css` is only a block of colour tokens on `.theme-<name>` (the token list is documented at the top of the base file). Never put layout in a theme file; change the base. The base uses px deliberately (fixed 1920x1080 broadcast canvas) and respects `prefers-reduced-motion`. The striker is marked with the static `on-strike` class on the first batter row in `index.html`, not with text.
 
-Adding a broadcast theme: copy any broadcast `theme-*.css` and change the tokens, `import` it in `theme.ts`, add it to `THEMES` as `'broadcast'`, add a `theme-tag tag-<name>` span in `index.html` plus its `.tag-<name>` colour in `instructions.css`, and update the theme lists in README.md/architecture.md.
-
-Ball indicator colors come from `getBallStyleClass()` in `utils.ts`, which maps outcome strings (`W`, `1wd`, `nb`, `4`, `.`) to classes (`wicket`, `wide`, `run-4`, `dot`, …) that each theme styles.
+Adding a theme: copy any `theme-*.css` and change the tokens, `import` it in `theme.ts`, add the name to `AVAILABLE_THEMES`, add a `theme-tag tag-<name>` link in the `index.html` theme grid plus its `.tag-<name>` colours in `instructions.css`, and update the theme lists in README.md/architecture.md.
 
 ### Link Live Stream (`src/liveStream.ts`)
 
