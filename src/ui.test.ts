@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { updateScoreboard, updateTeamLogos } from './ui';
+import { updateScoreboard, updateTeamLogos, updateBallByBall, resetUiStateForTests } from './ui';
 import { DOM } from './dom';
 
 // Simple mock data for elements
@@ -153,50 +153,111 @@ describe('updateScoreboard', () => {
     });
 });
 
-describe('instructions screen', () => {
-    let instructionsEl: HTMLElement;
-    let overlayEl: HTMLElement;
+describe('updateScoreboard edge cases', () => {
+    const base = { isSecondInningsStarted: 'false', t1Name: 'India', t1Total: '100', t1Wickets: '2', t1Overs: '10.0' };
 
-    beforeEach(() => {
-        instructionsEl = document.createElement('div');
-        instructionsEl.id = 'instructions';
-        instructionsEl.style.display = 'none';
-        document.body.appendChild(instructionsEl);
-
-        overlayEl = document.createElement('div');
-        overlayEl.classList.add('overlay');
-        document.body.appendChild(overlayEl);
+    it('falls back to placeholders when values are missing', () => {
+        updateScoreboard({ values: { ...base, t1Name: '', t1Total: '', t1Wickets: '', t1Overs: '' }, balls: [] } as any);
+        expect(DOM.batsman1Name.textContent).toBe('Batsman 1 *');
+        expect(DOM.batsman1RunsBalls.textContent).toBe('0 (0)');
+        expect(DOM.batsman2Name.textContent).toBe('Batsman 2');
+        expect(DOM.bowlerName.textContent).toBe('Bowler Name');
+        expect(DOM.bowlerWicketsRuns.textContent).toBe('0-0');
+        expect(DOM.bowlerOvers.textContent).toBe('0.0');
+        expect(DOM.teamName.textContent).toBe('Team 1');
+        expect(DOM.teamScore.textContent).toBe('0');
+        expect(DOM.teamWickets.textContent).toBe('/ 0');
+        expect(DOM.teamOvers.textContent).toBe('0.0');
     });
 
-    it('should show instructions and hide overlay when no match params provided', () => {
-        // Simulate no matchId, no debug, no replay
-        const instructionsEl = document.getElementById('instructions')!;
-        const overlayEl = document.querySelector('.overlay') as HTMLElement;
-
-        instructionsEl.style.display = 'flex';
-        overlayEl.style.display = 'none';
-
-        expect(instructionsEl.style.display).toBe('flex');
-        expect(overlayEl.style.display).toBe('none');
+    it('hides the second innings bar and result during the first innings', () => {
+        updateScoreboard({ values: base, balls: [] } as any);
+        expect(DOM.secondInnings.classList.contains('is-visible')).toBe(false);
+        expect(DOM.result.style.display).toBe('none');
     });
 
-    it('should hide instructions and show overlay when matchId is provided', () => {
-        const instructionsEl = document.getElementById('instructions')!;
-        const overlayEl = document.querySelector('.overlay') as HTMLElement;
-
-        instructionsEl.style.display = 'none';
-        overlayEl.style.display = '';
-
-        expect(instructionsEl.style.display).toBe('none');
-        expect(overlayEl.style.display).toBe('');
+    it('shows the chase message during the second innings, as HTML', () => {
+        updateScoreboard({ values: { ...base, isSecondInningsStarted: 'true', t2Name: 'Aus', t2Total: '20', t2Wickets: '1', t2Overs: '3.2', showMsgForScoreNeeded: '<span>Aus</span> NEED 81', isMatchEnded: '0' }, balls: [] } as any);
+        expect(DOM.scoreNeeded.innerHTML).toBe('<span>Aus</span> NEED 81');
+        expect(DOM.scoreNeeded.style.display).toBe('block');
+        expect(DOM.result.style.display).toBe('none');
+        expect(DOM.teamOvers.textContent).toBe('3.2');
+        expect(DOM.secondTeamOvers.textContent).toBe('10.0');
     });
 
-    it('should have instructions element present in DOM', () => {
-        expect(document.getElementById('instructions')).not.toBeNull();
+    it('shows the result and hides the chase message when the match has ended', () => {
+        updateScoreboard({ values: { ...base, isSecondInningsStarted: 'true', t2Name: 'Aus', t2Total: '101', t2Wickets: '3', t2Overs: '18.4', isMatchEnded: '1', result: 'Aus won by 7 wickets' }, balls: [] } as any);
+        expect(DOM.result.style.display).toBe('flex');
+        expect(DOM.matchResult.textContent).toBe('Aus won by 7 wickets');
+        expect(DOM.scoreNeeded.style.display).toBe('none');
+        expect(DOM.secondInnings.classList.contains('is-visible')).toBe(true);
     });
 
-    it('should have overlay element present in DOM', () => {
-        expect(document.querySelector('.overlay')).not.toBeNull();
+    it('goes back to first-innings layout if the feed flips isSecondInningsStarted off', () => {
+        updateScoreboard({ values: { ...base, isSecondInningsStarted: 'true', t2Name: 'Aus', isMatchEnded: '1', result: 'x' }, balls: [] } as any);
+        updateScoreboard({ values: base, balls: [] } as any);
+        expect(DOM.secondInnings.classList.contains('is-visible')).toBe(false);
+        expect(DOM.result.style.display).toBe('none');
+        expect(DOM.teamName.textContent).toBe('India');
+    });
+
+    it('only writes to the DOM when a value changes', () => {
+        updateScoreboard({ values: base, balls: [] } as any);
+        const spy = vi.spyOn(DOM.teamName, 'textContent', 'set');
+        updateScoreboard({ values: base, balls: [] } as any);
+        expect(spy).not.toHaveBeenCalled();
+        spy.mockRestore();
+    });
+});
+
+describe('updateBallByBall', () => {
+    const indicators = () => Array.from(DOM.ballContainer.children).map(el => ({ cls: el.className, text: el.textContent }));
+
+    beforeEach(() => resetUiStateForTests());
+
+    it('renders one styled indicator per ball and pads the rest of the over', () => {
+        updateBallByBall(['1', 'W', '4'], '10.3');
+        const items = indicators();
+        expect(items).toHaveLength(6);
+        expect(items.slice(0, 3)).toEqual([
+            { cls: 'ball-indicator run-1', text: '1' },
+            { cls: 'ball-indicator wicket', text: 'W' },
+            { cls: 'ball-indicator run-4', text: '4' },
+        ]);
+        expect(items.slice(3).every(i => i.cls === 'ball-indicator' && i.text === '')).toBe(true);
+    });
+
+    it('does not pad at the end of a completed over', () => {
+        updateBallByBall(['.', '1', '2', '4', '6', 'W'], '11.0');
+        expect(indicators()).toHaveLength(6);
+        expect(indicators().every(i => i.text !== '')).toBe(true);
+    });
+
+    it('pads a full over of blanks for the first ball of a new over', () => {
+        updateBallByBall(['1'], '12.0');
+        expect(indicators()).toHaveLength(7); // the ball just bowled plus 6 blanks (overs still read .0)
+    });
+
+    it('extras extend the over beyond six indicators', () => {
+        updateBallByBall(['1wd', 'nb', '1', '.', '2', '4', 'W'], '5.5');
+        const items = indicators();
+        expect(items).toHaveLength(8);
+        expect(items[0].cls).toBe('ball-indicator wide');
+        expect(items[1].cls).toBe('ball-indicator no-ball');
+    });
+
+    it('treats a missing decimal part as the start of an over', () => {
+        updateBallByBall(['1'], '7');
+        expect(indicators()).toHaveLength(1 + 6);
+    });
+
+    it('skips the re-render when balls and overs are unchanged', () => {
+        updateBallByBall(['1', '4'], '3.2');
+        const first = DOM.ballContainer.firstElementChild;
+        updateBallByBall(['1', '4'], '3.2');
+        expect(DOM.ballContainer.firstElementChild).toBe(first);
+        updateBallByBall(['1', '4', '6'], '3.3');
+        expect(DOM.ballContainer.firstElementChild).not.toBe(first);
     });
 });
 

@@ -14,6 +14,13 @@ const logoSlots = {
 
 let lastBallState = { balls: '', overs: '' };
 
+/** Test hook: forget cached logos and the last rendered over. */
+export function resetUiStateForTests() {
+    logoSlots.team1.attemptedUrl = null;
+    logoSlots.team2.attemptedUrl = null;
+    lastBallState = { balls: '', overs: '' };
+}
+
 function getFullLogoUrl(path?: string): string {
     if (!path) return '';
     if (path.startsWith('http://') || path.startsWith('https://')) {

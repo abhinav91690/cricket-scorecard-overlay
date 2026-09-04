@@ -12,6 +12,7 @@ A client-side cricket scorecard overlay for OBS/vMix browser sources. Vite + Typ
 npm run dev            # Vite dev server on http://localhost:5173
 npm run test           # vitest watch mode
 npm run test:run       # single run (this is what build and CI use)
+npm run test:coverage  # v8 coverage table (also available in worker/)
 npx vitest run src/utils.test.ts            # one test file
 npx vitest run -t "should return wicket"    # one test by name
 npx tsc                # typecheck only (noEmit; strict + noUnusedLocals + noImplicitReturns)
@@ -38,10 +39,9 @@ The stats page is `https://score.abhinav.dev/stats?key=<STATS_KEY>`. The key is 
 
 ## Architecture
 
-Entry is `src/script.ts`, loaded directly from `index.html` as a module. It:
-1. Imports the Montserrat font CSS and `css/instructions.css` (theme CSS is imported by `theme.ts`).
-2. Wires the Link Live Stream form once (`setupLinkStreamForm`).
-3. Runs `pollLoop()`, which awaits `updateScore()` and then re-arms a `setTimeout(CONFIG.REFRESH_RATE)`. It is a timeout chain, not `setInterval`, so a slow CricClubs response can't overlap the next poll. A failed fetch keeps the last rendered frame once one has painted, and shows "Error" only before the first successful render.
+Entry is `src/script.ts`, loaded directly from `index.html` as a module. It only imports the Montserrat font CSS and `css/instructions.css` (theme CSS is imported by `theme.ts`) and then calls into `src/app.ts`, which holds all orchestration and is where the tests point. `app.ts`:
+1. Wires the Link Live Stream form once (`setupLinkStreamForm`).
+2. Runs `pollLoop()`, which awaits `updateScore()` and then re-arms a `setTimeout(CONFIG.REFRESH_RATE)`. It is a timeout chain, not `setInterval`, so a slow CricClubs response can't overlap the next poll. A failed fetch keeps the last rendered frame once one has painted, and shows "Error" only before the first successful render.
 
 `updateScore()` is the mode switch. In order: no `matchId`/`debug`/`mode=replay` → show `#instructions` and hide `.overlay`; `mode=replay` → cycle `replayData.ts`; `debug=1..5` → static state from `mockData.ts`; otherwise fetch live. Mock/replay data is cast `as unknown as CricketAPIData` because those fixtures don't fill every field of the (large) type in `types.ts`.
 
@@ -51,7 +51,9 @@ Rendering is in `src/ui.ts`. `updateScoreboard()` picks team 1 vs team 2 fields 
 
 `DOM` is a plain object of element references resolved when the module first loads. Consequences:
 - Anything importing `dom.ts` (`ui.ts`, `theme.ts`, `script.ts`) needs the real `index.html` structure present at import.
-- In tests, `ui.test.ts` does `vi.mock('./dom', ...)` with a Proxy that maps property names to element IDs and looks them up lazily, after `beforeEach` has built the elements. Follow that pattern for any new test that touches `ui.ts`; don't import `dom.ts` directly in tests.
+- In tests, `ui.test.ts` does `vi.mock('./dom', ...)` with a Proxy that maps property names to element IDs and looks them up lazily, after `beforeEach` has built the elements. Follow that pattern for any new test that touches `ui.ts`; don't import `dom.ts` directly in tests. `app.test.ts` instead mocks every collaborator (`./api`, `./ui`, `./theme`, `./analytics`, `./toast`, `./liveStream`) and asserts on calls.
+- Modules with state expose `reset*ForTests()` hooks (`app.ts`, `ui.ts`, `analytics.ts`); call them in `beforeEach` rather than reaching into module internals.
+- The Worker has its own `worker/vitest.config.ts` (node environment). Without it Vitest walks up and uses the site's jsdom config. The root config restricts `include` to `src/**` so the two suites never mix.
 - Adding a new element means adding it to `index.html`, `dom.ts`, and the `idMap` in `ui.test.ts`.
 
 ### Theming
