@@ -81,17 +81,26 @@ function currentContext(): TrackingContext {
     };
 }
 
+/** Runs `fn` when the browser is idle, so analytics never competes with the first paint or a poll. */
+function whenIdle(fn: () => void): void {
+    if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(() => fn(), { timeout: 3000 });
+    else setTimeout(fn, 0);
+}
+
+/** Hands the payload to the browser's beacon queue (no page impact); falls back to a keepalive fetch. */
+function send(body: string): void {
+    if (typeof navigator.sendBeacon === 'function') {
+        if (navigator.sendBeacon(CONFIG.ANALYTICS_ENDPOINT, new Blob([body], { type: 'application/json' }))) return;
+    }
+    fetch(CONFIG.ANALYTICS_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => { /* ignore */ });
+}
+
 /** Fire-and-forget. Any failure is swallowed: analytics must never affect the overlay. */
 export function track(event: string, props: Record<string, string | null | undefined> = {}): void {
     try {
         if (!isTrackingEnabled(currentContext())) return;
         const body = JSON.stringify({ event, ...props, ...detectClient() });
-        fetch(CONFIG.ANALYTICS_ENDPOINT, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body,
-            keepalive: true,
-        }).catch(() => { /* ignore */ });
+        whenIdle(() => { try { send(body); } catch { /* ignore */ } });
     } catch {
         /* ignore */
     }
