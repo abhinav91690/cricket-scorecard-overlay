@@ -83,22 +83,29 @@ describe('card queue', () => {
         enqueueCards([panel('lineup')]);
         expect(DOM.panelMatchup.querySelectorAll('.panel-team-name')).toHaveLength(2);
         expect(DOM.panelEyebrow.textContent).toBe('Toss');
-        expect(DOM.panelHeadline.textContent).toBe('Topguns United won the toss and elected to bat');
+        expect(DOM.panelHeadline.textContent).toBe('Topguns United elected to bat');
         expect(DOM.panelColumns.querySelectorAll('.panel-block')).toHaveLength(2);
         expect(DOM.panelColumns.querySelectorAll('.panel-row')).toHaveLength(22);
         expect(DOM.panelColumns.querySelector('.panel-col-title')).toBeNull();
+        expect(Array.from(DOM.panelColumns.querySelectorAll('.panel-xi-title')).map(e => e.textContent)).toEqual(['Lions XI', 'Topguns United XI']);
+        expect(Array.from(DOM.panelColumns.querySelectorAll('.panel-xi-role')).map(e => e.textContent)).toEqual(['Fielding', 'Batting']);
+        expect(DOM.panelColumns.querySelectorAll('.panel-xi-head.is-batting')).toHaveLength(1);
+        expect(Array.from(DOM.panelColumns.querySelectorAll<HTMLElement>('ul.panel-xi')).map(u => u.style.getPropertyValue('--rows'))).toEqual(['6', '6']);
         expect(DOM.panelColumns.querySelectorAll('ul.panel-xi > li')).toHaveLength(22);
         expect(DOM.panelColumns.querySelector('.panel-captain')).toBeNull();
-        expect(DOM.panelFooter.textContent).toBe('2024 Fall Champions·LPCL-G1');
+        expect(DOM.panelFooter.textContent).toBe('2024 Fall Champions·LPCL-G120 overs');
+        expect(DOM.panelFooter.querySelector('.panel-kv-end')!.textContent).toBe('20 overs');
         resetCardsForTests();
 
-        enqueueCards([{ type: 'lineup', toss: 't', series: '', ground: '', teams: [
+        enqueueCards([{ type: 'lineup', toss: 't', series: '', ground: '', overs: '', teams: [
             { name: '<b>x</b>', players: Array.from({ length: 12 }, (_, i) => ({ name: `<img src=x>${i}`, value: '', note: 'BAT', initials: 'XX' })) },
             { name: 'y', players: Array.from({ length: 11 }, (_, i) => ({ name: `p${i}`, value: '', initials: 'P' })) },
         ] }]);
         expect(DOM.panelMatchup.querySelector('.panel-team-name')!.textContent).toBe('<b>x</b>');
         expect(DOM.panelColumns.querySelector('.panel-name img')).toBeNull();
         expect(DOM.panelColumns.querySelectorAll('.panel-row')).toHaveLength(23);
+        expect(DOM.panelColumns.querySelector('.panel-xi-role')).toBeNull(); // toss unknown: no Batting/Fielding
+        expect(DOM.panelFooter.querySelector('.panel-kv-end')).toBeNull();
         resetCardsForTests();
 
         enqueueCards([panel('innings-summary')]);
@@ -118,7 +125,7 @@ describe('card queue', () => {
     });
 
     it('uses a headshot when there is a picture and falls back to initials when it fails to load', () => {
-        enqueueCards([{ type: 'lineup', toss: '', series: '', ground: '', teams: [{ name: 'T', players: [{ name: 'A B', value: '', initials: 'AB', pic: 'https://cricclubs.com/x.jpg', captain: true }] }, { name: 'U', players: [] }] }]);
+        enqueueCards([{ type: 'lineup', toss: '', series: '', ground: '', overs: '', teams: [{ name: 'T', players: [{ name: 'A B', value: '', initials: 'AB', pic: 'https://cricclubs.com/x.jpg', captain: true }] }, { name: 'U', players: [] }] }]);
         expect(DOM.panelColumns.querySelector('.panel-captain')!.textContent).toBe('C');
         const img = DOM.panelColumns.querySelector('.avatar img') as HTMLImageElement;
         expect(img.src).toBe('https://cricclubs.com/x.jpg');

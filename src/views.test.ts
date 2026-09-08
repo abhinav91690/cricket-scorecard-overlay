@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { VIEW, matchPhase, desiredView, isFullFrame, stripPii, mergeCache, scoreChanged, displayName, oversFromBalls, fowText, wicketFallText, topBatters, topBowlers, phasePanels, inningsSummaryPanel, imageUrl, initialsOf, roleTag, squadRows } from './views';
+import { VIEW, matchPhase, desiredView, isFullFrame, stripPii, mergeCache, scoreChanged, displayName, oversFromBalls, fowText, wicketFallText, topBatters, topBowlers, phasePanels, inningsSummaryPanel, imageUrl, initialsOf, roleTag, squadRows, tossInfo, tidyName } from './views';
 import { mock_view_1, mock_view_2, mock_view_3, mock_view_4, mock_view_8, mock_view_48 } from './mockData';
 import { CricketAPIData } from './types';
 
@@ -170,7 +170,10 @@ describe('phasePanels', () => {
             expect(lineup.teams[0].name).toBe('TOPGUNS UNITED'); // roster, crest and name from the same source
             expect(lineup.teams[0].players.length).toBeGreaterThan(10);
             expect(lineup.teams[1].players).toEqual([]); // team 2 squad not cached yet
-            expect(lineup.toss).toBe(v.toss);
+            expect(lineup.toss).toBe('Topguns United elected to bat');
+            expect(lineup.teams.map(t => t.role)).toEqual(['Batting', 'Fielding']);
+            expect(lineup.overs).toBe('20 overs');
+            expect(lineup.series).toBe('2024 Fall Champions');
         }
         expect(phasePanels('break', v, cache).map(p => p.type)).toEqual(['innings-summary']);
         expect(phasePanels('ended', v, cache).map(p => p.type)).toEqual(['match-summary']);
@@ -182,5 +185,25 @@ describe('phasePanels', () => {
             expect(inn.batters[0].initials).toMatch(/^[A-Z]{1,2}$/);
             expect(inn.fow).toContain('1-');
         }
+    });
+});
+
+describe('tossInfo', () => {
+    it('shortens the CricClubs wording and works out who bats first', () => {
+        expect(tossInfo('TOPGUNS UNITED WON THE TOSS AND ELECTED TO BAT', 'Lions', 'TOPGUNS UNITED')).toEqual({ headline: 'Topguns United elected to bat', batting: 2 });
+        expect(tossInfo('Lions WON THE TOSS AND ELECTED TO BOWL', 'Lions', 'TOPGUNS UNITED')).toEqual({ headline: 'Lions elected to bowl', batting: 2 });
+        expect(tossInfo('Lions won the toss and chose to field', 'Lions', 'Stags')).toEqual({ headline: 'Lions elected to bowl', batting: 2 });
+        expect(tossInfo('Stags won the toss and elected to bat', 'Lions', 'Stags')).toEqual({ headline: 'Stags elected to bat', batting: 2 });
+    });
+    it('keeps unknown wording and leaves the batting side undecided', () => {
+        expect(tossInfo(undefined, 'A', 'B')).toEqual({ headline: 'Toss to come' });
+        expect(tossInfo('', 'A', 'B')).toEqual({ headline: 'Toss to come' });
+        expect(tossInfo('Toss delayed by rain', 'A', 'B')).toEqual({ headline: 'Toss delayed by rain' });
+        expect(tossInfo('Hutto Hippos WON THE TOSS AND ELECTED TO BAT', 'Lions', 'Stags')).toEqual({ headline: 'Hutto Hippos elected to bat', batting: undefined });
+    });
+    it('title-cases only all-caps names', () => {
+        expect(tidyName('TOPGUNS UNITED')).toBe('Topguns United');
+        expect(tidyName('Hutto Hippos')).toBe('Hutto Hippos');
+        expect(tidyName('LPCL')).toBe('Lpcl');
     });
 });

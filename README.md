@@ -67,7 +67,7 @@ While nothing can happen the overlay fills the gap by itself, using richer CricC
 
 | Match state | Panel above the bar |
 | :--- | :--- |
-| Before the first ball | Line-up card: both crests, one column of headshots per side, then the toss as the headline with series and ground |
+| Before the first ball | Line-up card: series, ground and overs on top, both crests, the toss as a callout ("Topguns United elected to bat"), then each XI in two columns of headshots with a Batting / Fielding tag worked out from the toss |
 | Innings break | First-innings summary: top batters and bowlers, extras, fall of wickets, target |
 | Match over | Match summary: the result, then both innings side by side |
 

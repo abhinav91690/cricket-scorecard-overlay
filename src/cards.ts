@@ -10,10 +10,11 @@ import { e2eLog } from './e2e';
  */
 
 export interface PanelTeam { name: string; logo?: string; }
+export interface LineupTeam extends PanelTeam { players: PanelRow[]; role?: 'Batting' | 'Fielding'; }
 export interface InningsBlock { team: PanelTeam; score: string; overs: string; batters: PanelRow[]; bowlers: PanelRow[]; fow: string; }
 
 export type PanelEvent =
-    | { type: 'lineup'; teams: [PanelTeam & { players: PanelRow[] }, PanelTeam & { players: PanelRow[] }]; toss: string; series: string; ground: string }
+    | { type: 'lineup'; teams: [LineupTeam, LineupTeam]; toss: string; series: string; ground: string; overs: string }
     | { type: 'innings-summary'; label: string; team: PanelTeam; score: string; overs: string; batters: PanelRow[]; bowlers: PanelRow[]; extras: string; fow: string }
     | { type: 'match-summary'; result: string; innings: InningsBlock[] };
 
@@ -191,12 +192,18 @@ function renderPanel(card: PanelEvent) {
             text(DOM.panelDetail, '');
             for (const t of card.teams) {
                 const block = el('panel-block');
+                const head = el(`panel-xi-head${t.role === 'Batting' ? ' is-batting' : ''}`);
+                head.appendChild(el('panel-xi-title', `${t.name} XI`));
+                if (t.role) head.appendChild(el('panel-xi-role', t.role));
+                block.appendChild(head);
                 const grid = rowList('panel-xi');
+                grid.style.setProperty('--rows', String(Math.max(1, Math.ceil(t.players.length / 2))));
                 t.players.forEach(p => grid.appendChild(personRow(p, 'sm')));
                 block.appendChild(grid);
                 DOM.panelColumns.appendChild(block);
             }
             footer([['', card.series], ['', card.ground]]);
+            if (card.overs) DOM.panelFooter.appendChild(el('panel-kv panel-kv-end', card.overs));
             break;
         }
         case 'innings-summary': {
@@ -251,9 +258,9 @@ export const SAMPLE_EVENTS: Record<string, AnyCard> = {
     milestone: { type: 'milestone', mark: 50, name: 'Abhinav V', runs: '52', balls: '31', fours: '6', sixes: '2' },
     partnership: { type: 'partnership', mark: 50, names: 'Abhinav & Raja', runs: '54', balls: '38' },
     boundary: { type: 'boundary', runs: 6 },
-    lineup: { type: 'lineup', toss: 'Topguns United won the toss and elected to bat', series: '2024 Fall Champions', ground: 'LPCL-G1', teams: [
-        { name: 'Lions', players: ['Sumeer G','Qasim A','Ravi T','Aamir K','Nayan G','Vijaykumar V','Mahesh P','Ranjeet P','Goutham R','Vijay D','Manideep M'].map(n => ({ name: n, value: '', initials: n.split(' ').map(w => w[0]).join('') })).sort((a, b) => a.name.localeCompare(b.name)) },
-        { name: 'Topguns United', players: ['Pavan V','Gautham R','Rakesh K','Abhinav V','Raja K','Chandu B','Vikas B','Siva Krishna V','Abhinandan K','Kiran R','Sandeep M'].map(n => ({ name: n, value: '', initials: n.split(' ').map(w => w[0]).join('') })).sort((a, b) => a.name.localeCompare(b.name)) },
+    lineup: { type: 'lineup', toss: 'Topguns United elected to bat', series: '2024 Fall Champions', ground: 'LPCL-G1', overs: '20 overs', teams: [
+        { name: 'Lions', role: 'Fielding', players: ['Sumeer G','Qasim A','Ravi T','Aamir K','Nayan G','Vijaykumar V','Mahesh P','Ranjeet P','Goutham R','Vijay D','Manideep M'].map(n => ({ name: n, value: '', initials: n.split(' ').map(w => w[0]).join('') })).sort((a, b) => a.name.localeCompare(b.name)) },
+        { name: 'Topguns United', role: 'Batting', players: ['Pavan V','Gautham R','Rakesh K','Abhinav V','Raja K','Chandu B','Vikas B','Siva Krishna V','Abhinandan K','Kiran R','Sandeep M'].map(n => ({ name: n, value: '', initials: n.split(' ').map(w => w[0]).join('') })).sort((a, b) => a.name.localeCompare(b.name)) },
     ] },
     'innings-summary': { type: 'innings-summary', label: '1st innings', team: { name: 'Lions' }, score: '142/8', overs: '20 ov',
         batters: [{ name: 'Pavan V', value: '45 (30)', initials: 'PV' }, { name: 'Gautham R', value: '32 (21)', note: 'not out', initials: 'GR' }, { name: 'Rakesh K', value: '18 (12)', initials: 'RK' }],

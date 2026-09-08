@@ -221,17 +221,45 @@ function team(v: CricketAPIValues, cache: ViewCache, n: 1 | 2): PanelTeam {
     return { name: teamLabel(v, n, cache), logo: imageUrl(cached || base) };
 }
 
-/** Pre-match card: both line-ups, then the toss as the headline, series and ground as the caption. */
+export interface TossInfo { headline: string; batting?: 1 | 2; }
+
+/** "TOPGUNS UNITED" → "Topguns United"; names that already carry case are left alone. */
+export function tidyName(name: string): string {
+    if (name !== name.toUpperCase() || !/[A-Z]/.test(name)) return name;
+    return name.replace(/\S+/g, w => w.charAt(0) + w.slice(1).toLowerCase());
+}
+
+/**
+ * Turns CricClubs' "X WON THE TOSS AND ELECTED TO BAT" into a short headline and works out
+ * who bats first. Unknown wording is shown as-is and leaves the batting side undecided.
+ */
+export function tossInfo(toss: string | undefined, t1Name: string, t2Name: string): TossInfo {
+    if (!toss) return { headline: 'Toss to come' };
+    const m = /^(.+?)\s+won the toss and (?:elected|chose|opted|decided) to (bat|bowl|field)\b/i.exec(toss.trim());
+    if (!m) return { headline: toss };
+    const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+    const winner: 1 | 2 | undefined = same(m[1], t1Name) ? 1 : same(m[1], t2Name) ? 2 : undefined;
+    const bats = m[2].toLowerCase() === 'bat';
+    const name = winner === 1 ? t1Name : winner === 2 ? t2Name : m[1];
+    const batting = winner === undefined ? undefined : bats ? winner : winner === 1 ? 2 : 1;
+    return { headline: `${tidyName(name)} elected to ${bats ? 'bat' : 'bowl'}`, batting };
+}
+
+/** Pre-match card: meta strip, both teams, the toss, then the two XIs with who bats first. */
 export function lineupPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent {
+    const t1 = team(v, cache, 1), t2 = team(v, cache, 2);
+    const toss = tossInfo(v.toss, t1.name, t2.name);
+    const role = (n: 1 | 2) => toss.batting === undefined ? undefined : toss.batting === n ? 'Batting' : 'Fielding';
     return {
         type: 'lineup',
         teams: [
-            { ...team(v, cache, 1), players: squadRows(cache.t1PlayersList) },
-            { ...team(v, cache, 2), players: squadRows(cache.t2PlayersList) },
+            { ...t1, players: squadRows(cache.t1PlayersList), role: role(1) },
+            { ...t2, players: squadRows(cache.t2PlayersList), role: role(2) },
         ],
-        toss: v.toss || 'Toss to come',
-        series: v.seriesName || '',
+        toss: toss.headline,
+        series: (v.seriesName || '').replace(/-/g, ' '), // "2024-Fall-Champions" is a slug, not a title
         ground: v.groundName || '',
+        overs: v.totalOvers ? `${v.totalOvers} overs` : '',
     };
 }
 
