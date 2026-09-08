@@ -82,9 +82,11 @@ export interface ViewCache {
     t2Extras?: string;
     t1Logo?: string;
     t2Logo?: string;
-    /** Team names as the data views report them (main-match order, see docs/cricclubs-api.md §3) */
+    /** Team names and totals as the data views report them (main-match order and totals, see docs/cricclubs-api.md §3) */
     t1Name?: string;
     t2Name?: string;
+    t1Total?: string; t1Wickets?: string; t1Overs?: string;
+    t2Total?: string; t2Wickets?: string; t2Overs?: string;
     /** Fall of wickets per innings: wicket number -> team score when it fell */
     fow1?: Record<string, number>;
     fow2?: Record<string, number>;
@@ -97,10 +99,13 @@ export function mergeCache(cache: ViewCache, data: CricketAPIData): ViewCache {
         const value = v[key];
         if (value !== undefined && value !== null && value !== '') (next as Record<string, unknown>)[key] = value;
     }
-    // Names only from data views: the scorebar view can swap the sides during a super over.
+    // Names and totals only from data views: the scorebar view swaps the sides and shows
+    // super-over totals during a super over, while data views keep the main match.
     if (!isFullFrame(data)) {
-        if (v.t1Name) next.t1Name = v.t1Name;
-        if (v.t2Name) next.t2Name = v.t2Name;
+        for (const key of ['t1Name', 't2Name', 't1Total', 't1Wickets', 't1Overs', 't2Total', 't2Wickets', 't2Overs'] as const) {
+            const value = v[key];
+            if (value !== undefined && value !== null && value !== '') next[key] = value;
+        }
     }
     // partnerShip follows the *view's* team: views 2/3 are team 1's innings, 4/5 team 2's; the
     // summary/break views carry the latest innings.
@@ -198,8 +203,9 @@ export function squadRows(rows: Player[] | undefined): PanelRow[] {
 import type { PanelEvent, PanelTeam } from './cards';
 
 const teamLabel = (v: CricketAPIValues, n: 1 | 2, cache?: ViewCache) => (cache && (n === 1 ? cache.t1Name : cache.t2Name)) || (n === 1 ? v.t1Name : v.t2Name) || `Team ${n}`;
-const scoreLabel = (v: CricketAPIValues, n: 1 | 2) => `${(n === 1 ? v.t1Total : v.t2Total) || '0'}/${(n === 1 ? v.t1Wickets : v.t2Wickets) || '0'}`;
-const oversLabel = (v: CricketAPIValues, n: 1 | 2) => `${(n === 1 ? v.t1Overs : v.t2Overs) || '0.0'} ov`;
+const pick = <K extends keyof ViewCache & keyof CricketAPIValues>(v: CricketAPIValues, cache: ViewCache, key: K) => (cache[key] as string | undefined) || (v[key] as string | undefined);
+const scoreLabel = (v: CricketAPIValues, cache: ViewCache, n: 1 | 2) => `${pick(v, cache, n === 1 ? 't1Total' : 't2Total') || '0'}/${pick(v, cache, n === 1 ? 't1Wickets' : 't2Wickets') || '0'}`;
+const oversLabel = (v: CricketAPIValues, cache: ViewCache, n: 1 | 2) => `${pick(v, cache, n === 1 ? 't1Overs' : 't2Overs') || '0.0'} ov`;
 
 function team(v: CricketAPIValues, cache: ViewCache, n: 1 | 2): PanelTeam {
     const cached = n === 1 ? cache.t1Logo : cache.t2Logo;
@@ -223,7 +229,7 @@ export function lineupPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent {
 
 export function inningsSummaryPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent {
     return {
-        type: 'innings-summary', label: '1st innings', team: team(v, cache, 1), score: scoreLabel(v, 1), overs: oversLabel(v, 1),
+        type: 'innings-summary', label: '1st innings', team: team(v, cache, 1), score: scoreLabel(v, cache, 1), overs: oversLabel(v, cache, 1),
         batters: topBatters(cache.t1Batting), bowlers: topBowlers(cache.t2Bowling),
         extras: cache.t1Extras || '', fow: fowText(cache.fow1),
     };
@@ -233,8 +239,8 @@ export function matchSummaryPanel(v: CricketAPIValues, cache: ViewCache): PanelE
     return {
         type: 'match-summary', result: v.result || 'Match over',
         innings: [
-            { team: team(v, cache, 1), score: scoreLabel(v, 1), overs: oversLabel(v, 1), batters: topBatters(cache.t1Batting, 2), bowlers: topBowlers(cache.t2Bowling, 1), fow: fowText(cache.fow1) },
-            { team: team(v, cache, 2), score: scoreLabel(v, 2), overs: oversLabel(v, 2), batters: topBatters(cache.t2Batting, 2), bowlers: topBowlers(cache.t1Bowling, 1), fow: fowText(cache.fow2) },
+            { team: team(v, cache, 1), score: scoreLabel(v, cache, 1), overs: oversLabel(v, cache, 1), batters: topBatters(cache.t1Batting, 2), bowlers: topBowlers(cache.t2Bowling, 1), fow: fowText(cache.fow1) },
+            { team: team(v, cache, 2), score: scoreLabel(v, cache, 2), overs: oversLabel(v, cache, 2), batters: topBatters(cache.t2Batting, 2), bowlers: topBowlers(cache.t1Bowling, 1), fow: fowText(cache.fow2) },
         ],
     };
 }

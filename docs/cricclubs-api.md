@@ -65,7 +65,7 @@ Auto-switch (`isAutoSwitchEnabled`) rotates views server-side; a manual switch i
 
 **Data views drop the live fields.** Views 2/3/4/5/8/13/14/15/48/49 return only ~30–45 `values` keys: team names, totals, overs and the view's extra data. They do **not** include batter names/runs, the bowler, `lastOut*`, `currentPartnershipMap`, `toss`, and `balls` is always `[]`. Only views 1, 42, 45 and 54 carry the full scorebar. So an overlay must stay on view 1 while a ball can be bowled and only *peek* at a data view for one poll when nothing can be missed (pre-match, innings break, match over).
 
-**Super overs swap the sides in the scorebar views.** Match 2079 (a tie) shows this: views 1/42/45/54 report `t1Name: Lions, t2Name: TOPGUNS UNITED` with the super-over totals (10 / 12, `isSuperOver: true`), while every data view keeps the main-match order (`t1 = TOPGUNS UNITED`, 188 each). Never pair a name from a scorebar frame with a roster or crest from a data view; take all three from the data view.
+**Super overs swap the sides in the scorebar views.** Match 2079 (a tie) shows this: views 1/42/45/54 report `t1Name: Lions, t2Name: TOPGUNS UNITED` with the super-over totals (10 / 12, `isSuperOver: true`), while every data view keeps the main-match order (`t1 = TOPGUNS UNITED`, 188 each). Never pair a name or a total from a scorebar frame with a roster or crest from a data view; take names, totals, rosters and crests together from the data views.
 
 `partnerShip` (fall of wickets) follows the **view's team**: views 2/3 give team 1's innings, 4/5 team 2's, and 8/13/14/15 the latest innings. Every view also carries `customTextValue` (free text the scorer typed) and `showMsgForScoreNeeded`.
 Fixtures for each view live in `src/mockData.ts` as `mock_view_<id>`.

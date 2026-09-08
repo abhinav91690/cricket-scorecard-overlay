@@ -72,6 +72,7 @@ describe('mergeCache', () => {
         cache = mergeCache(cache, mock_view_48 as CricketAPIData);
         expect(cache.t1PlayersList?.length).toBeGreaterThan(5);
         expect(cache.t1Name).toBe('TOPGUNS UNITED'); // from the data view, not the scorebar frame
+        expect(cache.t1Total).toBe('188'); // main-match total, not the super-over 10
         expect(mergeCache({}, mock_view_1 as CricketAPIData).t1Name).toBeUndefined();
     });
 
@@ -164,7 +165,7 @@ describe('phasePanels', () => {
         const inn = inningsSummaryPanel(v, cache);
         expect(inn.type).toBe('innings-summary');
         if (inn.type === 'innings-summary') {
-            expect(inn.score).toBe(`${v.t1Total}/${v.t1Wickets}`);
+            expect(inn.score).toBe('188/7'); // from the data views; the scorebar frame says 10/0 (super over)
             expect(inn.batters.length).toBe(3);
             expect(inn.batters[0].initials).toMatch(/^[A-Z]{1,2}$/);
             expect(inn.fow).toContain('1-');
