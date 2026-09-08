@@ -31,3 +31,6 @@ Potential features based on unused API data and UX improvements.
 
 ## 10. Configurable Refresh Rate
 Currently hardcoded at 5s. A `?refresh=3000` param would let streamers tune responsiveness.
+
+## 11. Captain and keeper marks on the line-up card
+The line-up panel already renders a `C` badge when a squad row carries `isCaptain` (`squadRows()` in `views.ts`), but no CricClubs overlay view exposes a captain or wicketkeeper flag today (see `docs/cricclubs-api.md`). Not urgent: revisit if a view starts carrying that data, or if a per-club config becomes worth adding.

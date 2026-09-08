@@ -31,9 +31,6 @@ beforeEach(() => {
 
     createMockElement('status-inline');
     createMockElement('status-line');
-    const result = createMockElement('result');
-    result.style.display = 'none';
-    createMockElement('match-result');
     createMockElement('ball-by-ball');
     createMockElement('overlay-image');
     createMockElement('batting-team-logo');
@@ -74,8 +71,6 @@ vi.mock('./dom', () => {
                     teamOvers: 'team-overs',
                     statusInline: 'status-inline',
                     statusLine: 'status-line',
-                    result: 'result',
-                    matchResult: 'match-result',
                     ballContainer: 'ball-by-ball',
                     overlayImage: 'overlay-image',
                     battingTeamLogo: 'batting-team-logo',
@@ -149,10 +144,10 @@ describe('updateScoreboard edge cases', () => {
 
     it('falls back to placeholders when values are missing', () => {
         updateScoreboard({ values: { ...base, t1Name: '', t1Total: '', t1Wickets: '', t1Overs: '' }, balls: [] } as any);
-        expect(DOM.batsman1Name.textContent).toBe('Batsman 1');
+        expect(DOM.batsman1Name.textContent).toBe(''); // never a literal placeholder on air
         expect(DOM.batsman1RunsBalls.textContent).toBe('0 (0)');
-        expect(DOM.batsman2Name.textContent).toBe('Batsman 2');
-        expect(DOM.bowlerName.textContent).toBe('Bowler Name');
+        expect(DOM.batsman2Name.textContent).toBe('');
+        expect(DOM.bowlerName.textContent).toBe('');
         expect(DOM.bowlerWicketsRuns.textContent).toBe('0-0');
         expect(DOM.bowlerOvers.textContent).toBe('0.0');
         expect(DOM.teamName.textContent).toBe('Team 1');
@@ -165,21 +160,17 @@ describe('updateScoreboard edge cases', () => {
         updateScoreboard({ values: { ...base, t1RR: '10.00' }, balls: [] } as any);
         expect(DOM.statusInline.textContent).toBe('CRR 10.00');
         expect(DOM.statusLine.textContent).toBe('');
-        expect(DOM.result.style.display).toBe('none');
     });
 
     it('shows target, need and required rate during a chase, computed from the totals', () => {
         updateScoreboard({ values: { ...base, isSecondInningsStarted: 'true', t2Name: 'Aus', t2Total: '20', t2Wickets: '1', t2Overs: '3.2', RRR: '4.86', totalOvers: 20, isMatchEnded: '0' }, balls: [] } as any);
         expect(DOM.statusInline.textContent).toBe('Target 101');
         expect(DOM.statusLine.textContent).toBe('Need 81 off 16.4 ov · RRR 4.86');
-        expect(DOM.result.style.display).toBe('none');
         expect(DOM.teamOvers.textContent).toBe('3.2');
     });
 
-    it('shows the result and clears the status line when the match has ended', () => {
+    it('clears the status line when the match has ended (the result is on the summary panel)', () => {
         updateScoreboard({ values: { ...base, isSecondInningsStarted: 'true', t2Name: 'Aus', t2Total: '101', t2Wickets: '3', t2Overs: '18.4', isMatchEnded: '1', result: 'Aus won by 7 wickets' }, balls: [] } as any);
-        expect(DOM.result.style.display).toBe('flex');
-        expect(DOM.matchResult.textContent).toBe('Aus won by 7 wickets');
         expect(DOM.statusInline.textContent).toBe('');
         expect(DOM.statusLine.textContent).toBe('');
     });
@@ -187,7 +178,6 @@ describe('updateScoreboard edge cases', () => {
     it('goes back to first-innings state if the feed flips isSecondInningsStarted off', () => {
         updateScoreboard({ values: { ...base, isSecondInningsStarted: 'true', t2Name: 'Aus', isMatchEnded: '1', result: 'x' }, balls: [] } as any);
         updateScoreboard({ values: { ...base, t1RR: '10.00' }, balls: [] } as any);
-        expect(DOM.result.style.display).toBe('none');
         expect(DOM.teamName.textContent).toBe('India');
         expect(DOM.statusInline.textContent).toBe('CRR 10.00');
     });

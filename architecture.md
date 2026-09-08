@@ -13,13 +13,15 @@ cricket-scorecard-overlay/
 │   ├── src/access.ts   # Cloudflare Access JWT verification for /stats
 │   ├── migrations/     # D1 schema
 │   └── wrangler.toml   # Routes, D1 binding, Access vars
+├── sim/                # Simulated match: generator (match.ts), fake CricClubs (server.ts), headless end-to-end runner (run.ts)
 ├── src/
 │   ├── assets/images/  # Sponsor logos, imported by config.ts so Vite bundles them
 │   ├── script.ts       # Entry point: imports fonts/CSS, then calls into app.ts
 │   ├── app.ts          # pollLoop(), updateScore() mode switch, Link Live Stream form wiring
 │   ├── analytics.ts    # track()/trackOnce(), client detection, opt-out rules
 │   ├── events.ts       # detectEvents(prev, next): wicket / milestone / partnership / boundary from poll diffs
-│   ├── cards.ts        # Event card queue: copy, hold times, one-at-a-time playback, sample cards
+│   ├── cards.ts        # Timed cards on two surfaces (in-bar events, panels above the bar); dismissAll()
+│   ├── views.ts        # CricClubs view peeks, ViewCache, match phase, panel builders, PII strip
 │   ├── urlBuilder.ts   # Home page link builder: theme options, live URL, copy, preview
 │   ├── config.ts       # CONFIG constant (refresh rate, default club ID, logo map)
 │   ├── types.ts        # CricketAPIData/CricketAPIValues interfaces modeling the CricClubs response
@@ -53,12 +55,14 @@ Located in `src/app.ts` (started from `src/script.ts`), `updateScore()` runs onc
 ### 2. State Management & DOM Updates
 - **DOM Mapping**: The `DOM` constant in `src/dom.ts` maps HTML IDs to typed element references for efficient, repeated updates.
 - **Normalization**: `updateScoreboard()` (`src/ui.ts`) processes raw API data and updates text content, visibility, and styles, only touching the DOM when a value actually changes (via `setText`/`setDisplay` helpers) to avoid layout thrash. `statusText()` computes the context around the score: `CRR x.xx` at the end of the score row in the first innings; in a chase `Target n` on the score row and `Need n off o ov · RRR x.xx` on a third row (from the totals, not CricClubs' pre-built HTML message).
-- **Event cards**: `app.ts` keeps the previous frame and passes `(prev, next)` to `detectEvents()` (`src/events.ts`), a pure diff that yields wicket, fifty/hundred, partnership and boundary events (`parseDismissal()` reduces CricClubs' HTML dismissal string to text). `enqueueCards()` (`src/cards.ts`) plays them one at a time over the batter/bowler slots with per-type hold times; `?quiet` disables them and `?debug=…&card=<type>` holds a sample.
+- **Event cards**: `app.ts` keeps the previous frame and passes `(prev, next)` to `detectEvents()` (`src/events.ts`), a pure diff that yields wicket (with fall of wicket), fifty/hundred, partnership and boundary events (`parseDismissal()` reduces CricClubs' HTML dismissal string to text). `enqueueCards()` (`src/cards.ts`) plays them one at a time over the batter/bowler slots with per-type hold times; `?quiet` disables them and `?debug=…&card=<type>` holds a sample.
+- **Two rules, enforced in code**: every card and panel has a hold time (`HOLD_MS`), and `scoreChanged(prev, next)` (a new ball, runs, a wicket, more overs or an innings change) calls `dismissAll()` before that frame's own cards are queued.
+- **Views and panels** (`src/views.ts`): CricClubs' data views drop the live fields, so the overlay stays on the scorebar view during play and only *peeks* (one poll) when nothing can be missed: the two squads before the match, team 1's batting and bowling cards at the innings break, team 2's at the end. `desiredView()` decides, `switchView()` (`api.ts`) asks, `isFullFrame()` keeps peek frames off the bar, `mergeCache()` accumulates cards, squads, extras and fall of wickets (filed by the view's team), and `stripPii()` deletes player emails the moment a frame arrives. `matchPhase()` (pre / play / break / ended) drives `phasePanels()`: line-up (crests, both XIs, toss), innings summary, match summary, rotated on the panel surface while it is idle.
 - **Ball-by-Ball Tracking**: `updateBallByBall()` manages the history of the current over, injecting a styled indicator per delivery.
 - **Team Logos**: `updateTeamLogos()` caches loaded logo images and only re-fetches when the URL changes.
 
 ### 3. Theming System
-- **One layout, many palettes.** `src/css/overlay-base.css` holds the entire overlay layout, an ICC-style lower third: batting logo, then the brand-coloured team block (name, score, overs, status line), two batter rows, bowler row plus this-over balls, bowling logo. Event cards slide in over the batter/bowler slots; the result card sits above the bar. It is written in px on purpose, because the overlay renders on a fixed 1920×1080 broadcast canvas rather than in a browser someone zooms, and it honours `prefers-reduced-motion`.
+- **One layout, many palettes.** `src/css/overlay-base.css` holds the entire overlay layout, an ICC-style lower third: batting logo, then the brand-coloured team block (name, score, overs, status line), two batter rows, bowler row plus this-over balls, bowling logo. Event cards slide in over the batter/bowler slots; panels sit above the bar. It is written in px on purpose, because the overlay renders on a fixed 1920×1080 broadcast canvas rather than in a browser someone zooms, and it honours `prefers-reduced-motion`.
 - **Themes are tokens.** Each `src/css/theme-<name>.css` sets ~22 colour custom properties on `.theme-<name>` (surfaces, lines, text, ball outcomes; the list is documented at the top of `overlay-base.css`). No theme file contains layout. `applyTheme()` (`src/theme.ts`) toggles the `theme-<name>` class on `<body>` and falls back to `modern-light` for unknown names (`modern` is an alias for it).
 - **Available themes** (17): `classic` (cream/navy), `modern-light` (default), `modern-dark`, `neon`; the 10 IPL franchises `kkr`, `rcb`, `mi`, `csk`, `dc`, `rr`, `srh`, `pbks`, `gt`, `lsg`; and `topguns-light`, `topguns-dark` (old `tel`/`ted`/`tul`/`tud` names are aliases).
 - **Adding a theme**: copy any `theme-*.css`, change the token values, `import` it in `theme.ts`, add the name to `AVAILABLE_THEMES`, add a `theme-tag tag-<name>` link to the theme grid in `index.html` plus its `.tag-<name>` colours in `instructions.css`, and update the lists in README.md.
@@ -108,6 +112,7 @@ graph TD
 
 ## Testing & Debugging Modes
 
+- **End-to-end**: `npm run sim:run` plays an entire simulated match (built from the recorded cards of match 2079) through the real overlay in headless Chrome against a fake CricClubs that mimics view switching, then grades the rules and writes screenshots and a report to `sim/out/`. Localhost-only hooks in `src/e2e.ts` (`?api=`, `?refresh=`, `?e2e`) make this possible without touching production behaviour.
 - **Unit Tests**: Vitest + jsdom for the site (`app.ts` mode switch, error handling, poll loop and form; `ui.ts` scoreboard, ball-by-ball and logo caching; `utils.ts`; `theme.ts`; `liveStream.ts`; `analytics.ts`; `api.ts`; `toast.ts`) and Vitest + node for the Worker (`worker/vitest.config.ts`; request handling, stats rendering/escaping, Access JWT verification with a generated RSA key, event normalisation). Run via `npm run test` (watch), `npm run test:run` (single run, used in `npm run build`) or `npm run test:coverage` in either package. Line coverage is ~99% for both; `dom.ts` is excluded in spirit because every test mocks it.
 - **Debug Mode**: `?debug=1-5` renders static states from `mockData.ts` (1st/2nd innings, match ended, toss, no team logos).
 - **Replay Mode**: `?mode=replay` cycles through the states in `replayData.ts` to demonstrate transitions and animations.
@@ -115,6 +120,6 @@ graph TD
 
 ## External Dependencies
 - **`@fontsource/montserrat`**: Self-hosted Montserrat font, bundled at build time (no external font requests at runtime).
-- **CricClubs**: `liveScoreOverlayData.do` (public, CORS-open, read) for score polling; `updateLiveStreamURLFromCP.do` (write, cross-origin-restricted) for the Link Live Stream feature.
+- **CricClubs**: `liveScoreOverlayData.do` (public, CORS-open, read) for score polling; `matchOverlayConfig.do?viewId=` (write, CORS-allowed, unauthenticated) switches the server-side view and with it the extra data in the payload; `updateLiveStreamURLFromCP.do` (write, cross-origin-restricted) for the Link Live Stream feature. Full reference: [docs/cricclubs-api.md](docs/cricclubs-api.md).
 - **Netlify**: builds `main` and hosts the static site as `score.abhinav.dev`.
 - **Cloudflare**: DNS/proxy for the domain; Workers + D1 for the analytics collector and stats page; Access to gate `/stats`.

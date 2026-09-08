@@ -104,17 +104,6 @@ function setText(element: HTMLElement | null, text: string) {
     }
 }
 
-/**
- * Updates the display style of a DOM element only if it has changed.
- * @param element - The DOM element to update.
- * @param display - The new display value (e.g. 'none', 'block', 'flex').
- */
-function setDisplay(element: HTMLElement | null, display: string) {
-    if (element && element.style.display !== display) {
-        element.style.display = display;
-    }
-}
-
 const RATE = /^\d+(\.\d+)?$/;
 
 export interface StatusText {
@@ -161,13 +150,13 @@ export function updateScoreboard(data: CricketAPIData) {
     const { values } = data;
 
     // Batsman Info
-    setText(DOM.batsman1Name, values.batsman1Name || 'Batsman 1');
+    setText(DOM.batsman1Name, values.batsman1Name || '');
     setText(DOM.batsman1RunsBalls, `${values.batsman1Runs || '0'} (${values.batsman1Balls || '0'})`);
-    setText(DOM.batsman2Name, values.batsman2Name || 'Batsman 2');
+    setText(DOM.batsman2Name, values.batsman2Name || '');
     setText(DOM.batsman2RunsBalls, `${values.batsman2Runs || '0'} (${values.batsman2Balls || '0'})`);
 
     // Bowler Info
-    setText(DOM.bowlerName, values.bowlerName || 'Bowler Name');
+    setText(DOM.bowlerName, values.bowlerName || '');
     setText(DOM.bowlerWicketsRuns, `${values.bowlerWickets || '0'}-${values.bowlerRuns || '0'}`);
     setText(DOM.bowlerOvers, `${values.bowlerOvers || '0.0'}`);
 
@@ -187,11 +176,6 @@ export function updateScoreboard(data: CricketAPIData) {
     const status = isMatchEnded ? { inline: '', line: '' } : statusText(values, isSecondInnings);
     setText(DOM.statusInline, status.inline);
     setText(DOM.statusLine, status.line);
-
-    setDisplay(DOM.result, isMatchEnded ? 'flex' : 'none');
-    if (isMatchEnded) {
-        setText(DOM.matchResult, values.result || 'Match Result');
-    }
 
     updateBallByBall(data.balls || [], currentTeamOvers || '0.0');
 }

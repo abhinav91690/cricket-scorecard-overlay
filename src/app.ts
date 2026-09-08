@@ -3,20 +3,22 @@
  * Link Live Stream form. Kept separate from script.ts (the entry point with side effects)
  * so it can be unit-tested.
  */
-import { mock_1stInnings, mock_2ndInnings, mock_matchEnded, mock_toss, mock_noTeamImage } from './mockData';
+import { mock_1stInnings, mock_2ndInnings, mock_matchEnded, mock_toss, mock_noTeamImage, mock_view_1, mock_view_2, mock_view_3, mock_view_4, mock_view_5, mock_view_48, mock_view_49 } from './mockData';
 import { sampleReplayData } from './replayData';
 import { CONFIG } from './config';
 import { DOM } from './dom';
 import { getQueryParams } from './utils';
 import { applyTheme, updateLogo } from './theme';
-import { fetchScoreData } from './api';
+import { fetchScoreData, switchView } from './api';
 import { updateTeamLogos, updateScoreboard } from './ui';
 import { CricketAPIData } from './types';
 import { linkLiveStream, LinkLiveStreamError, extractYouTubeVideoId } from './liveStream';
 import { trackOnce, track, LinkOutcome } from './analytics';
 import { showToast } from './toast';
 import { detectEvents } from './events';
-import { enqueueCards, showSampleCard } from './cards';
+import { enqueueCards, showSampleCard, dismissAll, isIdle, PanelEvent } from './cards';
+import { apiBase, refreshMs, e2eLog } from './e2e';
+import { ViewCache, desiredView, isFullFrame, matchPhase, mergeCache, phasePanels, scoreChanged, stripPii, lineupPanel, inningsSummaryPanel, matchSummaryPanel } from './views';
 
 let replayIndex = 0;
 /** True once the overlay has painted at least one successful frame of live/mock data. */
@@ -24,6 +26,11 @@ let hasRenderedScore = false;
 /** The previous frame, so events (wicket, fifty, boundary, target) can be derived from the diff. */
 let lastData: CricketAPIData | null = null;
 let sampleCardShown = false;
+/** Richer data gathered from view peeks (cards, squads, fall of wickets). */
+let viewCache: ViewCache = {};
+/** How many times each data view has been requested; after PEEK_ATTEMPTS we stop waiting for it. */
+let peekAttempts: Record<number, number> = {};
+const PEEK_ATTEMPTS = 3;
 
 /** Test hook: forget replay position, last frame and whether a frame has rendered. */
 export function resetAppStateForTests() {
@@ -31,13 +38,62 @@ export function resetAppStateForTests() {
     hasRenderedScore = false;
     lastData = null;
     sampleCardShown = false;
+    viewCache = {};
+    peekAttempts = {};
 }
 
-/** Paint a frame and fire any cards its changes call for. */
+/**
+ * Paint a frame and fire any cards its changes call for. Frames from a view peek (no live
+ * fields) only feed the cache; they never touch the bar or count as a score change.
+ */
 function renderFrame(data: CricketAPIData, quiet: boolean) {
+    stripPii(data);
+    viewCache = mergeCache(viewCache, data);
+    e2eLog('frame', { view: data.view ?? 1, full: isFullFrame(data), phase: isFullFrame(data) ? matchPhase(data) : null, score: `${data.values.t1Total ?? ''}/${data.values.t1Wickets ?? ''}|${data.values.t2Total ?? ''}/${data.values.t2Wickets ?? ''}`, balls: data.balls?.length ?? 0 });
+    if (!isFullFrame(data)) return;
+
     updateScoreboard(data);
-    if (!quiet) enqueueCards(detectEvents(lastData, data));
+    if (!quiet) {
+        // Golden rule: a new ball dismisses whatever is showing before this frame's own cards play.
+        if (scoreChanged(lastData, data)) dismissAll();
+        enqueueCards(detectEvents(lastData, data));
+        const phase = matchPhase(data);
+        // Panels wait until the phase's peeks have landed (or been given up on), so they never render half-empty.
+        const pending = desiredView(data, phase, viewCache);
+        const dataReady = pending === null || (peekAttempts[pending] ?? 0) >= PEEK_ATTEMPTS;
+        if (phase !== 'play' && dataReady && isIdle('panel')) enqueueCards(phasePanels(phase, data.values, viewCache));
+    }
     lastData = data;
+}
+
+/**
+ * A sample panel for `?debug=…&panel=<type>`. Built entirely from one recorded match (the view
+ * fixtures captured from match 2079) so teams, crests, squads and cards all agree, whatever
+ * debug state the bar is showing.
+ */
+function samplePanel(type: string): PanelEvent | null {
+    const match = mock_view_1 as unknown as CricketAPIData;
+    const cache = [mock_view_2, mock_view_3, mock_view_4, mock_view_5, mock_view_48, mock_view_49]
+        .reduce<ViewCache>((c, v) => mergeCache(c, stripPii(v as unknown as CricketAPIData)), {});
+    switch (type) {
+        case 'lineup': return lineupPanel(match.values, cache);
+        case 'innings-summary': return inningsSummaryPanel(match.values, cache);
+        case 'match-summary': return matchSummaryPanel(match.values, cache);
+        default: return null;
+    }
+}
+
+/** Ask CricClubs for the next view we want, if any (live matches only). */
+function steerView(data: CricketAPIData, clubId: string, matchId: string) {
+    const want = desiredView(data, isFullFrame(data) ? matchPhase(data) : (lastData ? matchPhase(lastData) : 'play'), viewCache);
+    if (want !== null && want !== (data.view ?? 1)) {
+        if (want !== 1) {
+            peekAttempts[want] = (peekAttempts[want] ?? 0) + 1;
+            if (peekAttempts[want] > PEEK_ATTEMPTS) return; // this view never yields; stop asking
+        }
+        e2eLog('switch', { from: data.view ?? 1, to: want });
+        switchView(clubId, matchId, want, apiBase());
+    }
 }
 
 /**
@@ -149,18 +205,23 @@ export async function updateScore() {
                     break;
             }
             console.log(`Using mock data: ${params.debug}`);
-            if (params.card && !sampleCardShown) {
+            if ((params.card || params.panel) && !sampleCardShown) {
                 sampleCardShown = true;
-                showSampleCard(params.card);
+                if (params.card) showSampleCard(params.card);
+                if (params.panel) {
+                    const panel = samplePanel(params.panel);
+                    if (panel) enqueueCards([panel], 60 * 60 * 1000);
+                }
             }
         } else {
             trackOnce('overlay_start', { clubId: params.clubId, matchId: params.matchId, theme: params.theme, logo: params.logo });
-            const apiUrl = `https://cricclubs.com/liveScoreOverlayData.do?clubId=${params.clubId}&matchId=${params.matchId}`;
+            const apiUrl = `${apiBase()}/liveScoreOverlayData.do?clubId=${params.clubId}&matchId=${params.matchId}`;
             data = await fetchScoreData(apiUrl);
         }
 
-        await updateTeamLogos(data);
+        if (isFullFrame(data)) await updateTeamLogos(data);
         renderFrame(data, params.quiet);
+        if (!params.debug) steerView(data, params.clubId, params.matchId!);
         hasRenderedScore = true;
 
     } catch (error) {
@@ -185,5 +246,5 @@ export async function pollLoop() {
     } catch (error) {
         console.error('Unexpected error in update loop:', error);
     }
-    setTimeout(pollLoop, CONFIG.REFRESH_RATE);
+    setTimeout(pollLoop, refreshMs());
 }

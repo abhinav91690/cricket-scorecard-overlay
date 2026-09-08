@@ -10,7 +10,7 @@
  *   --surface-frame      the lower-third slab
  *   --surface-panel      logo end caps
  *   --surface-row        batter/bowler rows
- *   --surface-pill       team block, event cards and result card (brand colour)
+ *   --surface-pill       team block (brand colour)
  *   --border-frame       hairline around slab, strip and result
  *   --divider            vertical separators
  *   --divider-row        line between the two rows
@@ -19,7 +19,7 @@
  *   --fg-accent          highlighted numbers (runs, figures, chase)
  *   --fg-title           team name inside the team block
  *   --fg-pill            text inside the team block and cards (defaults to --fg)
- *   --radius             corner radius shared by the bar, the cards and the result
+ *   --radius             corner radius shared by the bar and the cards
  *   --ball-idle          blank / dot ball fill
  *   --ball-neutral       fill for singles, twos, threes and fives
  *   --ball-neutral-fg    digit colour on --ball-neutral
@@ -391,23 +391,135 @@ body {
     color: var(--type);
 }
 
-/* ---- Result card ---- */
+/* ---- Panels: intro, squads, innings and match summaries, above the bar ---- */
 
-#result {
-    padding: 16px 36px;
-    border-radius: var(--radius);
-    background: var(--surface-pill);
-    color: var(--fg-pill, var(--fg));
+.panel-card {
+    inline-size: min(1240px, calc(100vw - 80px));
+    padding: 22px 30px 20px;
+    background: var(--card-bg);
+    color: var(--card-fg);
     border: 1px solid var(--border-frame);
+    border-block-start: 5px solid var(--brand-accent);
+    border-radius: var(--radius);
     box-shadow: var(--shadow-slab);
-    font-size: 24px;
-    font-weight: 800;
-    line-height: 1;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1), visibility 0.3s;
 }
+.panel-card.is-visible { visibility: visible; opacity: 1; transform: none; }
+.panel-card:not(.is-visible) { position: absolute; inset-block-end: 0; pointer-events: none; } /* don't hold space when hidden */
+
+.panel-eyebrow { font-size: 13px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brand-accent); }
+.panel-eyebrow:empty { display: none; }
+.panel-headline { font-size: 30px; font-weight: 800; line-height: 1.1; letter-spacing: -0.01em; }
+.panel-headline:empty { display: none; }
+.panel-detail { font-size: 16px; font-weight: 600; opacity: 0.85; }
+.panel-detail:empty { display: none; }
+
+/* Team headers: logo + name (+ score or label) */
+.panel-matchup { display: flex; align-items: center; gap: 24px; }
+.panel-matchup:empty { display: none; }
+.panel-team-head { display: flex; align-items: center; gap: 12px; min-inline-size: 0; }
+.panel-team-logo { inline-size: 44px; block-size: 44px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)); }
+.panel-team-name { font-size: 20px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+.panel-team-extra { font-size: 20px; font-weight: 700; opacity: 0.8; white-space: nowrap; margin-inline-start: 6px; font-variant-numeric: tabular-nums; }
+.panel-vs { font-size: 18px; font-weight: 600; opacity: 0.55; }
+
+/* Columns / blocks */
+.panel-columns { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 12px 40px; margin-block-start: 8px; }
+.panel-columns:empty { display: none; }
+.panel-block { display: grid; gap: 8px; align-content: start; }
+.panel-block > .panel-team-head { padding-block-end: 8px; border-block-end: 1px solid var(--divider); }
+.panel-block > .panel-team-head .panel-team-logo { inline-size: 32px; block-size: 32px; }
+.panel-block > .panel-team-head .panel-team-name, .panel-block > .panel-team-head .panel-team-extra { font-size: 16px; }
+
+/* Rows with a face */
+.panel-row { display: flex; align-items: center; gap: 12px; font-size: 17px; font-weight: 600; line-height: 1.15; }
+.panel-name { flex: 1 1 auto; min-inline-size: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.panel-note { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.6; white-space: nowrap; }
+.panel-value { font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.panel-captain { flex: none; display: grid; place-items: center; inline-size: 18px; block-size: 18px; border-radius: 4px; background: var(--brand-accent); color: var(--fg-pill, #fff); font-size: 11px; font-weight: 800; }
+.avatar { flex: none; border-radius: 50%; overflow: hidden; background: var(--surface-pill); color: var(--fg-pill, var(--fg)); display: grid; place-items: center; }
+.avatar-md { inline-size: 40px; block-size: 40px; }
+.avatar-sm { inline-size: 34px; block-size: 34px; }
+.avatar img { inline-size: 100%; block-size: 100%; object-fit: cover; display: block; }
+.avatar-initials { font-size: 13px; font-weight: 800; letter-spacing: 0.04em; }
+.avatar-sm .avatar-initials { font-size: 11px; }
+
+/* Line-up card (pre-match): crests, one column per side, then the toss as the headline */
+.panel-xi { display: grid; grid-template-columns: 1fr; gap: 4px; }
+.panel-xi .panel-row { font-size: 15px; gap: 10px; }
+.panel-xi .avatar-sm { inline-size: 30px; block-size: 30px; }
+
+/* Sheet panels (line-up, innings summary): bar width, accent down the left edge, explicit spacing per block. */
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) { box-sizing: border-box; inline-size: min(1240px, calc(100vw - 80px)); row-gap: 0; border-block-start-width: 1px; border-inline-start: 6px solid var(--brand-accent); padding: 20px 30px 22px 30px; }
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-columns { gap: 0 40px; margin: 0; }
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-block { gap: 0; }
+.panel-col-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-block-end: 8px; margin-block-end: 2px; border-block-end: 2px solid var(--divider); font-size: 13px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
+.panel-col-head.is-accent { border-block-end-color: var(--brand-accent); }
+.panel-col-head-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.panel-col-head-tag { flex: none; opacity: 0.55; }
+.panel-col-head.is-accent .panel-col-head-tag { opacity: 1; color: var(--brand-accent); }
+.panel-kv-end { margin-inline-start: auto; color: var(--brand-accent); }
+.panel-value-sub { display: inline; font-size: 0.72em; font-weight: 700; opacity: 0.6; margin-inline-start: 4px; }
+
+/* Line-up: meta strip on top, mirrored team heads, toss callout, then the two XIs in two sub-columns each. */
+.panel-card[data-type="lineup"] .panel-footer { order: 1; margin: 0 0 22px; padding: 0; border: 0; font-size: 13px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; opacity: 1; }
+.panel-card[data-type="lineup"] .panel-footer .v { opacity: 0.6; }
+.panel-card[data-type="lineup"] .panel-footer .panel-sep { opacity: 0.35; }
+.panel-card[data-type="lineup"] .panel-matchup { order: 2; justify-content: space-between; gap: 32px; margin-block-end: 22px; }
+.panel-card[data-type="lineup"] .panel-team-head { gap: 16px; flex: 1 1 0; }
+.panel-card[data-type="lineup"] .panel-team-head:last-child { flex-direction: row-reverse; text-align: end; }
+.panel-card[data-type="lineup"] .panel-team-logo { inline-size: 64px; block-size: 64px; }
+.panel-card[data-type="lineup"] .panel-team-name { font-size: 40px; line-height: 0.95; letter-spacing: 0.02em; white-space: normal; text-wrap: balance; max-inline-size: 14ch; }
+.panel-card[data-type="lineup"] .panel-vs { flex: none; font-size: 20px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.4; }
+.panel-card[data-type="lineup"] .panel-eyebrow,
+.panel-card[data-type="lineup"] .panel-headline { background: rgba(127, 127, 127, 0.1); border-inline-start: 5px solid var(--brand-accent); padding-inline: 22px; }
+.panel-card[data-type="lineup"] .panel-eyebrow { order: 3; padding-block: 14px 4px; border-start-end-radius: 8px; }
+.panel-card[data-type="lineup"] .panel-headline { order: 4; padding-block: 0 16px; margin-block-end: 24px; border-end-end-radius: 8px; font-size: 34px; letter-spacing: -0.01em; white-space: normal; text-wrap: balance; }
+.panel-card[data-type="lineup"] .panel-columns { order: 5; }
+.panel-card[data-type="lineup"] .panel-xi { grid-template-columns: 1fr 1fr; grid-auto-flow: column; grid-template-rows: repeat(var(--rows, 6), auto); gap: 0 28px; }
+.panel-card[data-type="lineup"] .panel-xi .panel-row { padding-block: 5px; border-block-end: 1px solid var(--divider-row, var(--divider)); }
+
+/* Innings summary: eyebrow, batting side with the big total, stat tiles, top scorers / best bowling, fall of wickets. */
+.panel-card[data-type="innings-summary"] .panel-eyebrow { order: 1; margin-block-end: 12px; }
+.panel-card[data-type="innings-summary"] .panel-matchup { order: 2; justify-content: space-between; align-items: center; gap: 32px; padding-block-end: 18px; margin-block-end: 22px; border-block-end: 2px solid var(--card-fg); }
+.panel-card[data-type="innings-summary"] .panel-team-head { gap: 16px; }
+.panel-card[data-type="innings-summary"] .panel-team-logo { inline-size: 56px; block-size: 56px; }
+.panel-card[data-type="innings-summary"] .panel-team-name { font-size: 36px; letter-spacing: 0.02em; }
+.panel-score { display: flex; align-items: baseline; gap: 4px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.panel-score-runs { font-size: 88px; font-weight: 900; line-height: 0.85; letter-spacing: -0.04em; }
+.panel-score-wkts { font-size: 40px; font-weight: 800; opacity: 0.55; letter-spacing: -0.02em; }
+.panel-score-overs { font-size: 26px; font-weight: 700; opacity: 0.8; margin-inline-start: 12px; }
+.panel-card[data-type="innings-summary"] .panel-detail { order: 3; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 12px; margin-block-end: 24px; font-size: inherit; opacity: 1; }
+.panel-tile { display: grid; gap: 6px; padding: 14px 18px 16px; border-radius: 8px; background: rgba(127, 127, 127, 0.12); }
+.panel-tile .k { font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.65; }
+.panel-tile .v { display: flex; align-items: baseline; gap: 6px; font-size: 30px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.panel-tile .v .u { font-size: 14px; font-weight: 700; opacity: 0.6; margin-inline-end: 8px; }
+.panel-tile.is-dark { background: var(--card-fg); color: var(--card-bg); }
+.panel-tile.is-dark .k { opacity: 0.8; }
+.panel-card[data-type="innings-summary"] .panel-columns { order: 4; }
+.panel-card[data-type="innings-summary"] .panel-list { gap: 0; }
+.panel-card[data-type="innings-summary"] .panel-list .panel-row { padding-block: 10px; border-block-end: 1px solid var(--divider-row, var(--divider)); font-size: 20px; }
+.panel-card[data-type="innings-summary"] .panel-list .panel-value { font-size: 22px; }
+.panel-card[data-type="innings-summary"] .panel-footer { order: 5; margin-block-start: 14px; padding: 0; border: 0; }
+
+.panel-list, .panel-xi { list-style: none; margin: 0; padding: 0; }
+.panel-list { display: grid; gap: 8px; }
+.panel-row.is-first-bowler { margin-block-start: 4px; padding-block-start: 8px; border-block-start: 1px solid var(--divider); }
+
+.panel-footer { display: flex; align-items: baseline; gap: 12px; margin-block-start: 12px; padding-block-start: 10px; border-block-start: 1px solid var(--divider); font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; }
+.panel-footer:empty { display: none; }
+.panel-kv { display: inline-flex; align-items: baseline; gap: 8px; min-inline-size: 0; }
+.panel-kv .k { font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.65; }
+.panel-kv .v { font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; }
+.panel-sep { opacity: 0.4; }
 
 @media (prefers-reduced-motion: reduce) {
     .ball-indicator { animation: none; }
-    .event-card { transition: none; }
+    .event-card, .panel-card { transition: none; }
 }

@@ -32,8 +32,8 @@ describe('detectEvents', () => {
 
     it('detects a wicket from the batting side wicket count and reads the last-out fields', () => {
         const next = first({ t1Wickets: '2', lastOutName: 'Raja K', lastOutRuns: '7', lastOutBalls: '4', lastOutString: "<span>b </span><span class='outname'>Chandu B</span>" }, ['1', '4', 'W']);
-        expect(detectEvents(first({}, ['1', '4']), next)).toEqual([
-            { type: 'wicket', name: 'Raja K', runs: '7', balls: '4', dismissal: 'b Chandu B' },
+        expect(detectEvents(first({ t1Total: '84' }, ['1', '4']), { ...next, values: { ...next.values, t1Total: '84' } })).toEqual([
+            { type: 'wicket', name: 'Raja K', runs: '7', balls: '4', dismissal: 'b Chandu B', fow: '2nd wkt · 84/2' },
         ]);
     });
 

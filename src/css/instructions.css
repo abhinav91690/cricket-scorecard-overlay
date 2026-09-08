@@ -77,18 +77,9 @@
     gap: clamp(1rem, 2vw, 1.5rem);
 }
 
-/* ---- Header / footer ---- */
+/* ---- Header ---- */
 
 .home-header { padding-inline: 0.25rem; }
-
-.eyebrow {
-    margin: 0 0 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--h-primary);
-}
 
 .instructions h1 {
     margin: 0 0 0.5rem;
@@ -103,14 +94,6 @@
     max-inline-size: 40rem;
     color: var(--h-text-2);
 }
-
-.home-footer {
-    padding-inline: 0.25rem;
-    font-size: 0.85rem;
-    color: var(--h-text-2);
-}
-.home-footer p { margin: 0; }
-.home-footer a { color: var(--h-primary); font-weight: 600; }
 
 /* ---- Cards ---- */
 

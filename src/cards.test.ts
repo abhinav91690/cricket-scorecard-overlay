@@ -2,30 +2,37 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('./dom', () => {
     const el = (id: string) => { const d = document.createElement('div'); d.id = id; document.body.appendChild(d); return d; };
-    return { DOM: { eventCard: el('event-card'), eventEyebrow: el('event-eyebrow'), eventHeadline: el('event-headline'), eventDetail: el('event-detail') } };
+    return { DOM: {
+        eventCard: el('event-card'), eventEyebrow: el('event-eyebrow'), eventHeadline: el('event-headline'), eventDetail: el('event-detail'),
+        panelCard: el('panel-card'), panelMatchup: el('panel-matchup'), panelEyebrow: el('panel-eyebrow'), panelHeadline: el('panel-headline'), panelDetail: el('panel-detail'), panelColumns: el('panel-columns'), panelFooter: el('panel-footer'),
+    } };
 });
 
-import { cardCopy, enqueueCards, showSampleCard, resetCardsForTests, HOLD_MS, SAMPLE_EVENTS } from './cards';
+import { cardCopy, enqueueCards, showSampleCard, resetCardsForTests, dismissAll, isIdle, HOLD_MS, SAMPLE_EVENTS, PanelEvent } from './cards';
+import { OverlayEvent } from './events';
 import { DOM } from './dom';
 
+const ev = (k: string) => SAMPLE_EVENTS[k] as OverlayEvent;
+const panel = (k: string) => SAMPLE_EVENTS[k] as PanelEvent;
+
 describe('cardCopy', () => {
-    it('writes each card type', () => {
-        expect(cardCopy(SAMPLE_EVENTS.wicket)).toEqual({ eyebrow: 'Wicket', headline: 'Vikas B', detail: 'c Ravi T b Siva Krishna V · 11 (8)' });
-        expect(cardCopy({ type: 'wicket', name: 'X', runs: '0', balls: '1', dismissal: '' }).detail).toBe('0 (1)');
-        expect(cardCopy(SAMPLE_EVENTS.milestone)).toEqual({ eyebrow: 'Fifty', headline: 'Abhinav V', detail: '52 (31) · 6×4 · 2×6' });
-        expect(cardCopy({ ...SAMPLE_EVENTS.milestone, mark: 100 } as any).eyebrow).toBe('Hundred');
-        expect(cardCopy(SAMPLE_EVENTS.partnership)).toEqual({ eyebrow: '50 partnership', headline: 'Abhinav & Raja', detail: '54 (38)' });
-        expect(cardCopy(SAMPLE_EVENTS.boundary)).toEqual({ eyebrow: '', headline: 'Six', detail: '' });
+    it('writes each in-bar card type', () => {
+        expect(cardCopy(ev('wicket'))).toEqual({ eyebrow: 'Wicket', headline: 'Vikas B', detail: 'c Ravi T b Siva Krishna V · 11 (8) · 3rd wkt · 84/3' });
+        expect(cardCopy({ type: 'wicket', name: 'X', runs: '0', balls: '1', dismissal: '', fow: '' }).detail).toBe('0 (1)');
+        expect(cardCopy(ev('milestone'))).toEqual({ eyebrow: 'Fifty', headline: 'Abhinav V', detail: '52 (31) · 6×4 · 2×6' });
+        expect(cardCopy({ ...(ev('milestone') as any), mark: 100 }).eyebrow).toBe('Hundred');
+        expect(cardCopy(ev('partnership'))).toEqual({ eyebrow: '50 partnership', headline: 'Abhinav & Raja', detail: '54 (38)' });
+        expect(cardCopy(ev('boundary'))).toEqual({ eyebrow: '', headline: 'Six', detail: '' });
         expect(cardCopy({ type: 'boundary', runs: 4 }).headline).toBe('Four');
     });
 });
 
 describe('card queue', () => {
-    beforeEach(() => { vi.useFakeTimers(); resetCardsForTests(); DOM.eventCard.classList.remove('is-visible'); });
+    beforeEach(() => { vi.useFakeTimers(); resetCardsForTests(); DOM.eventCard.classList.remove('is-visible'); DOM.panelCard.classList.remove('is-visible'); });
     afterEach(() => vi.useRealTimers());
 
     it('shows a card, holds it, then hides it', () => {
-        enqueueCards([SAMPLE_EVENTS.wicket]);
+        enqueueCards([ev('wicket')]);
         expect(DOM.eventCard.classList.contains('is-visible')).toBe(true);
         expect(DOM.eventCard.dataset.type).toBe('wicket');
         expect(DOM.eventHeadline.textContent).toBe('Vikas B');
@@ -35,23 +42,20 @@ describe('card queue', () => {
         expect(DOM.eventCard.classList.contains('is-visible')).toBe(false);
     });
 
-    it('plays cards one at a time, in order, with a gap for the exit transition', () => {
-        enqueueCards([SAMPLE_EVENTS.wicket, SAMPLE_EVENTS.boundary]);
+    it('plays bar cards one at a time, in order, with a gap for the exit transition', () => {
+        enqueueCards([ev('wicket'), ev('boundary')]);
         expect(DOM.eventCard.dataset.type).toBe('wicket');
         vi.advanceTimersByTime(HOLD_MS.wicket);
         expect(DOM.eventCard.classList.contains('is-visible')).toBe(false);
-        expect(DOM.eventCard.dataset.type).toBe('wicket');
         vi.advanceTimersByTime(300);
         expect(DOM.eventCard.dataset.type).toBe('boundary');
         expect(DOM.eventCard.dataset.runs).toBe('6');
         expect(DOM.eventCard.classList.contains('is-visible')).toBe(true);
-        vi.advanceTimersByTime(HOLD_MS.boundary + 300);
-        expect(DOM.eventCard.classList.contains('is-visible')).toBe(false);
     });
 
     it('does not stack up boundary flashes', () => {
-        enqueueCards([SAMPLE_EVENTS.wicket]);
-        enqueueCards([SAMPLE_EVENTS.boundary]);
+        enqueueCards([ev('wicket')]);
+        enqueueCards([ev('boundary')]);
         enqueueCards([{ type: 'boundary', runs: 4 }]);
         vi.advanceTimersByTime(HOLD_MS.wicket + 300);
         expect(DOM.eventCard.dataset.type).toBe('boundary');
@@ -61,11 +65,105 @@ describe('card queue', () => {
         expect(DOM.eventCard.classList.contains('is-visible')).toBe(false);
     });
 
+    it('runs the panel surface independently of the bar surface', () => {
+        enqueueCards([panel('lineup'), ev('wicket')]);
+        expect(DOM.panelCard.classList.contains('is-visible')).toBe(true);
+        expect(DOM.eventCard.classList.contains('is-visible')).toBe(true);
+        expect(isIdle('panel')).toBe(false);
+        vi.advanceTimersByTime(HOLD_MS.wicket + 300);
+        expect(DOM.eventCard.classList.contains('is-visible')).toBe(false);
+        expect(DOM.panelCard.classList.contains('is-visible')).toBe(true);
+        vi.advanceTimersByTime(HOLD_MS.lineup - HOLD_MS.wicket);
+        expect(DOM.panelCard.classList.contains('is-visible')).toBe(false);
+        vi.advanceTimersByTime(300);
+        expect(isIdle('panel')).toBe(true);
+    });
+
+    it('renders each panel type into the panel skeleton without HTML injection', () => {
+        enqueueCards([panel('lineup')]);
+        expect(DOM.panelMatchup.querySelectorAll('.panel-team-name')).toHaveLength(2);
+        expect(DOM.panelEyebrow.textContent).toBe('Toss');
+        expect(DOM.panelHeadline.textContent).toBe('Topguns United elected to bat');
+        expect(DOM.panelColumns.querySelectorAll('.panel-block')).toHaveLength(2);
+        expect(DOM.panelColumns.querySelectorAll('.panel-row')).toHaveLength(22);
+        expect(DOM.panelColumns.querySelector('.panel-col-title')).toBeNull();
+        expect(Array.from(DOM.panelColumns.querySelectorAll('.panel-col-head-title')).map(e => e.textContent)).toEqual(['Lions XI', 'Topguns United XI']);
+        expect(Array.from(DOM.panelColumns.querySelectorAll('.panel-col-head-tag')).map(e => e.textContent)).toEqual(['Fielding', 'Batting']);
+        expect(DOM.panelColumns.querySelectorAll('.panel-col-head.is-accent')).toHaveLength(1);
+        expect(Array.from(DOM.panelColumns.querySelectorAll<HTMLElement>('ul.panel-xi')).map(u => u.style.getPropertyValue('--rows'))).toEqual(['6', '6']);
+        expect(DOM.panelColumns.querySelectorAll('ul.panel-xi > li')).toHaveLength(22);
+        expect(DOM.panelColumns.querySelector('.panel-captain')).toBeNull();
+        expect(DOM.panelFooter.textContent).toBe('2024 Fall Champions·LPCL-G120 overs');
+        expect(DOM.panelFooter.querySelector('.panel-kv-end')!.textContent).toBe('20 overs');
+        resetCardsForTests();
+
+        enqueueCards([{ type: 'lineup', toss: 't', series: '', ground: '', matchOvers: '', teams: [
+            { name: '<b>x</b>', players: Array.from({ length: 12 }, (_, i) => ({ name: `<img src=x>${i}`, value: '', note: 'BAT', initials: 'XX' })) },
+            { name: 'y', players: Array.from({ length: 11 }, (_, i) => ({ name: `p${i}`, value: '', initials: 'P' })) },
+        ] }]);
+        expect(DOM.panelMatchup.querySelector('.panel-team-name')!.textContent).toBe('<b>x</b>');
+        expect(DOM.panelColumns.querySelector('.panel-name img')).toBeNull();
+        expect(DOM.panelColumns.querySelectorAll('.panel-row')).toHaveLength(23);
+        expect(DOM.panelColumns.querySelector('.panel-col-head-tag')).toBeNull(); // toss unknown: no Batting/Fielding
+        expect(DOM.panelFooter.querySelector('.panel-kv-end')).toBeNull();
+        resetCardsForTests();
+
+        enqueueCards([panel('innings-summary')]);
+        expect(DOM.panelMatchup.querySelector('.panel-team-name')!.textContent).toBe('Lions');
+        expect(DOM.panelMatchup.querySelector('.panel-score')!.textContent).toBe('142/820.0 ov');
+        expect(DOM.panelEyebrow.textContent).toBe('Innings break · 1st innings');
+        expect(DOM.panelHeadline.textContent).toBe('');
+        expect(Array.from(DOM.panelDetail.querySelectorAll('.panel-tile .k')).map(e => e.textContent)).toEqual(['Run rate', 'Boundaries', 'Extras', 'Target']);
+        expect(Array.from(DOM.panelDetail.querySelectorAll('.panel-tile .v')).map(e => e.textContent)).toEqual(['7.10', '124s46s', '11', '143']);
+        expect(DOM.panelDetail.querySelector('.panel-tile.is-dark .k')!.textContent).toBe('Target');
+        expect(DOM.panelColumns.querySelectorAll('.panel-block')).toHaveLength(2);
+        expect(Array.from(DOM.panelColumns.querySelectorAll('.panel-col-head-title')).map(e => e.textContent)).toEqual(['Top scorers', 'Best bowling']);
+        expect(DOM.panelColumns.querySelectorAll('.panel-row')).toHaveLength(6);
+        const first = DOM.panelColumns.querySelector('.panel-row .panel-value')!;
+        expect(first.firstChild!.textContent).toBe('45'); // runs big, balls faced smaller
+        expect(first.querySelector('.panel-value-sub')!.textContent).toBe('(30)');
+        expect(DOM.panelFooter.querySelector('.panel-kv .k')!.textContent).toBe('Fall of wickets');
+        expect(DOM.panelFooter.querySelector('.panel-kv .v')!.textContent).toContain('1-14');
+        resetCardsForTests();
+
+        enqueueCards([panel('match-summary')]);
+        expect(DOM.panelHeadline.textContent).toBe('Topguns United won by 5 wickets');
+        expect(DOM.panelColumns.querySelectorAll('.panel-block')).toHaveLength(2);
+        expect(DOM.panelColumns.querySelectorAll('.panel-team-extra')[0].textContent).toBe('142/8 · 20 ov');
+        expect(DOM.panelColumns.querySelectorAll('.is-first-bowler')).toHaveLength(2);
+    });
+
+    it('uses a headshot when there is a picture and falls back to initials when it fails to load', () => {
+        enqueueCards([{ type: 'lineup', toss: '', series: '', ground: '', matchOvers: '', teams: [{ name: 'T', players: [{ name: 'A B', value: '', initials: 'AB', pic: 'https://cricclubs.com/x.jpg', captain: true }] }, { name: 'U', players: [] }] }]);
+        expect(DOM.panelColumns.querySelector('.panel-captain')!.textContent).toBe('C');
+        const img = DOM.panelColumns.querySelector('.avatar img') as HTMLImageElement;
+        expect(img.src).toBe('https://cricclubs.com/x.jpg');
+        img.dispatchEvent(new Event('error'));
+        expect(DOM.panelColumns.querySelector('.avatar img')).toBeNull();
+        expect(DOM.panelColumns.querySelector('.avatar-initials')!.textContent).toBe('AB');
+    });
+
+    it('dismissAll hides both surfaces at once and empties the queues', () => {
+        enqueueCards([panel('lineup'), panel('innings-summary'), ev('wicket'), ev('milestone')]);
+        expect(DOM.panelCard.classList.contains('is-visible')).toBe(true);
+        expect(DOM.eventCard.classList.contains('is-visible')).toBe(true);
+        dismissAll();
+        expect(DOM.panelCard.classList.contains('is-visible')).toBe(false);
+        expect(DOM.eventCard.classList.contains('is-visible')).toBe(false);
+        expect(isIdle('bar')).toBe(true);
+        expect(isIdle('panel')).toBe(true);
+        vi.advanceTimersByTime(60000);
+        expect(DOM.eventCard.classList.contains('is-visible')).toBe(false);
+        expect(DOM.panelCard.classList.contains('is-visible')).toBe(false);
+    });
+
     it('shows a sample card for a known type and ignores unknown ones', () => {
         showSampleCard('nope');
         expect(DOM.eventCard.classList.contains('is-visible')).toBe(false);
         showSampleCard('partnership');
         expect(DOM.eventCard.dataset.type).toBe('partnership');
+        showSampleCard('innings-summary');
+        expect(DOM.panelCard.dataset.type).toBe('innings-summary');
         vi.advanceTimersByTime(HOLD_MS.partnership * 2);
         expect(DOM.eventCard.classList.contains('is-visible')).toBe(true); // samples stay up
     });

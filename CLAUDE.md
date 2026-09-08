@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A client-side cricket scorecard overlay for OBS/vMix browser sources. Vite + TypeScript, no framework, no backend. It polls the public CricClubs `liveScoreOverlayData.do` endpoint every 5s and paints a fixed-position DOM. Everything is driven by URL query params (`matchId`, `clubId`, `theme`, `debug`, `mode`, `logo`); see README.md for the full table and `architecture.md` for the data-flow diagram.
 
+**CricClubs API**: everything known about the endpoints, the `view` mechanism (`matchOverlayConfig.do?viewId=`), per-view payload shapes and probing recipes is in `docs/cricclubs-api.md`. Read it before touching `api.ts`, `types.ts` or anything that fetches; player rows in the card views contain email addresses that must never be rendered or stored.
+
 ## Commands
 
 ```bash
@@ -18,6 +20,11 @@ npx vitest run -t "should return wicket"    # one test by name
 npx tsc                # typecheck only (noEmit; strict + noUnusedLocals + noImplicitReturns)
 npm run build          # tsc && test:run && vite build -> dist/ (dist is gitignored)
 npm run preview        # serve the production build
+```
+
+```bash
+npm run sim            # fake CricClubs serving a simulated match on :8788 (--speed 60)
+npm run sim:run        # full end-to-end run: sim server + dev server + headless Chrome; report in sim/out/
 ```
 
 ```bash
@@ -48,6 +55,16 @@ Entry is `src/script.ts`, loaded directly from `index.html` as a module. It only
 Rendering is in `src/ui.ts`. `updateScoreboard()` picks team 1 vs team 2 fields based on `values.isSecondInningsStarted === "true"` (API booleans are strings, `isMatchEnded` is `"1"`), then writes through `setText`/`setDisplay` helpers that only touch the DOM when a value changed. `statusText()` supplies the CRR / Target tail on the score row and the Need / RRR third row in a chase, computed from the totals; there is no separate second-innings strip any more.
 
 Event cards: `app.ts` keeps the previous frame and calls `detectEvents(prev, next)` (`src/events.ts`, pure, tested) after every render, then `enqueueCards()` (`src/cards.ts`) plays them one at a time over the batter/bowler slots. Hold times live in `HOLD_MS`; the exit transition length is duplicated between `cards.ts` (`TRANSITION_MS`) and the `.event-card` CSS, keep them equal. Adding a card type means a new `OverlayEvent` variant, a detection rule, `cardCopy()` text, a `HOLD_MS` entry, a `SAMPLE_EVENTS` entry (for `?debug=1&card=<type>`), and usually a `[data-type]` CSS rule. Cards are the only thing that may cover the bar; the team block must always stay visible.
+
+Two rules are enforced in `renderFrame()` and must survive any refactor: every card/panel is timed (`HOLD_MS`), and `scoreChanged()` → `dismissAll()` runs before a frame's cards are queued. Panels (line-up, innings/match summary) live in `views.ts` and play on the `panel` surface only while `matchPhase()` is not `play`.
+
+### Simulated matches (`sim/`)
+
+`sim/match.ts` turns the recorded cards of match 2079 into a full ball-by-ball game (pre-match, first innings, break, chase, result; wickets, boundaries, fifties, wides), deterministic per seed. `sim/server.ts` serves it through the real endpoint shapes, including view switching that drops the live fields exactly like CricClubs, with a controllable clock (`/sim/control?speed=&seek=&pause=`). `sim/run.ts` drives the real overlay in headless Chrome over the DevTools protocol through the whole match, screenshots every phase and card, and grades the rules (peeks only while idle and never repeated, panels wait for their peeks, every card timed, every dismissal explained by a score change). **Run it after any change to `views.ts`, `cards.ts`, `events.ts` or `app.ts`**; unit tests did not catch the three bugs it found on its first runs. Node runs the `.ts` directly (no build); the overlay hooks it relies on (`?api=`, `?refresh=`, `?e2e`, in `src/e2e.ts`) only work on localhost.
+
+### CricClubs views (`src/views.ts`, `docs/cricclubs-api.md`)
+
+The overlay drives CricClubs' server-side view with `switchView()` but **never during play**: data views drop the batter/bowler/ball fields, so `desiredView()` only peeks for one poll (squads pre-match, team 1's cards at the break, team 2's at the end) and immediately asks for view 1 again. Panels for a phase are held until its peeks have landed (`PEEK_ATTEMPTS` tries, then shown anyway), and empty card lists in a view mean "not yet", not "present". `isFullFrame()` gates the bar; peek frames only feed `ViewCache`. Debug and replay never switch views. Player rows carry `email`; `stripPii()` runs first in `renderFrame()`, and the fixtures in `mockData.ts` were captured live with emails removed. Switching a view also switches CricClubs' own overlay for that match, which the owner has accepted.
 
 ### `dom.ts` runs `getElementById` at import time
 

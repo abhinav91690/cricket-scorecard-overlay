@@ -60,7 +60,18 @@ The bar stays constant; moments earn a card that slides in over the batter and b
 | Four / Six | the newest ball is a boundary | 2s |
 | 50 / 100 partnership | the current stand crosses 50 or 100 | 6s |
 
-Cards queue and play one at a time; a wicket suppresses the boundary flash on the same ball. `?quiet` disables them. In debug mode, `&card=wicket` (or `milestone`, `partnership`, `boundary`) holds a sample card so you can position it in OBS.
+Cards queue and play one at a time; a wicket suppresses the boundary flash on the same ball, and the wicket card shows the fall of wicket ("3rd wkt · 84/3"). **Two rules always hold**: every card is timed, and any change to the score dismisses whatever is showing. `?quiet` disables them. In debug mode, `&card=wicket` (or `milestone`, `partnership`, `boundary`) holds a sample card so you can position it in OBS.
+
+### Panels between the action
+While nothing can happen the overlay fills the gap by itself, using richer CricClubs data it fetches by switching the match's overlay view for a single poll (see [docs/cricclubs-api.md](docs/cricclubs-api.md)):
+
+| Match state | Panel above the bar |
+| :--- | :--- |
+| Before the first ball | Line-up card: series, ground and overs on top, both crests, the toss as a callout ("Topguns United elected to bat"), then each XI in two columns of headshots with a Batting / Fielding tag worked out from the toss |
+| Innings break | First-innings summary: the batting side with its total large on the right, tiles for run rate, boundaries, extras and the target, then top scorers and best bowling with headshots, fall of wickets beneath |
+| Match over | Match summary: the result, then both innings side by side |
+
+Panels rotate on timers and disappear the moment a ball is bowled. The overlay never leaves the live scorebar view while play is possible; it peeks at the squads before the match, team 1's cards at the break and team 2's at the end, one poll each. `&panel=lineup` (or `innings-summary`, `match-summary`) with `?debug=` holds a sample.
 
 ### Debug Modes
 Test layouts without a live match:
@@ -138,10 +149,13 @@ npm run build
 # Preview the production build locally
 npm run preview
 
+# Simulated match (see sim/): fake CricClubs + headless Chrome through a whole game, graded
+npm run sim:run
+
 # Analytics Worker (run inside worker/)
 npm run dev              # local Worker + local D1 on http://localhost:8787
 npm run test:run         # Worker unit tests
 npm run typecheck
 ```
 
-See [architecture.md](architecture.md) for a deeper look at the project structure and data flow.
+See [architecture.md](architecture.md) for a deeper look at the project structure and data flow, and [docs/cricclubs-api.md](docs/cricclubs-api.md) for what we know about the CricClubs endpoints.

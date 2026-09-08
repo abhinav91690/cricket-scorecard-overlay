@@ -130,3 +130,6 @@ dist/
 # Cloudflare Worker
 .wrangler/
 worker/.dev.vars
+
+# simulated match runs
+sim/out/

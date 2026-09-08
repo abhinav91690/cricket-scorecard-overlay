@@ -15,9 +15,8 @@
     <div id="instructions" class="instructions" style="display: none;">
         <div class="instructions-content">
             <header class="home-header">
-                <p class="eyebrow">For OBS · vMix · Streamlabs</p>
                 <h1>Cricket Scorecard Overlay</h1>
-                <p class="lede">Live CricClubs scores as a transparent browser source for your stream. Build your link, add it to your scene, and it updates itself every five seconds.</p>
+                <p class="lede">Live CricClubs scores as a transparent browser source for your stream. Build your link and add it to your scene.</p>
             </header>
 
             <main class="home-main" id="main-content">
@@ -47,7 +46,6 @@
                                 <output id="build-url" class="url" for="build-match-id build-club-id build-theme" data-state="incomplete"></output>
                                 <button type="button" id="build-copy">Copy</button>
                             </div>
-                            <p class="hint">Add it as a <strong>Browser Source</strong> at 1920 × 1080. The page background is transparent.</p>
                         </div>
                         <a id="build-preview" class="button-secondary" href="?debug=1&amp;theme=modern-light" target="_blank" rel="noopener">Preview with sample data</a>
                     </form>
@@ -97,7 +95,6 @@
                         </div>
                         <div class="actions">
                             <button type="submit" id="link-stream-submit">Link Stream</button>
-                            <p class="hint">Briefly opens a small CricClubs window, so allow pop-ups for this site. CricClubs can take up to a minute to show the change.</p>
                         </div>
                     </form>
                 </section>
@@ -114,7 +111,7 @@
                                 <tr><td><code>clubId</code></td><td>No</td><td>CricClubs club ID. Defaults to <code>1089463</code> (LPCL).</td></tr>
                                 <tr><td><code>theme</code></td><td>No</td><td>One of the themes above. Defaults to <code>modern-light</code>.</td></tr>
                                 <tr><td><code>logo</code></td><td>No</td><td>Shows a sponsor logo in the top-right corner (<code>1</code> or <code>2</code>).</td></tr>
-                                <tr><td><code>debug</code></td><td>No</td><td>Sample data instead of a live match: <code>1</code> first innings, <code>2</code> chase, <code>3</code> result, <code>4</code> toss, <code>5</code> no logos. Add <code>card=wicket|milestone|partnership|boundary</code> to hold a sample card on screen.</td></tr>
+                                <tr><td><code>debug</code></td><td>No</td><td>Sample data instead of a live match: <code>1</code> first innings, <code>2</code> chase, <code>3</code> result, <code>4</code> toss, <code>5</code> no logos. Add <code>card=wicket|milestone|partnership|boundary</code> or <code>panel=lineup|innings-summary|match-summary</code> to hold a sample on screen.</td></tr>
                                 <tr><td><code>mode</code></td><td>No</td><td><code>replay</code> cycles through a recorded match to test transitions.</td></tr>
                                 <tr><td><code>quiet</code></td><td>No</td><td>Turns off the event cards (wicket, fifty, partnership, boundary) and shows only the bar.</td></tr>
                                 <tr><td><code>nostats</code></td><td>No</td><td>Opts this browser out of anonymous usage statistics.</td></tr>
@@ -124,9 +121,6 @@
                 </details>
             </main>
 
-            <footer class="home-footer">
-                <p>Open source on <a href="https://github.com/abhinav91690/cricket-scorecard-overlay" rel="noopener">GitHub</a>. Anonymous usage statistics help improve the overlay; add <code>?nostats=1</code> to opt out.</p>
-            </footer>
         </div>
     </div>
 
@@ -135,9 +129,16 @@
     <section class="overlay" aria-label="Live score">
         <img alt="" id="overlay-image" class="overlay-image" style="display: none;" width="120" height="120">
 
-        <div id="result" class="score-overlay" style="display: none;" aria-live="polite">
-            <div id="match-result"></div>
+        <!-- Panels (line-up, innings/match summary) rotate above the bar while nothing can happen -->
+        <div id="panel-card" class="panel-card" role="status" aria-live="polite">
+            <div class="panel-matchup" id="panel-matchup"></div>
+            <div class="panel-eyebrow" id="panel-eyebrow"></div>
+            <div class="panel-headline" id="panel-headline"></div>
+            <div class="panel-detail" id="panel-detail"></div>
+            <div class="panel-columns" id="panel-columns"></div>
+            <div class="panel-footer" id="panel-footer"></div>
         </div>
+
 
         <div id="firstInnings" class="score-overlay">
             <div class="batting-team-info">

@@ -1,11 +1,12 @@
 import { CricketAPIData, CricketAPIValues } from './types';
+import { wicketFallText } from './views';
 
 /**
  * Match events derived by diffing one poll against the previous one. Pure functions; the
  * card queue in cards.ts decides how they are shown.
  */
 export type OverlayEvent =
-    | { type: 'wicket'; name: string; runs: string; balls: string; dismissal: string }
+    | { type: 'wicket'; name: string; runs: string; balls: string; dismissal: string; fow: string }
     | { type: 'milestone'; mark: 50 | 100; name: string; runs: string; balls: string; fours: string; sixes: string }
     | { type: 'partnership'; mark: 50 | 100; names: string; runs: string; balls: string }
     | { type: 'boundary'; runs: 4 | 6 };
@@ -70,6 +71,7 @@ export function detectEvents(prev: CricketAPIData | null, next: CricketAPIData):
             runs: String(b.lastOutRuns ?? '0'),
             balls: String(b.lastOutBalls ?? '0'),
             dismissal: parseDismissal(b.lastOutString),
+            fow: wicketFallText(battingWickets(b), isChase(b) ? b.t2Total : b.t1Total),
         });
     }
 

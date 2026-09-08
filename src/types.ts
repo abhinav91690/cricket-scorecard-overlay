@@ -401,7 +401,27 @@ export interface CricketAPIValues {
 }
 
 // Top-level API Data Structure
+/** The club's overlay branding, present in every liveScoreOverlayData response. */
+export interface OverlayConfig {
+    id?: number;
+    clubId?: number;
+    overlayScorebarColor?: string;
+    cpBGSecondColor?: string;
+    secondaryColor?: string;
+    fontColor?: string;
+    logoS3Url?: string;
+    isPowredBy?: boolean;
+    powredByLogo1?: string;
+    powredByLogo2?: string;
+    overlayDelay?: number;
+    overlayTheme?: number;
+    practiseSessionTheme?: number;
+    backgroundColorForVideo?: string;
+}
+
 export interface CricketAPIData {
+    /** Club overlay settings (colours, club logo). */
+    overlayConfig?: OverlayConfig;
     /** The view ID determining the overlay layout */
     view?: number;
     /** The core data values for the overlay */
@@ -436,4 +456,6 @@ export interface Config {
     LOGO_MAP: { [key: string]: string };
     /** Same-origin endpoint of the analytics Worker (see worker/) */
     ANALYTICS_ENDPOINT: string;
+    /** CricClubs origin; overridable on localhost with ?api= for simulated matches */
+    API_BASE: string;
 }
