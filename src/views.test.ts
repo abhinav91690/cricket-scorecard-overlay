@@ -138,6 +138,7 @@ describe('people helpers', () => {
         const rows = squadRows(mock_view_48.values.t1PlayersList as any);
         expect(rows.length).toBeGreaterThan(5);
         expect(rows[0]).toMatchObject({ initials: expect.stringMatching(/^[A-Z]{1,2}$/) });
+        expect(rows.every(r => r.note !== 'AR')).toBe(true); // the default role is not shown
     });
 });
 

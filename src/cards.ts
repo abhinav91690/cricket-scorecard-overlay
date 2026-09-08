@@ -138,8 +138,9 @@ function teamHead(team: PanelTeam, extra?: string): HTMLElement {
     return head;
 }
 
-function personRow(r: PanelRow, size: 'sm' | 'md'): HTMLElement {
-    const row = el('panel-row');
+function personRow(r: PanelRow, size: 'sm' | 'md', extraClass = ''): HTMLElement {
+    const row = document.createElement('li');
+    row.className = `panel-row ${extraClass}`.trim();
     row.appendChild(avatar(r, size));
     row.appendChild(el('panel-name', r.name));
     if (r.note) row.appendChild(el('panel-note', r.note));
@@ -147,11 +148,31 @@ function personRow(r: PanelRow, size: 'sm' | 'md'): HTMLElement {
     return row;
 }
 
+function rowList(cls: string): HTMLUListElement {
+    const ul = document.createElement('ul');
+    ul.className = cls;
+    return ul;
+}
+
 function list(title: string, rows: PanelRow[]): HTMLElement {
     const col = el('panel-col');
     if (title) col.appendChild(el('panel-col-title', title));
-    rows.forEach(r => col.appendChild(personRow(r, 'md')));
+    const ul = rowList('panel-list');
+    rows.forEach(r => ul.appendChild(personRow(r, 'md')));
+    col.appendChild(ul);
     return col;
+}
+
+/** Footer as label/value pairs: labels stay small caps, values keep their case and tabular digits. */
+function footer(pairs: [string, string][]) {
+    DOM.panelFooter.replaceChildren();
+    pairs.filter(([, v]) => v).forEach(([k, v], i) => {
+        if (i) DOM.panelFooter.appendChild(el('panel-sep', '·'));
+        const item = el('panel-kv');
+        if (k) item.appendChild(el('k', k));
+        item.appendChild(el('v', v));
+        DOM.panelFooter.appendChild(item);
+    });
 }
 
 function renderPanel(card: PanelEvent) {
@@ -161,20 +182,18 @@ function renderPanel(card: PanelEvent) {
     switch (card.type) {
         case 'lineup': {
             const [a, b] = card.teams;
-            const eleven = card.teams.every(t => t.players.length === 11);
             DOM.panelMatchup.append(teamHead(a), el('panel-vs', 'v'), teamHead(b));
             text(DOM.panelEyebrow, 'Toss');
             text(DOM.panelHeadline, card.toss);
             text(DOM.panelDetail, '');
             for (const t of card.teams) {
                 const block = el('panel-block');
-                block.appendChild(el('panel-col-title', eleven ? 'Playing XI' : `Line-up · ${t.players.length}`));
-                const grid = el('panel-xi');
+                const grid = rowList('panel-xi');
                 t.players.forEach(p => grid.appendChild(personRow(p, 'sm')));
                 block.appendChild(grid);
                 DOM.panelColumns.appendChild(block);
             }
-            text(DOM.panelFooter, [card.series, card.ground].filter(Boolean).join(' · '));
+            footer([['', card.series], ['', card.ground]]);
             break;
         }
         case 'innings-summary': {
@@ -183,7 +202,7 @@ function renderPanel(card: PanelEvent) {
             text(DOM.panelHeadline, `${card.score} · ${card.overs}`);
             text(DOM.panelDetail, '');
             DOM.panelColumns.append(list('Top scorers', card.batters), list('Best bowling', card.bowlers));
-            text(DOM.panelFooter, [card.extras ? `Extras ${card.extras}` : '', card.fow ? `FoW ${card.fow}` : ''].filter(Boolean).join('   ·   '));
+            footer([['Extras', card.extras], ['Fall of wickets', card.fow]]);
             break;
         }
         case 'match-summary': {
@@ -193,10 +212,13 @@ function renderPanel(card: PanelEvent) {
             for (const inn of card.innings) {
                 const block = el('panel-block');
                 block.appendChild(teamHead(inn.team, `${inn.score} · ${inn.overs}`));
-                [...inn.batters, ...inn.bowlers].forEach(r => block.appendChild(personRow(r, 'md')));
+                const ul = rowList('panel-list');
+                inn.batters.forEach(r => ul.appendChild(personRow(r, 'md')));
+                inn.bowlers.forEach((r, i) => ul.appendChild(personRow(r, 'md', i === 0 ? 'is-first-bowler' : '')));
+                block.appendChild(ul);
                 DOM.panelColumns.appendChild(block);
             }
-            text(DOM.panelFooter, card.innings.map(i => i.fow ? `${i.team.name} FoW ${i.fow}` : '').filter(Boolean).join('   ·   '));
+            footer(card.innings.map(i => [`${i.team.name} FoW`, i.fow] as [string, string]));
             break;
         }
     }

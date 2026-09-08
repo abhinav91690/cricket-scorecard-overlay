@@ -179,7 +179,8 @@ export function topBowlers(rows: BowlingStats[] | undefined, n = 3): PanelRow[] 
 }
 
 export function squadRows(rows: Player[] | undefined): PanelRow[] {
-    return (rows ?? []).map(p => ({ name: displayName(p), value: '', note: roleTag(p.playingRole), pic: imageUrl(p.profilepic_file_path), initials: initialsOf(p) }));
+    // Nearly every player is registered as an all-rounder, so that mark says nothing; keep only WK / BAT / BOWL.
+    return (rows ?? []).map(p => ({ name: displayName(p), value: '', note: roleTag(p.playingRole).replace(/^AR$/, ''), pic: imageUrl(p.profilepic_file_path), initials: initialsOf(p) }));
 }
 
 // ---------- panel builders (what to show while nothing can happen) ----------

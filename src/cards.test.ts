@@ -86,8 +86,9 @@ describe('card queue', () => {
         expect(DOM.panelHeadline.textContent).toBe('Topguns United won the toss and elected to bat');
         expect(DOM.panelColumns.querySelectorAll('.panel-block')).toHaveLength(2);
         expect(DOM.panelColumns.querySelectorAll('.panel-row')).toHaveLength(22);
-        expect(DOM.panelColumns.querySelectorAll('.panel-col-title')[0].textContent).toBe('Playing XI');
-        expect(DOM.panelFooter.textContent).toBe('2024 Fall Champions · LPCL-G1');
+        expect(DOM.panelColumns.querySelector('.panel-col-title')).toBeNull();
+        expect(DOM.panelColumns.querySelectorAll('ul.panel-xi > li')).toHaveLength(22);
+        expect(DOM.panelFooter.textContent).toBe('2024 Fall Champions·LPCL-G1');
         resetCardsForTests();
 
         enqueueCards([{ type: 'lineup', toss: 't', series: '', ground: '', teams: [
@@ -96,7 +97,6 @@ describe('card queue', () => {
         ] }]);
         expect(DOM.panelMatchup.querySelector('.panel-team-name')!.textContent).toBe('<b>x</b>');
         expect(DOM.panelColumns.querySelector('.panel-name img')).toBeNull();
-        expect(DOM.panelColumns.querySelectorAll('.panel-col-title')[0].textContent).toBe('Line-up · 12');
         expect(DOM.panelColumns.querySelectorAll('.panel-row')).toHaveLength(23);
         resetCardsForTests();
 
@@ -105,13 +105,15 @@ describe('card queue', () => {
         expect(DOM.panelHeadline.textContent).toBe('142/8 · 20 ov');
         expect(DOM.panelColumns.querySelectorAll('.panel-col')).toHaveLength(2);
         expect(DOM.panelColumns.querySelectorAll('.panel-row')).toHaveLength(6);
-        expect(DOM.panelFooter.textContent).toContain('FoW 1-14');
+        expect(DOM.panelFooter.querySelectorAll('.panel-kv .k')[0].textContent).toBe('Extras');
+        expect(DOM.panelFooter.querySelectorAll('.panel-kv .v')[1].textContent).toContain('1-14');
         resetCardsForTests();
 
         enqueueCards([panel('match-summary')]);
         expect(DOM.panelHeadline.textContent).toBe('Topguns United won by 5 wickets');
         expect(DOM.panelColumns.querySelectorAll('.panel-block')).toHaveLength(2);
         expect(DOM.panelColumns.querySelectorAll('.panel-team-extra')[0].textContent).toBe('142/8 · 20 ov');
+        expect(DOM.panelColumns.querySelectorAll('.is-first-bowler')).toHaveLength(2);
     });
 
     it('uses a headshot when there is a picture and falls back to initials when it fails to load', () => {

@@ -461,13 +461,21 @@ body {
 .panel-card[data-type="lineup"] .panel-columns { order: 1; gap: 12px 64px; margin-block-start: 6px; }
 .panel-card[data-type="lineup"] .panel-eyebrow { order: 2; margin-block-start: 14px; padding-block-start: 14px; border-block-start: 1px solid var(--divider); }
 .panel-card[data-type="lineup"] .panel-headline { order: 3; font-size: 30px; text-transform: uppercase; letter-spacing: 0.02em; }
-.panel-card[data-type="lineup"] .panel-footer { order: 4; margin-block-start: 8px; padding-block-start: 0; border: 0; text-transform: none; letter-spacing: 0; font-size: 15px; }
+.panel-card[data-type="lineup"] .panel-footer { order: 4; margin-block-start: 8px; padding-block-start: 0; border: 0; font-weight: 600; opacity: 0.8; }
 
 /* Innings summary: total is the headline */
 .panel-card[data-type="innings-summary"] .panel-headline { font-size: 40px; }
 
-.panel-footer { margin-block-start: 12px; padding-block-start: 10px; border-block-start: 1px solid var(--divider); font-size: 14px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.panel-list, .panel-xi { list-style: none; margin: 0; padding: 0; }
+.panel-list { display: grid; gap: 8px; }
+.panel-row.is-first-bowler { margin-block-start: 4px; padding-block-start: 8px; border-block-start: 1px solid var(--divider); }
+
+.panel-footer { display: flex; align-items: baseline; gap: 12px; margin-block-start: 12px; padding-block-start: 10px; border-block-start: 1px solid var(--divider); font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; }
 .panel-footer:empty { display: none; }
+.panel-kv { display: inline-flex; align-items: baseline; gap: 8px; min-inline-size: 0; }
+.panel-kv .k { font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.65; }
+.panel-kv .v { font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; }
+.panel-sep { opacity: 0.4; }
 
 @media (prefers-reduced-motion: reduce) {
     .ball-indicator { animation: none; }
