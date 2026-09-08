@@ -27,4 +27,8 @@
     --ball-idle: rgba(255, 255, 255, 0.12);
     --ball-neutral: #ffffff;
     --ball-neutral-fg: #14171f;
+
+    /* Cards */
+    --card-bg: #F5F7FA;
+    --card-fg: #14171F;
 }

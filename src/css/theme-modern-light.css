@@ -28,4 +28,8 @@
     --ball-idle: rgba(15, 23, 42, 0.08);
     --ball-neutral: #0f172a;
     --ball-neutral-fg: #ffffff;
+
+    /* Cards */
+    --card-bg: #14171F;
+    --card-fg: #F5F7FA;
 }

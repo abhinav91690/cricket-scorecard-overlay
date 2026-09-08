@@ -23,6 +23,7 @@
  *   --ball-idle          blank / dot ball fill
  *   --ball-neutral       fill for singles, twos, threes and fives
  *   --ball-neutral-fg    digit colour on --ball-neutral
+ *   --card-bg / --card-fg  event card surface and text (a neutral opposite to the bar)
  *
  * Ball outcome colours for wicket, four, six, extras and byes are fixed here so "this over"
  * reads the same on every theme. Decision (Sep 2026): the ICC / wTVision convention, red W,
@@ -141,18 +142,6 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-/* Bowler: a ball icon after the name */
-.bowler-name::after {
-    content: '';
-    flex: none;
-    inline-size: 15px;
-    block-size: 15px;
-    margin-inline-start: 9px;
-    background: var(--brand-accent);
-    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20zM9.2 4.4c3.2 4.3 3.2 10.9 0 15.2.9 0 3.4-4.5 3.4-7.6s-2.5-7.6-3.4-7.6z'/%3E%3C/svg%3E") center / contain no-repeat;
-    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20zM9.2 4.4c3.2 4.3 3.2 10.9 0 15.2.9 0 3.4-4.5 3.4-7.6s-2.5-7.6-3.4-7.6z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 /* Batsman 1 is always on strike in the CricClubs feed: a bat icon after the name */
@@ -328,9 +317,10 @@ body {
     justify-content: center;
     gap: 6px;
     padding-inline: 28px;
-    background: var(--surface-pill);
-    color: var(--fg-pill, var(--fg));
-    border-inline-start: 4px solid var(--brand-accent);
+    --type: var(--brand-accent);
+    background: var(--card-bg);
+    color: var(--card-fg);
+    border-inline-start: 6px solid var(--type);
     visibility: hidden;
     opacity: 0;
     transform: translateY(-14px);
@@ -342,13 +332,18 @@ body {
     transform: none;
 }
 
+/* The event type sets the accent: red wicket, green four, purple six, brand for milestones */
+.event-card[data-type="wicket"] { --type: var(--ob-wicket); }
+.event-card[data-type="boundary"][data-runs="4"] { --type: var(--ob-four); }
+.event-card[data-type="boundary"][data-runs="6"] { --type: var(--ob-six); }
+
 .event-eyebrow {
     font-size: 13px;
     font-weight: 800;
     line-height: 1;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--fg-title);
+    color: var(--type);
 }
 .event-eyebrow:empty { display: none; }
 
@@ -366,21 +361,75 @@ body {
     font-size: 16px;
     font-weight: 600;
     line-height: 1.2;
-    opacity: 0.9;
+    opacity: 0.85;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 .event-detail:empty { display: none; }
 
-/* Boundary flash: one big word, centred */
 .event-card[data-type="boundary"] { align-items: center; }
 .event-card[data-type="boundary"] .event-headline {
     font-size: 44px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
+    color: var(--type);
 }
-.event-card[data-type="wicket"] { border-inline-start-color: var(--ob-wicket); }
+
+/* ---- Card style variants (review) ---- */
+
+/* tile: the event type sits in a coloured tile at the left, the copy on a neutral card */
+body[data-card-style="tile"] .event-card {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 22px;
+    padding-inline: 0 28px;
+    border-inline-start: 0;
+}
+body[data-card-style="tile"] .event-eyebrow {
+    display: grid;
+    place-items: center;
+    align-self: stretch;
+    min-inline-size: 128px;
+    padding-inline: 16px;
+    background: var(--type);
+    color: #ffffff;
+    font-size: 15px;
+    letter-spacing: 0.12em;
+}
+body[data-card-style="tile"] .event-card[data-type="boundary"] .event-eyebrow { display: none; }
+body[data-card-style="tile"] .event-card[data-type="boundary"] { justify-content: center; padding-inline: 28px; background: var(--type); }
+body[data-card-style="tile"] .event-card[data-type="boundary"] .event-headline { color: #ffffff; }
+body[data-card-style="tile"] .event-copy { display: flex; flex-direction: column; gap: 6px; min-inline-size: 0; }
+
+/* banner: a full-colour strip in the type colour, one line */
+body[data-card-style="banner"] .event-card {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: 16px;
+    background: var(--type);
+    color: #ffffff;
+    border-inline-start: 0;
+}
+body[data-card-style="banner"] .event-eyebrow { color: rgba(255, 255, 255, 0.85); font-size: 15px; }
+body[data-card-style="banner"] .event-headline { font-size: 28px; }
+body[data-card-style="banner"] .event-detail { opacity: 0.9; }
+body[data-card-style="banner"] .event-card[data-type="boundary"] { justify-content: center; }
+body[data-card-style="banner"] .event-card[data-type="boundary"] .event-headline { color: #ffffff; }
+
+/* float: a raised card that breaks the bar's top edge, with the type colour along the top */
+body[data-card-style="float"] #firstInnings { overflow: visible; }
+body[data-card-style="float"] .event-card {
+    align-self: center;
+    block-size: calc(100% + 16px);
+    margin-inline: 10px 6px;
+    border-inline-start: 0;
+    border-block-start: 5px solid var(--type);
+    border-radius: var(--radius);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
 
 /* ---- Result card ---- */
 

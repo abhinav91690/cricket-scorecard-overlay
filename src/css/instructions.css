@@ -300,10 +300,8 @@ code {
 .tag-pbks    { background: #dd1f2d; color: #ffffff; }
 .tag-gt      { background: #1c2c4a; color: #cfb53b; }
 .tag-lsg     { background: #00a5b5; color: #ffffff; }
-.tag-tel     { background: #c8c8d4; color: #2233bb; border-color: #3344dd; }
-.tag-ted     { background: #0a0a0a; color: #c8c8d4; border-color: #3344dd; }
-.tag-tul     { background: #c8c8d4; color: #b91c1c; border-color: #d42b2b; }
-.tag-tud     { background: #0a0a0a; color: #c8c8d4; border-color: #d42b2b; }
+.tag-topguns-light { background: #7ed6cb; color: #0b0c0e; }
+.tag-topguns-dark  { background: #0b0c0e; color: #7ed6cb; border-color: #7ed6cb; }
 
 /* ---- Parameter reference ---- */
 

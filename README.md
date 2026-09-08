@@ -74,7 +74,7 @@ Test layouts without a live match:
 Every theme shares the same layout (`src/css/overlay-base.css`); a theme is a palette of colour tokens.
 - **Core**: `classic` (cream/navy), `modern-light` (default), `modern-dark`, `neon`
 - **IPL Franchises**: `kkr`, `rcb`, `mi`, `csk`, `dc`, `rr`, `srh`, `pbks`, `gt`, `lsg`
-- **Topguns**: `tel`, `ted`, `tul`, `tud`
+- **Topguns**: `topguns-light`, `topguns-dark` (the old `tel`/`ted`/`tul`/`tud` names still work as aliases)
 
 ---
 

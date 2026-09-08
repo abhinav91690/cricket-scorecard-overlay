@@ -22,9 +22,13 @@ describe('applyTheme', () => {
         expect(document.body.className).toBe('theme-modern-light');
     });
 
-    it('keeps the old "modern" name working as an alias', () => {
+    it('keeps the old names working as aliases', () => {
         applyTheme('modern');
         expect(document.body.className).toBe('theme-modern-light');
+        applyTheme('tel');
+        expect(document.body.className).toBe('theme-topguns-light');
+        applyTheme('tud');
+        expect(document.body.className).toBe('theme-topguns-dark');
     });
 
     it('removes the previous theme when switching', () => {
@@ -37,7 +41,7 @@ describe('applyTheme', () => {
         expect(AVAILABLE_THEMES).toEqual([
             'classic', 'modern-light', 'modern-dark', 'neon',
             'kkr', 'rcb', 'mi', 'csk', 'dc', 'rr', 'srh', 'pbks', 'gt', 'lsg',
-            'tel', 'ted', 'tul', 'tud',
+            'topguns-light', 'topguns-dark',
         ]);
     });
 });

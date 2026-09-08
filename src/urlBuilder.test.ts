@@ -37,6 +37,7 @@ describe('themeLabel', () => {
         expect(themeLabel('pbks')).toBe('PBKS');
         expect(themeLabel('modern-light')).toBe('Modern Light');
         expect(themeLabel('neon')).toBe('NEON');
+        expect(themeLabel('topguns-dark')).toBe('Topguns Dark');
     });
 });
 

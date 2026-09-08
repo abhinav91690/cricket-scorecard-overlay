@@ -49,6 +49,8 @@ export function enqueueCards(events: OverlayEvent[], hold?: number): void {
 function render(event: OverlayEvent) {
     const copy = cardCopy(event);
     DOM.eventCard.dataset.type = event.type;
+    if (event.type === 'boundary') DOM.eventCard.dataset.runs = String(event.runs);
+    else delete DOM.eventCard.dataset.runs;
     DOM.eventEyebrow.textContent = copy.eyebrow;
     DOM.eventHeadline.textContent = copy.headline;
     DOM.eventDetail.textContent = copy.detail;

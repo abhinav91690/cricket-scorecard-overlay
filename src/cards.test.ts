@@ -43,6 +43,7 @@ describe('card queue', () => {
         expect(DOM.eventCard.dataset.type).toBe('wicket');
         vi.advanceTimersByTime(300);
         expect(DOM.eventCard.dataset.type).toBe('boundary');
+        expect(DOM.eventCard.dataset.runs).toBe('6');
         expect(DOM.eventCard.classList.contains('is-visible')).toBe(true);
         vi.advanceTimersByTime(HOLD_MS.boundary + 300);
         expect(DOM.eventCard.classList.contains('is-visible')).toBe(false);

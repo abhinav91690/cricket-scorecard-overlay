@@ -15,23 +15,25 @@ import './css/theme-srh.css';
 import './css/theme-pbks.css';
 import './css/theme-gt.css';
 import './css/theme-lsg.css';
-import './css/theme-tel.css';
-import './css/theme-ted.css';
-import './css/theme-tul.css';
-import './css/theme-tud.css';
+import './css/theme-topguns-light.css';
+import './css/theme-topguns-dark.css';
 
 /** Every theme is a colour palette layered on overlay-base.css. */
 export const AVAILABLE_THEMES = [
     'classic', 'modern-light', 'modern-dark', 'neon',
     'kkr', 'rcb', 'mi', 'csk', 'dc', 'rr', 'srh', 'pbks', 'gt', 'lsg',
-    'tel', 'ted', 'tul', 'tud',
+    'topguns-light', 'topguns-dark',
 ] as const;
 
 export type ThemeName = typeof AVAILABLE_THEMES[number];
 export const DEFAULT_THEME: ThemeName = 'modern-light';
 
 /** Older links used these names; keep them working. */
-const THEME_ALIASES: Record<string, ThemeName> = { modern: 'modern-light' };
+const THEME_ALIASES: Record<string, ThemeName> = {
+    modern: 'modern-light',
+    tel: 'topguns-light', tul: 'topguns-light',
+    ted: 'topguns-dark', tud: 'topguns-dark',
+};
 
 export function isThemeName(theme: string | null): theme is ThemeName {
     return theme !== null && (AVAILABLE_THEMES as readonly string[]).includes(theme);
