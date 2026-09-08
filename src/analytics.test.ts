@@ -77,7 +77,8 @@ describe('track', () => {
         const [url, blob] = beacon.mock.calls[0] as unknown as [string, Blob];
         expect(url).toBe('/api/collect');
         expect(blob.type).toBe('application/json');
-        const body = JSON.parse(await new Response(blob).text()); // jsdom Blob has no .text()
+        const text = await new Promise<string>(res => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.readAsText(blob); }); // jsdom Blob has no .text()
+        const body = JSON.parse(text);
         expect(body).toMatchObject({ event: 'overlay_start', clubId: '1089463', matchId: '2079', theme: 'kkr', client: 'browser' });
         expect(body.screen).toMatch(/^\d+x\d+$/);
     });
