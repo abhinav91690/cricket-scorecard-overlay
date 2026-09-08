@@ -82,6 +82,9 @@ export interface ViewCache {
     t2Extras?: string;
     t1Logo?: string;
     t2Logo?: string;
+    /** Team names as the data views report them (main-match order, see docs/cricclubs-api.md §3) */
+    t1Name?: string;
+    t2Name?: string;
     /** Fall of wickets per innings: wicket number -> team score when it fell */
     fow1?: Record<string, number>;
     fow2?: Record<string, number>;
@@ -93,6 +96,11 @@ export function mergeCache(cache: ViewCache, data: CricketAPIData): ViewCache {
     for (const key of ['t1Batting', 't2Batting', 't1Bowling', 't2Bowling', 't1PlayersList', 't2PlayersList', 't1Extras', 't2Extras', 't1Logo', 't2Logo'] as const) {
         const value = v[key];
         if (value !== undefined && value !== null && value !== '') (next as Record<string, unknown>)[key] = value;
+    }
+    // Names only from data views: the scorebar view can swap the sides during a super over.
+    if (!isFullFrame(data)) {
+        if (v.t1Name) next.t1Name = v.t1Name;
+        if (v.t2Name) next.t2Name = v.t2Name;
     }
     // partnerShip follows the *view's* team: views 2/3 are team 1's innings, 4/5 team 2's; the
     // summary/break views carry the latest innings.
@@ -189,14 +197,14 @@ export function squadRows(rows: Player[] | undefined): PanelRow[] {
 // ---------- panel builders (what to show while nothing can happen) ----------
 import type { PanelEvent, PanelTeam } from './cards';
 
-const teamLabel = (v: CricketAPIValues, n: 1 | 2) => (n === 1 ? v.t1Name : v.t2Name) || `Team ${n}`;
+const teamLabel = (v: CricketAPIValues, n: 1 | 2, cache?: ViewCache) => (cache && (n === 1 ? cache.t1Name : cache.t2Name)) || (n === 1 ? v.t1Name : v.t2Name) || `Team ${n}`;
 const scoreLabel = (v: CricketAPIValues, n: 1 | 2) => `${(n === 1 ? v.t1Total : v.t2Total) || '0'}/${(n === 1 ? v.t1Wickets : v.t2Wickets) || '0'}`;
 const oversLabel = (v: CricketAPIValues, n: 1 | 2) => `${(n === 1 ? v.t1Overs : v.t2Overs) || '0.0'} ov`;
 
 function team(v: CricketAPIValues, cache: ViewCache, n: 1 | 2): PanelTeam {
     const cached = n === 1 ? cache.t1Logo : cache.t2Logo;
     const base = n === 1 ? v.firstLogo : v.secondLogo;
-    return { name: teamLabel(v, n), logo: imageUrl(cached || base) };
+    return { name: teamLabel(v, n, cache), logo: imageUrl(cached || base) };
 }
 
 /** Pre-match card: both line-ups, then the toss as the headline, series and ground as the caption. */

@@ -71,6 +71,8 @@ describe('mergeCache', () => {
         expect(cache.t1Batting?.length).toBeGreaterThan(5); // still there
         cache = mergeCache(cache, mock_view_48 as CricketAPIData);
         expect(cache.t1PlayersList?.length).toBeGreaterThan(5);
+        expect(cache.t1Name).toBe('TOPGUNS UNITED'); // from the data view, not the scorebar frame
+        expect(mergeCache({}, mock_view_1 as CricketAPIData).t1Name).toBeUndefined();
     });
 
     it('files fall of wickets under the view\'s team, not the current innings', () => {
@@ -152,6 +154,7 @@ describe('phasePanels', () => {
         expect(phasePanels('pre', v, cache).map(p => p.type)).toEqual(['lineup']);
         const lineup = phasePanels('pre', v, cache)[0];
         if (lineup.type === 'lineup') {
+            expect(lineup.teams[0].name).toBe('TOPGUNS UNITED'); // roster, crest and name from the same source
             expect(lineup.teams[0].players.length).toBeGreaterThan(10);
             expect(lineup.teams[1].players).toEqual([]); // team 2 squad not cached yet
             expect(lineup.toss).toBe(v.toss);
