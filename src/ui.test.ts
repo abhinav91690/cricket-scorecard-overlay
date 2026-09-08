@@ -171,7 +171,7 @@ describe('updateScoreboard edge cases', () => {
     it('shows target, need and required rate during a chase, computed from the totals', () => {
         updateScoreboard({ values: { ...base, isSecondInningsStarted: 'true', t2Name: 'Aus', t2Total: '20', t2Wickets: '1', t2Overs: '3.2', RRR: '4.86', totalOvers: 20, isMatchEnded: '0' }, balls: [] } as any);
         expect(DOM.statusInline.textContent).toBe('Target 101');
-        expect(DOM.statusLine.textContent).toBe('Need 81 off 100 · RRR 4.86');
+        expect(DOM.statusLine.textContent).toBe('Need 81 off 16.4 ov · RRR 4.86');
         expect(DOM.result.style.display).toBe('none');
         expect(DOM.teamOvers.textContent).toBe('3.2');
     });
@@ -215,8 +215,10 @@ describe('statusText', () => {
         expect(statusText({ t1Total: '142', t2Total: '143', RRR: '--.--' } as any, true)).toEqual({ inline: 'Target 143', line: '' });
     });
 
-    it('never reports negative balls remaining', () => {
-        expect(statusText({ t1Total: '100', t2Total: '90', totalOvers: 20, t2Overs: '20.0' } as any, true).line).toBe('Need 11 off 0');
+    it('never reports negative overs remaining and drops the .0 on whole overs', () => {
+        expect(statusText({ t1Total: '100', t2Total: '90', totalOvers: 20, t2Overs: '20.0' } as any, true).line).toBe('Need 11 off 0 ov');
+        expect(statusText({ t1Total: '142', t2Total: '0', totalOvers: 20, t2Overs: '0.0' } as any, true).line).toBe('Need 143 off 20 ov');
+        expect(statusText({ t1Total: '142', t2Total: '30', totalOvers: 20, t2Overs: '4.5' } as any, true).line).toBe('Need 113 off 15.1 ov');
     });
 });
 

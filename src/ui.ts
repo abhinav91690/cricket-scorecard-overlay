@@ -120,7 +120,7 @@ const RATE = /^\d+(\.\d+)?$/;
 export interface StatusText {
     /** Tail of the score row: `CRR 7.10` in the first innings, `Target 143` in a chase. */
     inline: string;
-    /** Third row, chase only: `Need 81 from 100 · RRR 4.86`. */
+    /** Third row, chase only: `Need 81 off 16.4 ov · RRR 4.86`. */
     line: string;
 }
 
@@ -136,18 +136,21 @@ export function statusText(values: CricketAPIData['values'], isSecondInnings: bo
     const need = target - (parseInt(values.t2Total || '0', 10) || 0);
     const parts: string[] = [];
     if (need > 0) {
-        const ballsLeft = ballsRemaining(values.totalOvers, values.t2Overs);
-        parts.push(ballsLeft !== null ? `Need ${need} off ${ballsLeft}` : `Need ${need}`);
+        const oversLeft = oversRemaining(values.totalOvers, values.t2Overs);
+        parts.push(oversLeft !== null ? `Need ${need} off ${oversLeft} ov` : `Need ${need}`);
     }
     if (values.RRR && RATE.test(values.RRR)) parts.push(`RRR ${values.RRR}`);
     return { inline: `Target ${target}`, line: parts.join(' · ') };
 }
 
-function ballsRemaining(totalOvers: number | undefined, oversBowled: string | undefined): number | null {
+/** Overs left in cricket notation ("16.4"), or null when the match length isn't known. */
+function oversRemaining(totalOvers: number | undefined, oversBowled: string | undefined): string | null {
     if (!totalOvers) return null;
     const [whole, part] = (oversBowled || '0').split('.');
     const bowled = (parseInt(whole, 10) || 0) * 6 + (parseInt(part || '0', 10) || 0);
-    return Math.max(0, totalOvers * 6 - bowled);
+    const left = Math.max(0, totalOvers * 6 - bowled);
+    const balls = left % 6;
+    return balls ? `${Math.floor(left / 6)}.${balls}` : `${left / 6}`;
 }
 
 /**
