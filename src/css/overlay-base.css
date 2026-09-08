@@ -452,8 +452,9 @@ body {
 .avatar-sm .avatar-initials { font-size: 11px; }
 
 /* Line-up card (pre-match): crests, one column per side, then the toss as the headline */
-.panel-xi { display: grid; grid-template-columns: 1fr; gap: 7px; }
-.panel-xi .panel-row { font-size: 16px; }
+.panel-xi { display: grid; grid-template-columns: 1fr; gap: 4px; }
+.panel-xi .panel-row { font-size: 15px; gap: 10px; }
+.panel-xi .avatar-sm { inline-size: 30px; block-size: 30px; }
 .panel-card[data-type="lineup"] .panel-matchup { justify-content: space-between; padding-block-end: 12px; border-block-end: 1px solid var(--divider); }
 .panel-card[data-type="lineup"] .panel-team-logo { inline-size: 56px; block-size: 56px; }
 .panel-card[data-type="lineup"] .panel-team-name { font-size: 26px; }
