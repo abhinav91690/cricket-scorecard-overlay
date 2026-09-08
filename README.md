@@ -144,4 +144,4 @@ npm run test:run         # Worker unit tests
 npm run typecheck
 ```
 
-See [architecture.md](architecture.md) for a deeper look at the project structure and data flow.
+See [architecture.md](architecture.md) for a deeper look at the project structure and data flow, and [docs/cricclubs-api.md](docs/cricclubs-api.md) for what we know about the CricClubs endpoints.

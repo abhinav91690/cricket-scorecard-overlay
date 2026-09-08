@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A client-side cricket scorecard overlay for OBS/vMix browser sources. Vite + TypeScript, no framework, no backend. It polls the public CricClubs `liveScoreOverlayData.do` endpoint every 5s and paints a fixed-position DOM. Everything is driven by URL query params (`matchId`, `clubId`, `theme`, `debug`, `mode`, `logo`); see README.md for the full table and `architecture.md` for the data-flow diagram.
 
+**CricClubs API**: everything known about the endpoints, the `view` mechanism (`matchOverlayConfig.do?viewId=`), per-view payload shapes and probing recipes is in `docs/cricclubs-api.md`. Read it before touching `api.ts`, `types.ts` or anything that fetches; player rows in the card views contain email addresses that must never be rendered or stored.
+
 ## Commands
 
 ```bash

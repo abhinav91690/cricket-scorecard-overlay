@@ -115,6 +115,6 @@ graph TD
 
 ## External Dependencies
 - **`@fontsource/montserrat`**: Self-hosted Montserrat font, bundled at build time (no external font requests at runtime).
-- **CricClubs**: `liveScoreOverlayData.do` (public, CORS-open, read) for score polling; `updateLiveStreamURLFromCP.do` (write, cross-origin-restricted) for the Link Live Stream feature.
+- **CricClubs**: `liveScoreOverlayData.do` (public, CORS-open, read) for score polling; `matchOverlayConfig.do?viewId=` (write, CORS-allowed, unauthenticated) switches the server-side view and with it the extra data in the payload; `updateLiveStreamURLFromCP.do` (write, cross-origin-restricted) for the Link Live Stream feature. Full reference: [docs/cricclubs-api.md](docs/cricclubs-api.md).
 - **Netlify**: builds `main` and hosts the static site as `score.abhinav.dev`.
 - **Cloudflare**: DNS/proxy for the domain; Workers + D1 for the analytics collector and stats page; Access to gate `/stats`.
