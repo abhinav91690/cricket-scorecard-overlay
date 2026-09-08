@@ -269,12 +269,28 @@ export function lineupPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent {
     };
 }
 
+/** "9.05" from a total and CricClubs overs ("20.0"); blank when nothing has been bowled. */
+export function runRate(total: string | undefined, overs: string | undefined): string {
+    const [o, b] = (overs || '0').split('.').map(Number);
+    const balls = (o || 0) * 6 + (b || 0);
+    return balls ? ((Number(total) || 0) * 6 / balls).toFixed(2) : '';
+}
+
+/** Fours and sixes across a batting card. */
+export function boundaryCount(rows: BattingStats[] | undefined): { fours: number; sixes: number } {
+    return (rows ?? []).reduce((acc, r) => ({ fours: acc.fours + (r.fours ?? 0), sixes: acc.sixes + (r.sixers ?? 0) }), { fours: 0, sixes: 0 });
+}
+
+/** Innings break card: the batting side and its total, run rate / boundaries / extras / target tiles, top scorers, best bowling, fall of wickets. */
 export function inningsSummaryPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent {
+    const total = pick(v, cache, 't1Total') || '0', wickets = pick(v, cache, 't1Wickets') || '0', overs = pick(v, cache, 't1Overs') || '0.0';
+    const { fours, sixes } = boundaryCount(cache.t1Batting);
     return {
-        type: 'innings-summary', label: '1st innings', teams: [team(v, cache, 1), team(v, cache, 2)], score: scoreLabel(v, cache, 1), overs: oversLabel(v, cache, 1),
+        type: 'innings-summary', eyebrow: 'Innings break · 1st innings', team: team(v, cache, 1),
+        runs: total, wickets, overs: `${overs.includes('.') ? overs : `${overs}.0`} ov`, // CricClubs says "20" for a full innings
+        runRate: runRate(total, overs), fours: String(fours), sixes: String(sixes), extras: cache.t1Extras || '', target: String((Number(total) || 0) + 1),
         batters: topBatters(cache.t1Batting), bowlers: topBowlers(cache.t2Bowling),
-        extras: cache.t1Extras || '', fow: fowText(cache.fow1),
-        ...panelMeta(v),
+        fow: fowText(cache.fow1),
     };
 }
 

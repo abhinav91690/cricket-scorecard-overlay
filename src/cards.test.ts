@@ -109,17 +109,21 @@ describe('card queue', () => {
         resetCardsForTests();
 
         enqueueCards([panel('innings-summary')]);
-        expect(Array.from(DOM.panelMatchup.querySelectorAll('.panel-team-name')).map(e => e.textContent)).toEqual(['Lions', 'Topguns United']);
-        expect(DOM.panelEyebrow.textContent).toBe('1st innings');
-        expect(DOM.panelHeadline.textContent).toBe('Lions 142/8 · 20 ov');
+        expect(DOM.panelMatchup.querySelector('.panel-team-name')!.textContent).toBe('Lions');
+        expect(DOM.panelMatchup.querySelector('.panel-score')!.textContent).toBe('142/820.0 ov');
+        expect(DOM.panelEyebrow.textContent).toBe('Innings break · 1st innings');
+        expect(DOM.panelHeadline.textContent).toBe('');
+        expect(Array.from(DOM.panelDetail.querySelectorAll('.panel-tile .k')).map(e => e.textContent)).toEqual(['Run rate', 'Boundaries', 'Extras', 'Target']);
+        expect(Array.from(DOM.panelDetail.querySelectorAll('.panel-tile .v')).map(e => e.textContent)).toEqual(['7.10', '124s46s', '11', '143']);
+        expect(DOM.panelDetail.querySelector('.panel-tile.is-dark .k')!.textContent).toBe('Target');
         expect(DOM.panelColumns.querySelectorAll('.panel-block')).toHaveLength(2);
-        expect(Array.from(DOM.panelColumns.querySelectorAll('.panel-col-head-title')).map(e => e.textContent)).toEqual(['Lions batting', 'Topguns United bowling']);
-        expect(Array.from(DOM.panelColumns.querySelectorAll('.panel-col-head-tag')).map(e => e.textContent)).toEqual(['Extras 11']);
-        expect(DOM.panelColumns.querySelector('.panel-col-head.is-accent .panel-col-head-title')!.textContent).toBe('Lions batting');
+        expect(Array.from(DOM.panelColumns.querySelectorAll('.panel-col-head-title')).map(e => e.textContent)).toEqual(['Top scorers', 'Best bowling']);
         expect(DOM.panelColumns.querySelectorAll('.panel-row')).toHaveLength(6);
-        expect(DOM.panelDetail.querySelector('.k')!.textContent).toBe('Fall of wickets');
-        expect(DOM.panelDetail.querySelector('.v')!.textContent).toContain('1-14');
-        expect(DOM.panelFooter.textContent).toBe('2024 Fall Champions·LPCL-G120 overs');
+        const first = DOM.panelColumns.querySelector('.panel-row .panel-value')!;
+        expect(first.firstChild!.textContent).toBe('45'); // runs big, balls faced smaller
+        expect(first.querySelector('.panel-value-sub')!.textContent).toBe('(30)');
+        expect(DOM.panelFooter.querySelector('.panel-kv .k')!.textContent).toBe('Fall of wickets');
+        expect(DOM.panelFooter.querySelector('.panel-kv .v')!.textContent).toContain('1-14');
         resetCardsForTests();
 
         enqueueCards([panel('match-summary')]);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { VIEW, matchPhase, desiredView, isFullFrame, stripPii, mergeCache, scoreChanged, displayName, oversFromBalls, fowText, wicketFallText, topBatters, topBowlers, phasePanels, inningsSummaryPanel, imageUrl, initialsOf, roleTag, squadRows, tossInfo, tidyName } from './views';
+import { VIEW, matchPhase, desiredView, isFullFrame, stripPii, mergeCache, scoreChanged, displayName, oversFromBalls, fowText, wicketFallText, topBatters, topBowlers, phasePanels, inningsSummaryPanel, imageUrl, initialsOf, roleTag, squadRows, tossInfo, tidyName, runRate, boundaryCount } from './views';
 import { mock_view_1, mock_view_2, mock_view_3, mock_view_4, mock_view_8, mock_view_48 } from './mockData';
 import { CricketAPIData } from './types';
 
@@ -180,10 +180,12 @@ describe('phasePanels', () => {
         const inn = inningsSummaryPanel(v, cache);
         expect(inn.type).toBe('innings-summary');
         if (inn.type === 'innings-summary') {
-            expect(inn.score).toBe('188/7'); // from the data views; the scorebar frame says 10/0 (super over)
-            expect(inn.teams.map(t => t.name)).toEqual(['TOPGUNS UNITED', 'Lions']); // batted, bowled
-            expect(inn.matchOvers).toBe('20 overs');
-            expect(inn.series).toBe('2024 Fall Champions');
+            expect([inn.runs, inn.wickets, inn.overs]).toEqual(['188', '7', '20.0 ov']); // from the data views; the scorebar frame says 10/0 (super over)
+            expect(inn.team.name).toBe('TOPGUNS UNITED');
+            expect(inn.target).toBe('189');
+            expect(inn.runRate).toBe('9.40');
+            expect(Number(inn.fours)).toBeGreaterThan(0);
+            expect(inn.eyebrow).toBe('Innings break · 1st innings');
             expect(inn.batters.length).toBe(3);
             expect(inn.batters[0].initials).toMatch(/^[A-Z]{1,2}$/);
             expect(inn.fow).toContain('1-');
@@ -208,5 +210,18 @@ describe('tossInfo', () => {
         expect(tidyName('TOPGUNS UNITED')).toBe('Topguns United');
         expect(tidyName('Hutto Hippos')).toBe('Hutto Hippos');
         expect(tidyName('LPCL')).toBe('Lpcl');
+    });
+});
+
+describe('innings tiles', () => {
+    it('computes the run rate from the total and overs', () => {
+        expect(runRate('181', '20.0')).toBe('9.05');
+        expect(runRate('47', '5.3')).toBe('8.55');
+        expect(runRate('0', '0.0')).toBe('');
+        expect(runRate(undefined, undefined)).toBe('');
+    });
+    it('adds up boundaries across a batting card', () => {
+        expect(boundaryCount([{ fours: 2, sixers: 1 }, { fours: 3, sixers: 0 }, {}] as any)).toEqual({ fours: 5, sixes: 1 });
+        expect(boundaryCount(undefined)).toEqual({ fours: 0, sixes: 0 });
     });
 });

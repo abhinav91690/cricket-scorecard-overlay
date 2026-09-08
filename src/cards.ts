@@ -1,6 +1,6 @@
 import { DOM } from './dom';
 import { OverlayEvent } from './events';
-import { tidyName, type PanelRow } from './views';
+import type { PanelRow } from './views';
 import { e2eLog } from './e2e';
 
 /**
@@ -17,8 +17,7 @@ export interface InningsBlock { team: PanelTeam; score: string; overs: string; b
 
 export type PanelEvent =
     | ({ type: 'lineup'; teams: [LineupTeam, LineupTeam]; toss: string } & PanelMeta)
-    /** `teams[0]` batted, `teams[1]` bowled. */
-    | ({ type: 'innings-summary'; label: string; teams: [PanelTeam, PanelTeam]; score: string; overs: string; batters: PanelRow[]; bowlers: PanelRow[]; extras: string; fow: string } & PanelMeta)
+    | { type: 'innings-summary'; eyebrow: string; team: PanelTeam; runs: string; wickets: string; overs: string; runRate: string; fours: string; sixes: string; extras: string; target: string; batters: PanelRow[]; bowlers: PanelRow[]; fow: string }
     | { type: 'match-summary'; result: string; innings: InningsBlock[] };
 
 export type AnyCard = OverlayEvent | PanelEvent;
@@ -151,7 +150,12 @@ function personRow(r: PanelRow, size: 'sm' | 'md', extraClass = ''): HTMLElement
     row.appendChild(el('panel-name', r.name));
     if (r.captain) row.appendChild(el('panel-captain', 'C'));
     if (r.note) row.appendChild(el('panel-note', r.note));
-    if (r.value) row.appendChild(el('panel-value', r.value));
+    if (r.value) {
+        const m = /^(.*\S)\s+\((\d+)\)$/.exec(r.value); // "59 (38)": balls faced smaller
+        const value = el('panel-value', m ? m[1] : r.value);
+        if (m) value.appendChild(el('panel-value-sub', `(${m[2]})`));
+        row.appendChild(value);
+    }
     return row;
 }
 
@@ -181,10 +185,21 @@ function metaStrip(meta: PanelMeta) {
     if (meta.matchOvers) DOM.panelFooter.appendChild(el('panel-kv panel-kv-end', meta.matchOvers));
 }
 
-/** One label/value line in the detail slot (fall of wickets under the innings columns). */
-function detailLine(label: string, value: string) {
-    if (!value) { text(DOM.panelDetail, ''); return; }
-    DOM.panelDetail.replaceChildren(el('k', label), el('v', value));
+/** "181" big, "/7" smaller, "20.0 ov" muted: the total as the innings card's headline. */
+function scoreBlock(runs: string, wickets: string, overs: string): HTMLElement {
+    const block = el('panel-score');
+    block.append(el('panel-score-runs', runs), el('panel-score-wkts', `/${wickets}`), el('panel-score-overs', overs));
+    return block;
+}
+
+/** A stat tile: small-caps label over a value; `parts` alternate number / unit ("18", "4s", "7", "6s"). */
+function tile(label: string, parts: string[], dark = false): HTMLElement {
+    const t = el(`panel-tile${dark ? ' is-dark' : ''}`);
+    t.appendChild(el('k', label));
+    const v = el('v');
+    parts.forEach((p, i) => v.appendChild(el(i % 2 ? 'u' : 'n', p)));
+    t.appendChild(v);
+    return t;
 }
 
 /** Footer as label/value pairs: labels stay small caps, values keep their case and tabular digits. */
@@ -219,19 +234,20 @@ function renderPanel(card: PanelEvent) {
             break;
         }
         case 'innings-summary': {
-            const [bat, bowl] = card.teams;
-            matchup(bat, bowl);
-            text(DOM.panelEyebrow, card.label);
-            text(DOM.panelHeadline, `${tidyName(bat.name)} ${card.score} · ${card.overs}`);
+            DOM.panelMatchup.append(teamHead(card.team), scoreBlock(card.runs, card.wickets, card.overs));
+            text(DOM.panelEyebrow, card.eyebrow);
+            text(DOM.panelHeadline, '');
+            DOM.panelDetail.replaceChildren(
+                ...(card.runRate ? [tile('Run rate', [card.runRate])] : []),
+                tile('Boundaries', [card.fours, '4s', card.sixes, '6s']),
+                ...(card.extras ? [tile('Extras', [card.extras])] : []),
+                tile('Target', [card.target], true),
+            );
             const batting = rowList('panel-list'), bowling = rowList('panel-list');
             card.batters.forEach(r => batting.appendChild(personRow(r, 'md')));
             card.bowlers.forEach(r => bowling.appendChild(personRow(r, 'md')));
-            DOM.panelColumns.append(
-                column(`${bat.name} batting`, card.extras ? `Extras ${card.extras}` : undefined, true, batting),
-                column(`${bowl.name} bowling`, undefined, false, bowling),
-            );
-            detailLine('Fall of wickets', card.fow);
-            metaStrip(card);
+            DOM.panelColumns.append(column('Top scorers', undefined, false, batting), column('Best bowling', undefined, false, bowling));
+            footer([['Fall of wickets', card.fow]]);
             break;
         }
         case 'match-summary': {
@@ -281,10 +297,10 @@ export const SAMPLE_EVENTS: Record<string, AnyCard> = {
         { name: 'Lions', role: 'Fielding', players: ['Sumeer G','Qasim A','Ravi T','Aamir K','Nayan G','Vijaykumar V','Mahesh P','Ranjeet P','Goutham R','Vijay D','Manideep M'].map(n => ({ name: n, value: '', initials: n.split(' ').map(w => w[0]).join('') })).sort((a, b) => a.name.localeCompare(b.name)) },
         { name: 'Topguns United', role: 'Batting', players: ['Pavan V','Gautham R','Rakesh K','Abhinav V','Raja K','Chandu B','Vikas B','Siva Krishna V','Abhinandan K','Kiran R','Sandeep M'].map(n => ({ name: n, value: '', initials: n.split(' ').map(w => w[0]).join('') })).sort((a, b) => a.name.localeCompare(b.name)) },
     ] },
-    'innings-summary': { type: 'innings-summary', label: '1st innings', teams: [{ name: 'Lions' }, { name: 'Topguns United' }], score: '142/8', overs: '20 ov', series: '2024 Fall Champions', ground: 'LPCL-G1', matchOvers: '20 overs',
+    'innings-summary': { type: 'innings-summary', eyebrow: 'Innings break · 1st innings', team: { name: 'Lions' }, runs: '142', wickets: '8', overs: '20.0 ov', runRate: '7.10', fours: '12', sixes: '4', extras: '11', target: '143',
         batters: [{ name: 'Pavan V', value: '45 (30)', initials: 'PV' }, { name: 'Gautham R', value: '32 (21)', note: 'not out', initials: 'GR' }, { name: 'Rakesh K', value: '18 (12)', initials: 'RK' }],
         bowlers: [{ name: 'Siva Krishna V', value: '3-21', note: '4.0 ov', initials: 'SV' }, { name: 'Chandu B', value: '2-18', note: '4.0 ov', initials: 'CB' }, { name: 'Aamir K', value: '1-24', note: '4.0 ov', initials: 'AK' }],
-        extras: '11', fow: '1-14, 2-21, 3-24, 4-45, 5-90, 6-148, 7-171, 8-181' },
+        fow: '1-14, 2-21, 3-24, 4-45, 5-90, 6-148, 7-171, 8-181' },
     'match-summary': { type: 'match-summary', result: 'Topguns United won by 5 wickets',
         innings: [
             { team: { name: 'Lions' }, score: '142/8', overs: '20 ov', batters: [{ name: 'Pavan V', value: '45 (30)', initials: 'PV' }, { name: 'Gautham R', value: '32 (21)', initials: 'GR' }], bowlers: [{ name: 'Siva Krishna V', value: '3-21', note: '4.0 ov', initials: 'SV' }], fow: '1-14, 2-21, 3-24' },
