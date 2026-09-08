@@ -143,6 +143,7 @@ function personRow(r: PanelRow, size: 'sm' | 'md', extraClass = ''): HTMLElement
     row.className = `panel-row ${extraClass}`.trim();
     row.appendChild(avatar(r, size));
     row.appendChild(el('panel-name', r.name));
+    if (r.captain) row.appendChild(el('panel-captain', 'C'));
     if (r.note) row.appendChild(el('panel-note', r.note));
     if (r.value) row.appendChild(el('panel-value', r.value));
     return row;
@@ -247,8 +248,8 @@ export const SAMPLE_EVENTS: Record<string, AnyCard> = {
     partnership: { type: 'partnership', mark: 50, names: 'Abhinav & Raja', runs: '54', balls: '38' },
     boundary: { type: 'boundary', runs: 6 },
     lineup: { type: 'lineup', toss: 'Topguns United won the toss and elected to bat', series: '2024 Fall Champions', ground: 'LPCL-G1', teams: [
-        { name: 'Lions', players: ['Sumeer G','Qasim A','Ravi T','Aamir K','Nayan G','Vijaykumar V','Mahesh P','Ranjeet P','Goutham R','Vijay D','Manideep M'].map((n, i) => ({ name: n, value: '', note: ['BAT','AR','BOWL','WK'][i % 4], initials: n.split(' ').map(w => w[0]).join('') })) },
-        { name: 'Topguns United', players: ['Pavan V','Gautham R','Rakesh K','Abhinav V','Raja K','Chandu B','Vikas B','Siva Krishna V','Abhinandan K','Kiran R','Sandeep M'].map((n, i) => ({ name: n, value: '', note: ['WK','BAT','AR','BOWL'][i % 4], initials: n.split(' ').map(w => w[0]).join('') })) },
+        { name: 'Lions', players: ['Sumeer G','Qasim A','Ravi T','Aamir K','Nayan G','Vijaykumar V','Mahesh P','Ranjeet P','Goutham R','Vijay D','Manideep M'].map(n => ({ name: n, value: '', initials: n.split(' ').map(w => w[0]).join('') })).sort((a, b) => a.name.localeCompare(b.name)) },
+        { name: 'Topguns United', players: ['Pavan V','Gautham R','Rakesh K','Abhinav V','Raja K','Chandu B','Vikas B','Siva Krishna V','Abhinandan K','Kiran R','Sandeep M'].map(n => ({ name: n, value: '', initials: n.split(' ').map(w => w[0]).join('') })).sort((a, b) => a.name.localeCompare(b.name)) },
     ] },
     'innings-summary': { type: 'innings-summary', label: '1st innings', team: { name: 'Lions' }, score: '142/8', overs: '20 ov',
         batters: [{ name: 'Pavan V', value: '45 (30)', initials: 'PV' }, { name: 'Gautham R', value: '32 (21)', note: 'not out', initials: 'GR' }, { name: 'Rakesh K', value: '18 (12)', initials: 'RK' }],

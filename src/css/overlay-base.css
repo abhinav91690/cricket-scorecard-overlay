@@ -444,6 +444,7 @@ body {
 .panel-name { flex: 1 1 auto; min-inline-size: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .panel-note { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.6; white-space: nowrap; }
 .panel-value { font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.panel-captain { flex: none; display: grid; place-items: center; inline-size: 18px; block-size: 18px; border-radius: 4px; background: var(--brand-accent); color: var(--fg-pill, #fff); font-size: 11px; font-weight: 800; }
 .avatar { flex: none; border-radius: 50%; overflow: hidden; background: var(--surface-pill); color: var(--fg-pill, var(--fg)); display: grid; place-items: center; }
 .avatar-md { inline-size: 40px; block-size: 40px; }
 .avatar-sm { inline-size: 34px; block-size: 34px; }
@@ -455,10 +456,13 @@ body {
 .panel-xi { display: grid; grid-template-columns: 1fr; gap: 4px; }
 .panel-xi .panel-row { font-size: 15px; gap: 10px; }
 .panel-xi .avatar-sm { inline-size: 30px; block-size: 30px; }
+.panel-card[data-type="lineup"] { inline-size: max-content; min-inline-size: 640px; max-inline-size: min(1240px, calc(100vw - 80px)); }
 .panel-card[data-type="lineup"] .panel-matchup { justify-content: space-between; padding-block-end: 12px; border-block-end: 1px solid var(--divider); }
+.panel-card[data-type="lineup"] .panel-xi { min-inline-size: 250px; }
+.panel-card[data-type="lineup"] .panel-headline { white-space: normal; text-wrap: balance; max-inline-size: 22ch; }
 .panel-card[data-type="lineup"] .panel-team-logo { inline-size: 56px; block-size: 56px; }
 .panel-card[data-type="lineup"] .panel-team-name { font-size: 26px; }
-.panel-card[data-type="lineup"] .panel-columns { order: 1; gap: 12px 64px; margin-block-start: 6px; }
+.panel-card[data-type="lineup"] .panel-columns { order: 1; gap: 12px 40px; margin-block-start: 6px; }
 .panel-card[data-type="lineup"] .panel-eyebrow { order: 2; margin-block-start: 14px; padding-block-start: 14px; border-block-start: 1px solid var(--divider); }
 .panel-card[data-type="lineup"] .panel-headline { order: 3; font-size: 30px; text-transform: uppercase; letter-spacing: 0.02em; }
 .panel-card[data-type="lineup"] .panel-footer { order: 4; margin-block-start: 8px; padding-block-start: 0; border: 0; font-weight: 600; opacity: 0.8; }

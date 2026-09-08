@@ -73,6 +73,8 @@ Fixtures for each view live in `src/mockData.ts` as `mock_view_<id>`.
 - **Bowling row**: `playerID firstName lastName shortName nickName balls runs wickets maidens dotBalls wides noBalls hattricks innings profilepic_file_path bowlingStyle …` and **`email`**.
 - **`partnerShip`**: `{ "1": 67, "2": 82, … }` = fall of wickets, wicket number → team score when it fell.
 
+**No captain or wicketkeeper flag exists** in any view payload (squad rows carry only names, role, styles and a photo), and the team/scorecard HTML pages are behind the Cloudflare challenge. The line-up card renders a captain badge if a row ever carries `isCaptain`.
+
 **Player rows include email addresses. Never render, log or store them; strip them before anything leaves memory (analytics, fixtures, screenshots).**
 
 ## 4. `overlayConfig` (club branding, in every §1 response)

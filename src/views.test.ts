@@ -138,7 +138,9 @@ describe('people helpers', () => {
         const rows = squadRows(mock_view_48.values.t1PlayersList as any);
         expect(rows.length).toBeGreaterThan(5);
         expect(rows[0]).toMatchObject({ initials: expect.stringMatching(/^[A-Z]{1,2}$/) });
-        expect(rows.every(r => r.note !== 'AR')).toBe(true); // the default role is not shown
+        expect(rows.every(r => r.note === undefined)).toBe(true); // no role marks
+        expect(rows.map(r => r.name)).toEqual([...rows.map(r => r.name)].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })));
+        expect(squadRows([{ firstName: 'A', lastName: 'B', isCaptain: true } as any])[0].captain).toBe(true);
     });
 });
 

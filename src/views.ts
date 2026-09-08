@@ -140,7 +140,7 @@ export function wicketFallText(wickets: number, total: string | undefined): stri
     return `${ORDINAL(wickets)} wkt · ${total ?? '0'}/${wickets}`;
 }
 
-export interface PanelRow { name: string; value: string; note?: string; pic?: string; initials: string; }
+export interface PanelRow { name: string; value: string; note?: string; pic?: string; initials: string; captain?: boolean; }
 
 /** Absolute URL for a CricClubs image path, or undefined for missing/placeholder pictures. */
 export function imageUrl(path: string | undefined | null): string | undefined {
@@ -179,8 +179,11 @@ export function topBowlers(rows: BowlingStats[] | undefined, n = 3): PanelRow[] 
 }
 
 export function squadRows(rows: Player[] | undefined): PanelRow[] {
-    // Nearly every player is registered as an all-rounder, so that mark says nothing; keep only WK / BAT / BOWL.
-    return (rows ?? []).map(p => ({ name: displayName(p), value: '', note: roleTag(p.playingRole).replace(/^AR$/, ''), pic: imageUrl(p.profilepic_file_path), initials: initialsOf(p) }));
+    // Alphabetical, no role marks. The captain badge shows when a row carries a captain flag
+    // (CricClubs does not expose one in any overlay view today; see docs/cricclubs-api.md).
+    return (rows ?? [])
+        .map(p => ({ name: displayName(p), value: '', pic: imageUrl(p.profilepic_file_path), initials: initialsOf(p), captain: Boolean((p as Player & { isCaptain?: boolean }).isCaptain) }))
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 }
 
 // ---------- panel builders (what to show while nothing can happen) ----------

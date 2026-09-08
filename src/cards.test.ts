@@ -88,6 +88,7 @@ describe('card queue', () => {
         expect(DOM.panelColumns.querySelectorAll('.panel-row')).toHaveLength(22);
         expect(DOM.panelColumns.querySelector('.panel-col-title')).toBeNull();
         expect(DOM.panelColumns.querySelectorAll('ul.panel-xi > li')).toHaveLength(22);
+        expect(DOM.panelColumns.querySelector('.panel-captain')).toBeNull();
         expect(DOM.panelFooter.textContent).toBe('2024 Fall Champions·LPCL-G1');
         resetCardsForTests();
 
@@ -117,7 +118,8 @@ describe('card queue', () => {
     });
 
     it('uses a headshot when there is a picture and falls back to initials when it fails to load', () => {
-        enqueueCards([{ type: 'lineup', toss: '', series: '', ground: '', teams: [{ name: 'T', players: [{ name: 'A B', value: '', initials: 'AB', pic: 'https://cricclubs.com/x.jpg' }] }, { name: 'U', players: [] }] }]);
+        enqueueCards([{ type: 'lineup', toss: '', series: '', ground: '', teams: [{ name: 'T', players: [{ name: 'A B', value: '', initials: 'AB', pic: 'https://cricclubs.com/x.jpg', captain: true }] }, { name: 'U', players: [] }] }]);
+        expect(DOM.panelColumns.querySelector('.panel-captain')!.textContent).toBe('C');
         const img = DOM.panelColumns.querySelector('.avatar img') as HTMLImageElement;
         expect(img.src).toBe('https://cricclubs.com/x.jpg');
         img.dispatchEvent(new Event('error'));
