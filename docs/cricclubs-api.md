@@ -1,7 +1,7 @@
 # CricClubs overlay API
 
 Everything we know about the CricClubs endpoints the overlay uses, learned by probing. None of it is
-officially documented; treat field names as observed on 2026-09-07 and re-verify with the curl commands
+officially documented; treat field names as observed on 2026-09-07 (fixtures in `src/mockData.ts` were captured the same day) and re-verify with the curl commands
 at the end if something looks off.
 
 All endpoints are on `https://cricclubs.com`. Match and club IDs are the numeric ones in CricClubs URLs
@@ -63,7 +63,9 @@ Auto-switch (`isAutoSwitchEnabled`) rotates views server-side; a manual switch i
 | 53 | seen live post-match; not in fixtures | `customTextValue` only |
 | 54 | "L" scorecard | `customTextValue` only |
 
-Every view also carries `customTextValue` (free text the scorer typed) and `showMsgForScoreNeeded`.
+**Data views drop the live fields.** Views 2/3/4/5/8/13/14/15/48/49 return only ~30–45 `values` keys: team names, totals, overs and the view's extra data. They do **not** include batter names/runs, the bowler, `lastOut*`, `currentPartnershipMap`, `toss`, and `balls` is always `[]`. Only views 1, 42, 45 and 54 carry the full scorebar. So an overlay must stay on view 1 while a ball can be bowled and only *peek* at a data view for one poll when nothing can be missed (pre-match, innings break, match over).
+
+`partnerShip` (fall of wickets) follows the **view's team**: views 2/3 give team 1's innings, 4/5 team 2's, and 8/13/14/15 the latest innings. Every view also carries `customTextValue` (free text the scorer typed) and `showMsgForScoreNeeded`.
 Fixtures for each view live in `src/mockData.ts` as `mock_view_<id>`.
 
 ### Row shapes

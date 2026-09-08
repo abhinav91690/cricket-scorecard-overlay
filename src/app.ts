@@ -9,14 +9,15 @@ import { CONFIG } from './config';
 import { DOM } from './dom';
 import { getQueryParams } from './utils';
 import { applyTheme, updateLogo } from './theme';
-import { fetchScoreData } from './api';
+import { fetchScoreData, switchView } from './api';
 import { updateTeamLogos, updateScoreboard } from './ui';
 import { CricketAPIData } from './types';
 import { linkLiveStream, LinkLiveStreamError, extractYouTubeVideoId } from './liveStream';
 import { trackOnce, track, LinkOutcome } from './analytics';
 import { showToast } from './toast';
 import { detectEvents } from './events';
-import { enqueueCards, showSampleCard } from './cards';
+import { enqueueCards, showSampleCard, dismissAll, isIdle } from './cards';
+import { ViewCache, desiredView, isFullFrame, matchPhase, mergeCache, phasePanels, scoreChanged, stripPii } from './views';
 
 let replayIndex = 0;
 /** True once the overlay has painted at least one successful frame of live/mock data. */
@@ -24,6 +25,8 @@ let hasRenderedScore = false;
 /** The previous frame, so events (wicket, fifty, boundary, target) can be derived from the diff. */
 let lastData: CricketAPIData | null = null;
 let sampleCardShown = false;
+/** Richer data gathered from view peeks (cards, squads, fall of wickets). */
+let viewCache: ViewCache = {};
 
 /** Test hook: forget replay position, last frame and whether a frame has rendered. */
 export function resetAppStateForTests() {
@@ -31,13 +34,33 @@ export function resetAppStateForTests() {
     hasRenderedScore = false;
     lastData = null;
     sampleCardShown = false;
+    viewCache = {};
 }
 
-/** Paint a frame and fire any cards its changes call for. */
+/**
+ * Paint a frame and fire any cards its changes call for. Frames from a view peek (no live
+ * fields) only feed the cache; they never touch the bar or count as a score change.
+ */
 function renderFrame(data: CricketAPIData, quiet: boolean) {
+    stripPii(data);
+    viewCache = mergeCache(viewCache, data);
+    if (!isFullFrame(data)) return;
+
     updateScoreboard(data);
-    if (!quiet) enqueueCards(detectEvents(lastData, data));
+    if (!quiet) {
+        // Golden rule: a new ball dismisses whatever is showing before this frame's own cards play.
+        if (scoreChanged(lastData, data)) dismissAll();
+        enqueueCards(detectEvents(lastData, data));
+        const phase = matchPhase(data);
+        if (phase !== 'play' && isIdle('panel')) enqueueCards(phasePanels(phase, data.values, viewCache));
+    }
     lastData = data;
+}
+
+/** Ask CricClubs for the next view we want, if any (live matches only). */
+function steerView(data: CricketAPIData, clubId: string, matchId: string) {
+    const want = desiredView(data, isFullFrame(data) ? matchPhase(data) : (lastData ? matchPhase(lastData) : 'play'), viewCache);
+    if (want !== null && want !== (data.view ?? 1)) switchView(clubId, matchId, want);
 }
 
 /**
@@ -149,9 +172,10 @@ export async function updateScore() {
                     break;
             }
             console.log(`Using mock data: ${params.debug}`);
-            if (params.card && !sampleCardShown) {
+            if ((params.card || params.panel) && !sampleCardShown) {
                 sampleCardShown = true;
-                showSampleCard(params.card);
+                if (params.card) showSampleCard(params.card);
+                if (params.panel) showSampleCard(params.panel);
             }
         } else {
             trackOnce('overlay_start', { clubId: params.clubId, matchId: params.matchId, theme: params.theme, logo: params.logo });
@@ -159,8 +183,9 @@ export async function updateScore() {
             data = await fetchScoreData(apiUrl);
         }
 
-        await updateTeamLogos(data);
+        if (isFullFrame(data)) await updateTeamLogos(data);
         renderFrame(data, params.quiet);
+        if (!params.debug) steerView(data, params.clubId, params.matchId!);
         hasRenderedScore = true;
 
     } catch (error) {

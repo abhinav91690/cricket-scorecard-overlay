@@ -15,6 +15,7 @@ export function getQueryParams() {
         mode: urlParams.get('mode'),
         quiet: urlParams.has('quiet'),
         card: urlParams.get('card'),
+        panel: urlParams.get('panel'),
     };
 }
 

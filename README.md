@@ -60,7 +60,18 @@ The bar stays constant; moments earn a card that slides in over the batter and b
 | Four / Six | the newest ball is a boundary | 2s |
 | 50 / 100 partnership | the current stand crosses 50 or 100 | 6s |
 
-Cards queue and play one at a time; a wicket suppresses the boundary flash on the same ball. `?quiet` disables them. In debug mode, `&card=wicket` (or `milestone`, `partnership`, `boundary`) holds a sample card so you can position it in OBS.
+Cards queue and play one at a time; a wicket suppresses the boundary flash on the same ball, and the wicket card shows the fall of wicket ("3rd wkt · 84/3"). **Two rules always hold**: every card is timed, and any change to the score dismisses whatever is showing. `?quiet` disables them. In debug mode, `&card=wicket` (or `milestone`, `partnership`, `boundary`) holds a sample card so you can position it in OBS.
+
+### Panels between the action
+While nothing can happen the overlay fills the gap by itself, using richer CricClubs data it fetches by switching the match's overlay view for a single poll (see [docs/cricclubs-api.md](docs/cricclubs-api.md)):
+
+| Match state | Panel above the bar |
+| :--- | :--- |
+| Before the first ball | Intro (series, teams, ground, toss), then each side's playing XI |
+| Innings break | First-innings summary: top batters and bowlers, extras, fall of wickets, target |
+| Match over | Match summary for both innings and the result |
+
+Panels rotate on timers and disappear the moment a ball is bowled. The overlay never leaves the live scorebar view while play is possible. `&panel=intro` (or `squad`, `innings-summary`, `match-summary`) with `?debug=` holds a sample.
 
 ### Debug Modes
 Test layouts without a live match:

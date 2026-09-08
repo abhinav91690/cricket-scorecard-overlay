@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('./dom', () => ({ DOM: { teamName: document.createElement('div') } }));
-vi.mock('./api', () => ({ fetchScoreData: vi.fn() }));
+vi.mock('./api', () => ({ fetchScoreData: vi.fn(), switchView: vi.fn() }));
 vi.mock('./ui', () => ({ updateScoreboard: vi.fn(), updateTeamLogos: vi.fn(async () => {}) }));
 vi.mock('./theme', () => ({ applyTheme: vi.fn(), updateLogo: vi.fn() }));
 vi.mock('./analytics', () => ({ track: vi.fn(), trackOnce: vi.fn() }));
 vi.mock('./toast', () => ({ showToast: vi.fn() }));
 vi.mock('./events', () => ({ detectEvents: vi.fn(() => []) }));
-vi.mock('./cards', () => ({ enqueueCards: vi.fn(), showSampleCard: vi.fn() }));
+vi.mock('./cards', () => ({ enqueueCards: vi.fn(), showSampleCard: vi.fn(), dismissAll: vi.fn(), isIdle: vi.fn(() => true) }));
 vi.mock('./liveStream', async (importOriginal) => {
     const actual = await importOriginal<typeof import('./liveStream')>();
     return { ...actual, linkLiveStream: vi.fn(async () => {}) };
@@ -15,13 +15,14 @@ vi.mock('./liveStream', async (importOriginal) => {
 
 import { updateScore, setupLinkStreamForm, pollLoop, resetAppStateForTests } from './app';
 import { DOM } from './dom';
-import { fetchScoreData } from './api';
+import { fetchScoreData, switchView } from './api';
 import { updateScoreboard, updateTeamLogos } from './ui';
 import { applyTheme, updateLogo } from './theme';
 import { track, trackOnce } from './analytics';
 import { showToast } from './toast';
 import { detectEvents } from './events';
-import { enqueueCards, showSampleCard } from './cards';
+import { enqueueCards, showSampleCard, dismissAll } from './cards';
+import { mock_view_48 } from './mockData';
 import { linkLiveStream, LinkLiveStreamError } from './liveStream';
 import { mock_1stInnings, mock_2ndInnings, mock_matchEnded, mock_toss, mock_noTeamImage } from './mockData';
 import { sampleReplayData } from './replayData';
@@ -44,7 +45,7 @@ function mountShell() {
 
 const instructions = () => document.getElementById('instructions')!;
 const overlay = () => document.querySelector('.overlay') as HTMLElement;
-const live = { values: { t1Name: 'Live' }, balls: [] } as any;
+const live = { view: 1, values: { t1Name: 'Live', batsman1Name: 'A', isSecondInningsStarted: 'false', t1Overs: '5.0', t1Total: '40', t1Wickets: '1' }, balls: ['1'] } as any;
 
 beforeEach(() => {
     vi.clearAllMocks();
@@ -124,7 +125,7 @@ describe('updateScore mode switch', () => {
 });
 
 describe('event cards', () => {
-    const frame2 = { values: { t1Name: 'Live', t1Wickets: '1' }, balls: ['W'] } as any;
+    const frame2 = { ...live, values: { ...live.values, t1Wickets: '2' }, balls: ['1', 'W'] } as any;
 
     it('diffs consecutive frames and queues the resulting cards', async () => {
         setSearch('?matchId=1');
@@ -163,6 +164,62 @@ describe('event cards', () => {
         await updateScore();
         expect(showSampleCard).toHaveBeenCalledTimes(1);
         expect(showSampleCard).toHaveBeenCalledWith('wicket');
+    });
+});
+
+describe('views: peeks, dismissal and panels', () => {
+    const pre = { view: 1, values: { t1Name: 'Lions', t2Name: 'TGU', batsman1Name: 'A', isSecondInningsStarted: 'false', t1Overs: '0.0', toss: 'Lions won the toss' }, balls: [] } as any;
+
+    it('asks for the first squad before the match, then comes home after the peek', async () => {
+        setSearch('?matchId=2079&clubId=1089463');
+        vi.mocked(fetchScoreData).mockResolvedValueOnce(pre).mockResolvedValueOnce(mock_view_48 as any);
+        await updateScore();
+        expect(switchView).toHaveBeenCalledWith('1089463', '2079', 48);
+        await updateScore();
+        expect(switchView).toHaveBeenLastCalledWith('1089463', '2079', 1);
+        // the peek frame never reached the bar or the event detector
+        expect(updateScoreboard).toHaveBeenCalledTimes(1);
+        expect(detectEvents).toHaveBeenCalledTimes(1);
+    });
+
+    it('never switches views during play or in debug mode', async () => {
+        setSearch('?matchId=1');
+        vi.mocked(fetchScoreData).mockResolvedValue(live);
+        await updateScore();
+        expect(switchView).not.toHaveBeenCalled();
+        setSearch('?debug=4');
+        await updateScore();
+        expect(switchView).not.toHaveBeenCalled();
+    });
+
+    it('dismisses everything when the score moves, before queueing that frame\'s cards', async () => {
+        setSearch('?matchId=1');
+        const next = { ...live, values: { ...live.values, t1Total: '44' }, balls: ['1', '4'] };
+        vi.mocked(fetchScoreData).mockResolvedValueOnce(live).mockResolvedValueOnce(next);
+        await updateScore();
+        expect(dismissAll).not.toHaveBeenCalled();
+        await updateScore();
+        expect(dismissAll).toHaveBeenCalledTimes(1);
+        const order = vi.mocked(dismissAll).mock.invocationCallOrder[0];
+        const enq = vi.mocked(enqueueCards).mock.invocationCallOrder.filter(n => n > order);
+        expect(enq.length).toBeGreaterThan(0);
+    });
+
+    it('rotates phase panels while waiting and the panel surface is idle', async () => {
+        setSearch('?matchId=1');
+        vi.mocked(fetchScoreData).mockResolvedValue(pre);
+        await updateScore();
+        const panels = vi.mocked(enqueueCards).mock.calls.flat(2).filter((c: any) => c.type === 'intro');
+        expect(panels).toHaveLength(1);
+        expect(panels[0]).toMatchObject({ teams: 'Lions v TGU', toss: 'Lions won the toss' });
+    });
+
+    it('strips emails before anything else sees the frame', async () => {
+        setSearch('?matchId=1');
+        const leaky = { ...live, values: { ...live.values, t1Batting: [{ firstName: 'A', email: 'a@b.c' }] } };
+        vi.mocked(fetchScoreData).mockResolvedValue(leaky);
+        await updateScore();
+        expect(JSON.stringify(vi.mocked(updateScoreboard).mock.calls[0][0])).not.toContain('email');
     });
 });
 
