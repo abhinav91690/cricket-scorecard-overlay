@@ -1,29 +1,29 @@
-/* GT colours. Layout lives in overlay-base.css. */
+/* GT: brand colour on the team block, dark neutral bar. Layout lives in overlay-base.css. */
 .theme-gt {
     /* Brand */
-    --brand-accent: #cfb53b;
+    --brand-accent: #E0C95C;
 
     /* Surfaces */
-    --surface-frame: linear-gradient(180deg, rgba(20, 35, 60, 0.95), rgba(28, 44, 74, 0.92));
-    --surface-pill: linear-gradient(180deg, #1c2c4a, #0f1a30);
-    --surface-innings: linear-gradient(180deg, #0f1a30, #060d18);
-    --surface-panel: rgba(28, 44, 74, 0.6);
-    --surface-row: rgba(28, 44, 74, 0.5);
+    --surface-frame: rgba(18, 22, 31, 0.94);
+    --surface-pill: #1C2C4A;
+    --surface-panel: rgba(255, 255, 255, 0.04);
+    --surface-row: rgba(255, 255, 255, 0.02);
 
     /* Lines */
-    --border-frame: rgba(207, 181, 59, 0.15);
-    --divider: rgba(207, 181, 59, 0.25);
-    --divider-row: rgba(207, 181, 59, 0.1);
+    --border-frame: rgba(255, 255, 255, 0.12);
+    --divider: rgba(255, 255, 255, 0.14);
+    --divider-row: rgba(255, 255, 255, 0.08);
 
     /* Text */
-    --fg: #ffffff;
-    --fg-title: #cfb53b;
-    --fg-accent: #cfb53b;
-    --fg-muted: #a0b8d0;
-    --fg-on-bright: #0f1a30;
+    --fg: #F5F7FA;
+    --fg-pill: #FFFFFF;
+    --fg-title: #CFB53B;
+    --fg-accent: #E0C95C;
+    --fg-muted: #A0A8B8;
+    --fg-on-bright: #14171F;
 
     /* Balls */
     --ball-idle: rgba(255, 255, 255, 0.12);
-    --ball-neutral: #ffffff;
-    --ball-neutral-fg: #14171f;
+    --ball-neutral: #FFFFFF;
+    --ball-neutral-fg: #14171F;
 }

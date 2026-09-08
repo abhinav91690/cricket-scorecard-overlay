@@ -8,8 +8,7 @@ export type OverlayEvent =
     | { type: 'wicket'; name: string; runs: string; balls: string; dismissal: string }
     | { type: 'milestone'; mark: 50 | 100; name: string; runs: string; balls: string; fours: string; sixes: string }
     | { type: 'partnership'; mark: 50 | 100; names: string; runs: string; balls: string }
-    | { type: 'boundary'; runs: 4 | 6 }
-    | { type: 'target'; target: number; overs: number | null; rrr: string | null };
+    | { type: 'boundary'; runs: 4 | 6 };
 
 const num = (v: unknown): number => {
     const n = parseInt(String(v ?? ''), 10);
@@ -59,12 +58,8 @@ export function detectEvents(prev: CricketAPIData | null, next: CricketAPIData):
 
     if (String(b.isMatchEnded) === '1') return events;
 
-    // Innings change: announce the target and skip everything else this tick, the numbers reset.
-    if (!isChase(a) && isChase(b)) {
-        const rrr = b.RRR && b.RRR !== '--.--' ? b.RRR : null;
-        events.push({ type: 'target', target: num(b.t1Total) + 1, overs: b.totalOvers ?? null, rrr });
-        return events;
-    }
+    // Innings change: the numbers reset, so nothing is comparable this tick. The target itself
+    // lives permanently in the team block's status line rather than on a card.
     if (isChase(a) !== isChase(b)) return events;
 
     const wicket = battingWickets(b) > battingWickets(a);

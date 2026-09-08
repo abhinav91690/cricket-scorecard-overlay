@@ -1,29 +1,29 @@
-/* RR colours. Layout lives in overlay-base.css. */
+/* RR: brand colour on the team block, dark neutral bar. Layout lives in overlay-base.css. */
 .theme-rr {
     /* Brand */
-    --brand-accent: #ea1a85;
+    --brand-accent: #FF7AC1;
 
     /* Surfaces */
-    --surface-frame: linear-gradient(180deg, rgba(25, 50, 110, 0.95), rgba(37, 74, 165, 0.92));
-    --surface-pill: linear-gradient(180deg, #254aa5, #1a3580);
-    --surface-innings: linear-gradient(180deg, #152a60, #0a1530);
-    --surface-panel: rgba(37, 74, 165, 0.6);
-    --surface-row: rgba(37, 74, 165, 0.5);
+    --surface-frame: rgba(47, 19, 39, 0.94);
+    --surface-pill: #EA1A85;
+    --surface-panel: rgba(255, 255, 255, 0.04);
+    --surface-row: rgba(255, 255, 255, 0.02);
 
     /* Lines */
-    --border-frame: rgba(234, 26, 133, 0.15);
-    --divider: rgba(234, 26, 133, 0.25);
-    --divider-row: rgba(234, 26, 133, 0.1);
+    --border-frame: rgba(255, 255, 255, 0.12);
+    --divider: rgba(255, 255, 255, 0.14);
+    --divider-row: rgba(255, 255, 255, 0.08);
 
     /* Text */
-    --fg: #ffffff;
-    --fg-title: #ea1a85;
-    --fg-accent: #ea1a85;
-    --fg-muted: #a0b0d0;
-    --fg-on-bright: #152a60;
+    --fg: #F5F7FA;
+    --fg-pill: #FFFFFF;
+    --fg-title: #FFFFFF;
+    --fg-accent: #FF7AC1;
+    --fg-muted: #A0A8B8;
+    --fg-on-bright: #14171F;
 
     /* Balls */
     --ball-idle: rgba(255, 255, 255, 0.12);
-    --ball-neutral: #ffffff;
-    --ball-neutral-fg: #14171f;
+    --ball-neutral: #FFFFFF;
+    --ball-neutral-fg: #14171F;
 }

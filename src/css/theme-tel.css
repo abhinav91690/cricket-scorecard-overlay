@@ -1,29 +1,29 @@
-/* TEL colours. Layout lives in overlay-base.css. */
+/* Topguns Elite (light): brand colour on the team block, light neutral bar. Layout lives in overlay-base.css. */
 .theme-tel {
     /* Brand */
-    --brand-accent: #3344dd;
+    --brand-accent: #2233BB;
 
     /* Surfaces */
-    --surface-frame: linear-gradient(180deg, rgba(220, 220, 230, 0.95), rgba(200, 200, 212, 0.92));
-    --surface-pill: linear-gradient(180deg, #e0e0e8, #c8c8d4);
-    --surface-innings: linear-gradient(180deg, #c8c8d4, #b0b0c0);
-    --surface-panel: rgba(200, 200, 212, 0.5);
-    --surface-row: rgba(200, 200, 212, 0.4);
+    --surface-frame: rgba(242, 243, 246, 0.96);
+    --surface-pill: #3344DD;
+    --surface-panel: rgba(20, 23, 31, 0.04);
+    --surface-row: rgba(20, 23, 31, 0.02);
 
     /* Lines */
-    --border-frame: rgba(200, 200, 212, 0.1);
-    --divider: rgba(51, 68, 221, 0.25);
-    --divider-row: rgba(51, 68, 221, 0.08);
+    --border-frame: rgba(20, 23, 31, 0.15);
+    --divider: rgba(20, 23, 31, 0.12);
+    --divider-row: rgba(20, 23, 31, 0.07);
 
     /* Text */
-    --fg: #0a0a1a;
-    --fg-title: #3344dd;
-    --fg-accent: #3344dd;
-    --fg-muted: #2a2a3e;
-    --fg-on-bright: #0a0a0a;
+    --fg: #14171F;
+    --fg-pill: #FFFFFF;
+    --fg-title: #FFFFFF;
+    --fg-accent: #2233BB;
+    --fg-muted: #5C6470;
+    --fg-on-bright: #14171F;
 
     /* Balls */
-    --ball-idle: rgba(0, 0, 0, 0.08);
-    --ball-neutral: var(--fg);
-    --ball-neutral-fg: #ffffff;
+    --ball-idle: rgba(20, 23, 31, 0.08);
+    --ball-neutral: #14171F;
+    --ball-neutral-fg: #FFFFFF;
 }

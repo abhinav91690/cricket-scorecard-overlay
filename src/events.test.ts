@@ -70,12 +70,10 @@ describe('detectEvents', () => {
         expect(detectEvents(first({}, ['4']), next).map(e => e.type)).toEqual(['wicket']);
     });
 
-    it('announces the target when the second innings starts and nothing else that tick', () => {
+    it('emits nothing on the tick the innings changes, since the numbers reset', () => {
         const a = first({ t1Total: '142', t1Wickets: '8' }, ['1', '4', '6']);
-        const b = first({ isSecondInningsStarted: 'true', t1Total: '142', t1Wickets: '8', t2Wickets: '0', RRR: '7.15', totalOvers: 20 }, []);
-        expect(detectEvents(a, b)).toEqual([{ type: 'target', target: 143, overs: 20, rrr: '7.15' }]);
-        const noRrr = first({ isSecondInningsStarted: 'true', t1Total: '142', RRR: '--.--' });
-        expect(detectEvents(a, noRrr)[0]).toMatchObject({ type: 'target', rrr: null, overs: null });
+        const b = first({ isSecondInningsStarted: 'true', t1Total: '142', t1Wickets: '8', t2Wickets: '0' }, ['4']);
+        expect(detectEvents(a, b)).toEqual([]);
     });
 
     it('is silent once the match has ended', () => {

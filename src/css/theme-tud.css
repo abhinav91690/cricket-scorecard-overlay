@@ -1,29 +1,29 @@
-/* TUD colours. Layout lives in overlay-base.css. */
+/* Topguns United (dark): brand colour on the team block, dark neutral bar. Layout lives in overlay-base.css. */
 .theme-tud {
     /* Brand */
-    --brand-accent: #d42b2b;
+    --brand-accent: #FF6B6B;
 
     /* Surfaces */
-    --surface-frame: linear-gradient(180deg, rgba(10, 10, 20, 0.95), rgba(20, 20, 40, 0.92));
-    --surface-pill: linear-gradient(180deg, #1a1a2e, #0a0a0a);
-    --surface-innings: linear-gradient(180deg, #0a0a0a, #050508);
-    --surface-panel: rgba(20, 20, 40, 0.6);
-    --surface-row: rgba(20, 20, 40, 0.5);
+    --surface-frame: rgba(43, 22, 27, 0.94);
+    --surface-pill: #D42B2B;
+    --surface-panel: rgba(255, 255, 255, 0.04);
+    --surface-row: rgba(255, 255, 255, 0.02);
 
     /* Lines */
-    --border-frame: rgba(200, 200, 212, 0.1);
-    --divider: rgba(212, 43, 43, 0.25);
-    --divider-row: rgba(200, 200, 212, 0.06);
+    --border-frame: rgba(255, 255, 255, 0.12);
+    --divider: rgba(255, 255, 255, 0.14);
+    --divider-row: rgba(255, 255, 255, 0.08);
 
     /* Text */
-    --fg: #ffffff;
-    --fg-title: #c8c8d4;
-    --fg-accent: #c8c8d4;
-    --fg-muted: #b0b0c0;
-    --fg-on-bright: #0a0a0a;
+    --fg: #F5F7FA;
+    --fg-pill: #FFFFFF;
+    --fg-title: #FFFFFF;
+    --fg-accent: #FF6B6B;
+    --fg-muted: #A0A8B8;
+    --fg-on-bright: #14171F;
 
     /* Balls */
     --ball-idle: rgba(255, 255, 255, 0.12);
-    --ball-neutral: #ffffff;
-    --ball-neutral-fg: #14171f;
+    --ball-neutral: #FFFFFF;
+    --ball-neutral-fg: #14171F;
 }

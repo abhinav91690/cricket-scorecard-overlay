@@ -18,7 +18,7 @@ cricket-scorecard-overlay/
 │   ├── script.ts       # Entry point: imports fonts/CSS, then calls into app.ts
 │   ├── app.ts          # pollLoop(), updateScore() mode switch, Link Live Stream form wiring
 │   ├── analytics.ts    # track()/trackOnce(), client detection, opt-out rules
-│   ├── events.ts       # detectEvents(prev, next): wicket / milestone / partnership / boundary / target from poll diffs
+│   ├── events.ts       # detectEvents(prev, next): wicket / milestone / partnership / boundary from poll diffs
 │   ├── cards.ts        # Event card queue: copy, hold times, one-at-a-time playback, sample cards
 │   ├── urlBuilder.ts   # Home page link builder: theme options, live URL, copy, preview
 │   ├── config.ts       # CONFIG constant (refresh rate, default club ID, logo map)
@@ -53,7 +53,7 @@ Located in `src/app.ts` (started from `src/script.ts`), `updateScore()` runs onc
 ### 2. State Management & DOM Updates
 - **DOM Mapping**: The `DOM` constant in `src/dom.ts` maps HTML IDs to typed element references for efficient, repeated updates.
 - **Normalization**: `updateScoreboard()` (`src/ui.ts`) processes raw API data and updates text content, visibility, and styles, only touching the DOM when a value actually changes (via `setText`/`setDisplay` helpers) to avoid layout thrash. `statusLine()` computes the line under the score: `CRR x.xx` in the first innings, `Target · Need n off b · RRR` in a chase (from the totals, not CricClubs' pre-built HTML message).
-- **Event cards**: `app.ts` keeps the previous frame and passes `(prev, next)` to `detectEvents()` (`src/events.ts`), a pure diff that yields wicket, fifty/hundred, partnership, boundary and target events (`parseDismissal()` reduces CricClubs' HTML dismissal string to text). `enqueueCards()` (`src/cards.ts`) plays them one at a time over the batter/bowler slots with per-type hold times; `?quiet` disables them and `?debug=…&card=<type>` holds a sample.
+- **Event cards**: `app.ts` keeps the previous frame and passes `(prev, next)` to `detectEvents()` (`src/events.ts`), a pure diff that yields wicket, fifty/hundred, partnership and boundary events (`parseDismissal()` reduces CricClubs' HTML dismissal string to text). `enqueueCards()` (`src/cards.ts`) plays them one at a time over the batter/bowler slots with per-type hold times; `?quiet` disables them and `?debug=…&card=<type>` holds a sample.
 - **Ball-by-Ball Tracking**: `updateBallByBall()` manages the history of the current over, injecting a styled indicator per delivery.
 - **Team Logos**: `updateTeamLogos()` caches loaded logo images and only re-fetches when the URL changes.
 
@@ -92,7 +92,7 @@ graph TD
     E --> G[Batter / bowler rows]
     E --> H[This over]
     B -->|prev, next| Q(events.ts detectEvents)
-    Q -->|wicket / fifty / boundary / target| R(cards.ts queue)
+    Q -->|wicket / fifty / partnership / boundary| R(cards.ts queue)
     R --> S[Event card over the bar]
     F & G & H & S -->|Styled By| I(overlay-base.css + theme-*.css tokens)
 

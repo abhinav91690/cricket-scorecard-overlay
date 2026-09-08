@@ -1,29 +1,29 @@
-/* LSG colours. Layout lives in overlay-base.css. */
+/* LSG: brand colour on the team block, dark neutral bar. Layout lives in overlay-base.css. */
 .theme-lsg {
     /* Brand */
-    --brand-accent: #d4a843;
+    --brand-accent: #FFB35C;
 
     /* Surfaces */
-    --surface-frame: linear-gradient(180deg, rgba(0, 50, 60, 0.95), rgba(0, 70, 80, 0.92));
-    --surface-pill: linear-gradient(180deg, #00a5b5, #007a88);
-    --surface-innings: linear-gradient(180deg, #003d47, #001e24);
-    --surface-panel: rgba(0, 60, 70, 0.6);
-    --surface-row: rgba(0, 60, 70, 0.5);
+    --surface-frame: rgba(14, 39, 46, 0.94);
+    --surface-pill: #00A5B5;
+    --surface-panel: rgba(255, 255, 255, 0.04);
+    --surface-row: rgba(255, 255, 255, 0.02);
 
     /* Lines */
-    --border-frame: rgba(212, 168, 67, 0.15);
-    --divider: rgba(212, 168, 67, 0.25);
-    --divider-row: rgba(212, 168, 67, 0.1);
+    --border-frame: rgba(255, 255, 255, 0.12);
+    --divider: rgba(255, 255, 255, 0.14);
+    --divider-row: rgba(255, 255, 255, 0.08);
 
     /* Text */
-    --fg: #ffffff;
-    --fg-title: #d4a843;
-    --fg-accent: #d4a843;
-    --fg-muted: #a0d8e0;
-    --fg-on-bright: #003d47;
+    --fg: #F5F7FA;
+    --fg-pill: #FFFFFF;
+    --fg-title: #FFFFFF;
+    --fg-accent: #FFB35C;
+    --fg-muted: #A0A8B8;
+    --fg-on-bright: #14171F;
 
     /* Balls */
     --ball-idle: rgba(255, 255, 255, 0.12);
-    --ball-neutral: #ffffff;
-    --ball-neutral-fg: #14171f;
+    --ball-neutral: #FFFFFF;
+    --ball-neutral-fg: #14171F;
 }

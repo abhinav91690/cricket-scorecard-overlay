@@ -17,8 +17,6 @@ describe('cardCopy', () => {
         expect(cardCopy(SAMPLE_EVENTS.partnership)).toEqual({ eyebrow: '50 partnership', headline: 'Abhinav & Raja', detail: '54 (38)' });
         expect(cardCopy(SAMPLE_EVENTS.boundary)).toEqual({ eyebrow: '', headline: 'Six', detail: '' });
         expect(cardCopy({ type: 'boundary', runs: 4 }).headline).toBe('Four');
-        expect(cardCopy(SAMPLE_EVENTS.target)).toEqual({ eyebrow: 'Target', headline: '143', detail: 'off 20 overs · RRR 7.15' });
-        expect(cardCopy({ type: 'target', target: 90, overs: null, rrr: null }).detail).toBe('');
     });
 });
 
@@ -65,9 +63,9 @@ describe('card queue', () => {
     it('shows a sample card for a known type and ignores unknown ones', () => {
         showSampleCard('nope');
         expect(DOM.eventCard.classList.contains('is-visible')).toBe(false);
-        showSampleCard('target');
-        expect(DOM.eventCard.dataset.type).toBe('target');
-        vi.advanceTimersByTime(HOLD_MS.target * 2);
+        showSampleCard('partnership');
+        expect(DOM.eventCard.dataset.type).toBe('partnership');
+        vi.advanceTimersByTime(HOLD_MS.partnership * 2);
         expect(DOM.eventCard.classList.contains('is-visible')).toBe(true); // samples stay up
     });
 });

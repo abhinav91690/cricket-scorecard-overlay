@@ -59,9 +59,8 @@ The bar stays constant; moments earn a card that slides in over the batter and b
 | Fifty / Hundred | a batter crosses 50 or 100 | 8s |
 | Four / Six | the newest ball is a boundary | 2s |
 | 50 / 100 partnership | the current stand crosses 50 or 100 | 6s |
-| Target | the second innings starts | 10s |
 
-Cards queue and play one at a time; a wicket suppresses the boundary flash on the same ball. `?quiet` disables them. In debug mode, `&card=wicket` (or `milestone`, `partnership`, `boundary`, `target`) holds a sample card so you can position it in OBS.
+Cards queue and play one at a time; a wicket suppresses the boundary flash on the same ball. `?quiet` disables them. In debug mode, `&card=wicket` (or `milestone`, `partnership`, `boundary`) holds a sample card so you can position it in OBS.
 
 ### Debug Modes
 Test layouts without a live match:

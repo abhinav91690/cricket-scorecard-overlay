@@ -158,11 +158,11 @@ describe('event cards', () => {
     });
 
     it('holds a sample card once in debug mode when asked', async () => {
-        setSearch('?debug=1&card=target');
+        setSearch('?debug=1&card=wicket');
         await updateScore();
         await updateScore();
         expect(showSampleCard).toHaveBeenCalledTimes(1);
-        expect(showSampleCard).toHaveBeenCalledWith('target');
+        expect(showSampleCard).toHaveBeenCalledWith('wicket');
     });
 });
 

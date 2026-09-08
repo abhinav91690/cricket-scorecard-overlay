@@ -6,7 +6,6 @@ export const HOLD_MS: Record<OverlayEvent['type'], number> = {
     wicket: 8000,
     milestone: 8000,
     partnership: 6000,
-    target: 10000,
     boundary: 2000,
 };
 
@@ -26,12 +25,6 @@ export function cardCopy(e: OverlayEvent): CardCopy {
             return { eyebrow: `${e.mark} partnership`, headline: e.names, detail: `${e.runs} (${e.balls})` };
         case 'boundary':
             return { eyebrow: '', headline: e.runs === 6 ? 'Six' : 'Four', detail: '' };
-        case 'target':
-            return {
-                eyebrow: 'Target',
-                headline: String(e.target),
-                detail: [e.overs ? `off ${e.overs} overs` : '', e.rrr ? `RRR ${e.rrr}` : ''].filter(Boolean).join(' · '),
-            };
     }
 }
 
@@ -82,7 +75,6 @@ export const SAMPLE_EVENTS: Record<OverlayEvent['type'], OverlayEvent> = {
     milestone: { type: 'milestone', mark: 50, name: 'Abhinav V', runs: '52', balls: '31', fours: '6', sixes: '2' },
     partnership: { type: 'partnership', mark: 50, names: 'Abhinav & Raja', runs: '54', balls: '38' },
     boundary: { type: 'boundary', runs: 6 },
-    target: { type: 'target', target: 143, overs: 20, rrr: '7.15' },
 };
 
 export function showSampleCard(type: string): void {

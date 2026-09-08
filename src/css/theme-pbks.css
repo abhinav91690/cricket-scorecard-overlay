@@ -1,29 +1,29 @@
-/* PBKS colours. Layout lives in overlay-base.css. */
+/* PBKS: brand colour on the team block, dark neutral bar. Layout lives in overlay-base.css. */
 .theme-pbks {
     /* Brand */
-    --brand-accent: #d4a843;
+    --brand-accent: #F5C542;
 
     /* Surfaces */
-    --surface-frame: linear-gradient(180deg, rgba(25, 25, 25, 0.95), rgba(35, 35, 35, 0.92));
-    --surface-pill: linear-gradient(180deg, #dd1f2d, #b01825);
-    --surface-innings: linear-gradient(180deg, #1a1a1a, #0a0a0a);
-    --surface-panel: rgba(35, 35, 35, 0.6);
-    --surface-row: rgba(35, 35, 35, 0.5);
+    --surface-frame: rgba(45, 20, 27, 0.94);
+    --surface-pill: #DD1F2D;
+    --surface-panel: rgba(255, 255, 255, 0.04);
+    --surface-row: rgba(255, 255, 255, 0.02);
 
     /* Lines */
-    --border-frame: rgba(221, 31, 45, 0.15);
-    --divider: rgba(221, 31, 45, 0.25);
-    --divider-row: rgba(221, 31, 45, 0.1);
+    --border-frame: rgba(255, 255, 255, 0.12);
+    --divider: rgba(255, 255, 255, 0.14);
+    --divider-row: rgba(255, 255, 255, 0.08);
 
     /* Text */
-    --fg: #ffffff;
-    --fg-title: #d4a843;
-    --fg-accent: #d4a843;
-    --fg-muted: #d0c0c0;
-    --fg-on-bright: #1a1a1a;
+    --fg: #F5F7FA;
+    --fg-pill: #FFFFFF;
+    --fg-title: #F5C542;
+    --fg-accent: #F5C542;
+    --fg-muted: #A0A8B8;
+    --fg-on-bright: #14171F;
 
     /* Balls */
     --ball-idle: rgba(255, 255, 255, 0.12);
-    --ball-neutral: #ffffff;
-    --ball-neutral-fg: #14171f;
+    --ball-neutral: #FFFFFF;
+    --ball-neutral-fg: #14171F;
 }
