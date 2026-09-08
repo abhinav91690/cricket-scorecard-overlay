@@ -48,8 +48,12 @@ describe('track', () => {
     const beacon = vi.fn(() => true);
     const flush = () => vi.runAllTimers();
 
+    // jsdom's Blob cannot be read back synchronously; record what was handed to the beacon instead.
+    class FakeBlob { type: string; parts: string[]; constructor(parts: string[], opts?: { type?: string }) { this.parts = parts; this.type = opts?.type ?? ''; } }
+
     beforeEach(() => {
         vi.useFakeTimers();
+        vi.stubGlobal('Blob', FakeBlob);
         vi.stubGlobal('fetch', fetchMock);
         Object.defineProperty(navigator, 'sendBeacon', { value: beacon, configurable: true, writable: true });
         fetchMock.mockClear();
@@ -74,11 +78,10 @@ describe('track', () => {
 
         expect(beacon).toHaveBeenCalledTimes(1);
         expect(fetchMock).not.toHaveBeenCalled();
-        const [url, blob] = beacon.mock.calls[0] as unknown as [string, Blob];
+        const [url, blob] = beacon.mock.calls[0] as unknown as [string, FakeBlob];
         expect(url).toBe('/api/collect');
         expect(blob.type).toBe('application/json');
-        const text = await new Promise<string>(res => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.readAsText(blob); }); // jsdom Blob has no .text()
-        const body = JSON.parse(text);
+        const body = JSON.parse((blob as unknown as { parts: string[] }).parts[0]); // FakeBlob records its parts
         expect(body).toMatchObject({ event: 'overlay_start', clubId: '1089463', matchId: '2079', theme: 'kkr', client: 'browser' });
         expect(body.screen).toMatch(/^\d+x\d+$/);
     });
