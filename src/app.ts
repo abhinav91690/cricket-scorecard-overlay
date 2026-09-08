@@ -3,7 +3,7 @@
  * Link Live Stream form. Kept separate from script.ts (the entry point with side effects)
  * so it can be unit-tested.
  */
-import { mock_1stInnings, mock_2ndInnings, mock_matchEnded, mock_toss, mock_noTeamImage, mock_view_2, mock_view_3, mock_view_4, mock_view_5, mock_view_48, mock_view_49 } from './mockData';
+import { mock_1stInnings, mock_2ndInnings, mock_matchEnded, mock_toss, mock_noTeamImage, mock_view_1, mock_view_2, mock_view_3, mock_view_4, mock_view_5, mock_view_48, mock_view_49 } from './mockData';
 import { sampleReplayData } from './replayData';
 import { CONFIG } from './config';
 import { DOM } from './dom';
@@ -57,14 +57,19 @@ function renderFrame(data: CricketAPIData, quiet: boolean) {
     lastData = data;
 }
 
-/** A sample panel for `?debug=…&panel=<type>`, built from the live-captured view fixtures so it has real logos and faces. */
-function samplePanel(type: string, data: CricketAPIData): PanelEvent | null {
+/**
+ * A sample panel for `?debug=…&panel=<type>`. Built entirely from one recorded match (the view
+ * fixtures captured from match 2079) so teams, crests, squads and cards all agree, whatever
+ * debug state the bar is showing.
+ */
+function samplePanel(type: string): PanelEvent | null {
+    const match = mock_view_1 as unknown as CricketAPIData;
     const cache = [mock_view_2, mock_view_3, mock_view_4, mock_view_5, mock_view_48, mock_view_49]
         .reduce<ViewCache>((c, v) => mergeCache(c, stripPii(v as unknown as CricketAPIData)), {});
     switch (type) {
-        case 'lineup': return lineupPanel(data.values, cache);
-        case 'innings-summary': return inningsSummaryPanel(data.values, cache);
-        case 'match-summary': return matchSummaryPanel(data.values, cache);
+        case 'lineup': return lineupPanel(match.values, cache);
+        case 'innings-summary': return inningsSummaryPanel(match.values, cache);
+        case 'match-summary': return matchSummaryPanel(match.values, cache);
         default: return null;
     }
 }
@@ -188,7 +193,7 @@ export async function updateScore() {
                 sampleCardShown = true;
                 if (params.card) showSampleCard(params.card);
                 if (params.panel) {
-                    const panel = samplePanel(params.panel, data);
+                    const panel = samplePanel(params.panel);
                     if (panel) enqueueCards([panel], 60 * 60 * 1000);
                 }
             }
