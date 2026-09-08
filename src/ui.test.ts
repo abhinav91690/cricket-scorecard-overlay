@@ -171,7 +171,7 @@ describe('updateScoreboard edge cases', () => {
     it('shows target, need and required rate during a chase, computed from the totals', () => {
         updateScoreboard({ values: { ...base, isSecondInningsStarted: 'true', t2Name: 'Aus', t2Total: '20', t2Wickets: '1', t2Overs: '3.2', RRR: '4.86', totalOvers: 20, isMatchEnded: '0' }, balls: [] } as any);
         expect(DOM.statusInline.textContent).toBe('Target 101');
-        expect(DOM.statusLine.textContent).toBe('Need 81 from 100 · RRR 4.86');
+        expect(DOM.statusLine.textContent).toBe('Need 81 off 100 · RRR 4.86');
         expect(DOM.result.style.display).toBe('none');
         expect(DOM.teamOvers.textContent).toBe('3.2');
     });
@@ -216,7 +216,7 @@ describe('statusText', () => {
     });
 
     it('never reports negative balls remaining', () => {
-        expect(statusText({ t1Total: '100', t2Total: '90', totalOvers: 20, t2Overs: '20.0' } as any, true).line).toBe('Need 11 from 0');
+        expect(statusText({ t1Total: '100', t2Total: '90', totalOvers: 20, t2Overs: '20.0' } as any, true).line).toBe('Need 11 off 0');
     });
 });
 

@@ -137,7 +137,7 @@ export function statusText(values: CricketAPIData['values'], isSecondInnings: bo
     const parts: string[] = [];
     if (need > 0) {
         const ballsLeft = ballsRemaining(values.totalOvers, values.t2Overs);
-        parts.push(ballsLeft !== null ? `Need ${need} from ${ballsLeft}` : `Need ${need}`);
+        parts.push(ballsLeft !== null ? `Need ${need} off ${ballsLeft}` : `Need ${need}`);
     }
     if (values.RRR && RATE.test(values.RRR)) parts.push(`RRR ${values.RRR}`);
     return { inline: `Target ${target}`, line: parts.join(' · ') };
