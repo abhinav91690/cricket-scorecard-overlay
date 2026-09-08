@@ -6,6 +6,8 @@ vi.mock('./ui', () => ({ updateScoreboard: vi.fn(), updateTeamLogos: vi.fn(async
 vi.mock('./theme', () => ({ applyTheme: vi.fn(), updateLogo: vi.fn() }));
 vi.mock('./analytics', () => ({ track: vi.fn(), trackOnce: vi.fn() }));
 vi.mock('./toast', () => ({ showToast: vi.fn() }));
+vi.mock('./events', () => ({ detectEvents: vi.fn(() => []) }));
+vi.mock('./cards', () => ({ enqueueCards: vi.fn(), showSampleCard: vi.fn() }));
 vi.mock('./liveStream', async (importOriginal) => {
     const actual = await importOriginal<typeof import('./liveStream')>();
     return { ...actual, linkLiveStream: vi.fn(async () => {}) };
@@ -18,6 +20,8 @@ import { updateScoreboard, updateTeamLogos } from './ui';
 import { applyTheme, updateLogo } from './theme';
 import { track, trackOnce } from './analytics';
 import { showToast } from './toast';
+import { detectEvents } from './events';
+import { enqueueCards, showSampleCard } from './cards';
 import { linkLiveStream, LinkLiveStreamError } from './liveStream';
 import { mock_1stInnings, mock_2ndInnings, mock_matchEnded, mock_toss, mock_noTeamImage } from './mockData';
 import { sampleReplayData } from './replayData';
@@ -119,6 +123,49 @@ describe('updateScore mode switch', () => {
     });
 });
 
+describe('event cards', () => {
+    const frame2 = { values: { t1Name: 'Live', t1Wickets: '1' }, balls: ['W'] } as any;
+
+    it('diffs consecutive frames and queues the resulting cards', async () => {
+        setSearch('?matchId=1');
+        vi.mocked(fetchScoreData).mockResolvedValueOnce(live).mockResolvedValueOnce(frame2);
+        const wicket = { type: 'wicket', name: 'X', runs: '1', balls: '2', dismissal: '' };
+        vi.mocked(detectEvents).mockReturnValueOnce([]).mockReturnValueOnce([wicket as any]);
+
+        await updateScore();
+        await updateScore();
+
+        expect(detectEvents).toHaveBeenNthCalledWith(1, null, live);
+        expect(detectEvents).toHaveBeenNthCalledWith(2, live, frame2);
+        expect(enqueueCards).toHaveBeenLastCalledWith([wicket]);
+    });
+
+    it('also fires in replay mode', async () => {
+        setSearch('?mode=replay');
+        await updateScore();
+        await updateScore();
+        expect(detectEvents).toHaveBeenCalledTimes(2);
+        expect(detectEvents).toHaveBeenLastCalledWith(sampleReplayData[0], sampleReplayData[1]);
+    });
+
+    it('is silenced by ?quiet', async () => {
+        setSearch('?matchId=1&quiet');
+        vi.mocked(fetchScoreData).mockResolvedValue(live);
+        await updateScore();
+        await updateScore();
+        expect(detectEvents).not.toHaveBeenCalled();
+        expect(enqueueCards).not.toHaveBeenCalled();
+    });
+
+    it('holds a sample card once in debug mode when asked', async () => {
+        setSearch('?debug=1&card=wicket');
+        await updateScore();
+        await updateScore();
+        expect(showSampleCard).toHaveBeenCalledTimes(1);
+        expect(showSampleCard).toHaveBeenCalledWith('wicket');
+    });
+});
+
 describe('updateScore error handling', () => {
     it('shows Error before any frame has rendered', async () => {
         setSearch('?matchId=1');
@@ -179,7 +226,7 @@ describe('setupLinkStreamForm', () => {
     const button = () => document.getElementById('link-stream-submit') as HTMLButtonElement;
     const submit = async () => {
         form().dispatchEvent(new Event('submit', { cancelable: true }));
-        await vi.waitFor(() => expect(button().disabled).toBe(false));
+        await vi.waitFor(() => expect(button().hasAttribute('aria-busy')).toBe(false));
     };
 
     beforeEach(() => {
@@ -207,14 +254,19 @@ describe('setupLinkStreamForm', () => {
         expect(button().textContent).toBe('Link Stream');
     });
 
-    it('disables the button and changes its label while the request is in flight', async () => {
+    it('marks the button busy while in flight, ignores repeat submits, then restores it', async () => {
         let release!: () => void;
         vi.mocked(linkLiveStream).mockImplementationOnce(() => new Promise<void>(r => { release = r; }));
         form().dispatchEvent(new Event('submit', { cancelable: true }));
-        expect(button().disabled).toBe(true);
+        expect(button().getAttribute('aria-busy')).toBe('true');
         expect(button().textContent).toBe('Linking...');
+        expect(button().disabled).toBe(false);
+
+        form().dispatchEvent(new Event('submit', { cancelable: true }));
+        expect(linkLiveStream).toHaveBeenCalledTimes(1);
+
         release();
-        await vi.waitFor(() => expect(button().disabled).toBe(false));
+        await vi.waitFor(() => expect(button().hasAttribute('aria-busy')).toBe(false));
         expect(button().textContent).toBe('Link Stream');
     });
 

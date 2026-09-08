@@ -1,321 +1,35 @@
+/* CLASSIC: warm cream bar, navy score tab, gold accents, square-ish corners. Layout lives in overlay-base.css. */
 .theme-classic {
-    /* Brand Colors */
-    --brand-primary: #1846A0;
-    --brand-secondary: #004d40;
+    --radius: 3px;
 
-    /* Text Colors */
-    --text-primary: #1a237e;
-    --text-secondary: #1a237e;
-    --text-light: #ccc;
-    --text-white: white;
+    /* Brand */
+    --brand-accent: #b8860b;
 
-    /* Background Colors */
-    --bg-white: whitesmoke;
-    --bg-transparent: transparent;
-    --bg-light-gray: #ddd;
-    --bg-green: green;
-    --bg-red: #ED2939;
-    --bg-orange: orange;
-    --bg-yellow: yellow;
-    --bg-plum: plum;
-    --bg-pink: pink;
-    --bg-light-blue: lightblue;
+    /* Surfaces */
+    --surface-frame: rgba(247, 242, 231, 0.96);
+    --surface-pill: #0b2545;
+    --surface-panel: rgba(11, 37, 69, 0.06);
+    --surface-row: rgba(11, 37, 69, 0.03);
 
-    /* Border Colors */
-    --border-light-gray: #ccc;
-    --border-medium-gray: #ddd;
-    --border-white: #fff;
-    --border-primary: #1846A0;
+    /* Lines */
+    --border-frame: rgba(11, 37, 69, 0.22);
+    --divider: rgba(11, 37, 69, 0.18);
+    --divider-row: rgba(11, 37, 69, 0.10);
 
-    /* Other Colors */
-    --shadow-color: rgba(0, 0, 0, 0.1);
+    /* Text */
+    --fg: #0b2545;
+    --fg-pill: #ffffff;
+    --fg-title: #e3b341;
+    --fg-accent: #8a5a00;
+    --fg-muted: #5c6b7a;
+    --fg-on-bright: #0b2545;
 
-    margin: 0;
-    font-family: 'Montserrat', sans-serif;
-}
+    /* Balls */
+    --ball-idle: rgba(11, 37, 69, 0.10);
+    --ball-neutral: #0b2545;
+    --ball-neutral-fg: #ffffff;
 
-/* --- Layout --- */
-
-.theme-classic .overlay {
-    text-transform: uppercase;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: var(--bg-transparent);
-    z-index: 100;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-    padding-bottom: 8px;
-    gap: 4px;
-}
-
-.theme-classic .overlay-image {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    width: 150px;
-    height: auto;
-    z-index: 101;
-}
-
-/* --- Components --- */
-
-.theme-classic .team-logo {
-    height: 55px;
-    width: 55px;
-}
-
-.theme-classic .batting-team-info,
-.theme-classic .bowling-team-info {
-    display: inline-flex;
-    align-items: center;
-    flex-direction: column;
-    justify-content: center;
-    padding: 8px 8px;
-    border: 3px solid var(--border-primary);
-    min-width: 150px;
-    background: radial-gradient(gainsboro, white);
-}
-
-.theme-classic .batting-team-info {
-    border-radius: 0 400px 400px 0;
-}
-
-.theme-classic .bowling-team-info {
-    border-radius: 400px 0 0 400px;
-}
-
-.theme-classic .score-overlay {
-    color: var(--brand-primary);
-    font-family: monospace;
-    font-size: 18px;
-    font-weight: normal;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    padding: 0 15px;
-    border-radius: 400px;
-    box-shadow: 0 4px 8px var(--shadow-color);
-    overflow: visible;
-    justify-content: center;
-    white-space: nowrap;
-    background: linear-gradient(to top, gainsboro, whitesmoke);
-}
-
-.theme-classic .scorecard-pill {
-    display: inline-flex;
-    align-items: center;
-    flex-direction: column;
-    justify-content: center;
-    padding: 8px 16px;
-    background-color: var(--text-primary);
-    color: var(--text-white);
-    border-radius: 30px;
-    font-size: 14px;
-    min-width: 150px;
-}
-
-.theme-classic .team-name {
-    font-weight: bold;
-    font-size: 20px;
-    margin-bottom: 2px;
-}
-
-.theme-classic .score-and-overs {
-    display: flex;
-    align-items: baseline;
-}
-
-.theme-classic .score {
-    font-size: 20px;
-}
-
-.theme-classic .wickets {
-    font-size: 20px;
-    color: var(--text-white);
-}
-
-.theme-classic .overs {
-    font-size: 15px;
-    color: var(--text-white);
-    margin-left: 8px;
-    padding-left: 8px;
-    border-left: 2px solid var(--border-light-gray);
-}
-
-.theme-classic .batsman-info,
-.theme-classic .bowler-info {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    flex: 1;
-    min-width: 320px;
-    padding: 0 15px;
-}
-
-.theme-classic .batsman-row,
-.theme-classic .bowler-row {
-    margin-bottom: 2px;
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    width: 100%;
-}
-
-.theme-classic .batsman-name,
-.theme-classic .bowler-name {
-    display: inline-flex;
-    white-space: nowrap;
-}
-
-.theme-classic .batsman-runs-balls,
-.theme-classic .bowler-figures {
-    display: inline-flex;
-    font-size: 15px;
-    color: var(--text-secondary);
-    padding-left: 10px;
-}
-
-.theme-classic .bowler-overs-data {
-    border-left: 2px solid var(--border-light-gray);
-    padding-left: 8px;
-    margin-left: 8px;
-    font-weight: bold;
-}
-
-/* --- Ball by Ball --- */
-
-.theme-classic .ball-by-ball-container {
-    display: flex;
-    align-items: center;
-}
-
-.theme-classic .ball-indicator {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background-color: var(--bg-light-gray);
-    color: black;
-    margin-right: 5px;
-    border: 2px solid var(--border-primary);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 15px;
-    font-weight: bold;
-}
-
-.theme-classic .ball-indicator.run-1,
-.theme-classic .ball-indicator.run-2,
-.theme-classic .ball-indicator.run-3,
-.theme-classic .ball-indicator.run-5 {
-    background-color: var(--border-primary);
-    color: var(--text-white);
-}
-
-.theme-classic .ball-indicator.run-4,
-.theme-classic .ball-indicator.run-6 {
-    background-color: var(--bg-green);
-    border-color: var(--bg-green);
-    color: var(--text-white);
-}
-
-.theme-classic .ball-indicator.wicket {
-    background-color: var(--bg-red);
-    border-color: var(--bg-red);
-    color: var(--text-white);
-}
-
-.theme-classic .ball-indicator.wide {
-    background-color: var(--bg-orange);
-    border-color: var(--bg-orange);
-    color: black;
-    font-size: 11px;
-}
-
-.theme-classic .ball-indicator.no-ball {
-    background-color: var(--bg-pink);
-    border-color: var(--bg-pink);
-    color: black;
-    font-size: 11px;
-}
-
-.theme-classic .ball-indicator.leg-bye {
-    background-color: var(--bg-plum);
-    border-color: var(--bg-plum);
-    color: black;
-    font-size: 11px;
-}
-
-.theme-classic .ball-indicator.bye {
-    background-color: var(--bg-yellow);
-    border-color: var(--bg-yellow);
-    color: black;
-    font-size: 11px;
-}
-
-.theme-classic .ball-indicator.dot {
-    width: 24px;
-    height: 24px;
-    position: relative;
-    box-sizing: border-box;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 0;
-}
-
-.theme-classic .ball-indicator.dot::before {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 10px;
-    height: 10px;
-    background-color: var(--border-primary);
-    border-radius: 50%;
-}
-
-.theme-classic .ball-indicator.ball-default {
-    background-color: var(--bg-white);
-    color: black;
-}
-
-/* --- Innings & Result --- */
-
-.theme-classic .spacer {
-    padding-left: 40px;
-}
-
-.theme-classic #firstInnings {
-    width: 100%;
-    justify-content: space-between;
-}
-
-.theme-classic #secondInnings {
-    justify-content: space-evenly;
-    font-size: 18px;
-    color: var(--text-primary);
-    padding: 5px 15px;
-    visibility: hidden;
-    opacity: 0;
-    transition: visibility 0.3s, opacity 0.3s ease;
-}
-
-.theme-classic #secondInnings.is-visible {
-    visibility: visible;
-    opacity: 1;
-}
-
-.theme-classic #result {
-    justify-content: space-evenly;
-    font-size: 32px;
-    font-weight: bold;
-    color: var(--text-primary);
-    padding: 10px 25px;
+    /* Cards */
+    --card-bg: #E9E1CF;
+    --card-fg: #0B2545;
 }

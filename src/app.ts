@@ -15,15 +15,29 @@ import { CricketAPIData } from './types';
 import { linkLiveStream, LinkLiveStreamError, extractYouTubeVideoId } from './liveStream';
 import { trackOnce, track, LinkOutcome } from './analytics';
 import { showToast } from './toast';
+import { detectEvents } from './events';
+import { enqueueCards, showSampleCard } from './cards';
 
 let replayIndex = 0;
 /** True once the overlay has painted at least one successful frame of live/mock data. */
 let hasRenderedScore = false;
+/** The previous frame, so events (wicket, fifty, boundary, target) can be derived from the diff. */
+let lastData: CricketAPIData | null = null;
+let sampleCardShown = false;
 
-/** Test hook: forget replay position and whether a frame has rendered. */
+/** Test hook: forget replay position, last frame and whether a frame has rendered. */
 export function resetAppStateForTests() {
     replayIndex = 0;
     hasRenderedScore = false;
+    lastData = null;
+    sampleCardShown = false;
+}
+
+/** Paint a frame and fire any cards its changes call for. */
+function renderFrame(data: CricketAPIData, quiet: boolean) {
+    updateScoreboard(data);
+    if (!quiet) enqueueCards(detectEvents(lastData, data));
+    lastData = data;
 }
 
 /**
@@ -41,16 +55,20 @@ export function setupLinkStreamForm() {
 
     clubIdInput.value = CONFIG.DEFAULT_CLUB_ID;
 
+    let inFlight = false;
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
+        if (inFlight) return;
 
         const clubId = clubIdInput.value.trim();
         const matchId = matchIdInput.value.trim();
         const liveStreamURL = streamUrlInput.value.trim();
         if (!clubId || !matchId || !liveStreamURL) return;
 
+        // Busy state rather than `disabled`: the button stays focusable and announced.
+        inFlight = true;
         const originalLabel = submitButton.textContent;
-        submitButton.disabled = true;
+        submitButton.setAttribute('aria-busy', 'true');
         submitButton.textContent = 'Linking...';
         const videoId = extractYouTubeVideoId(liveStreamURL);
         let outcome: LinkOutcome = 'submitted';
@@ -66,8 +84,9 @@ export function setupLinkStreamForm() {
             showToast(message, 'error');
         } finally {
             track('link_stream_submit', { clubId, matchId, videoId, outcome });
-            submitButton.disabled = false;
+            submitButton.removeAttribute('aria-busy');
             submitButton.textContent = originalLabel;
+            inFlight = false;
         }
     });
 }
@@ -97,7 +116,7 @@ export async function updateScore() {
 
     if (params.mode === 'replay') {
         const data = sampleReplayData[replayIndex] as unknown as CricketAPIData;
-        updateScoreboard(data);
+        renderFrame(data, params.quiet);
         replayIndex = (replayIndex + 1) % sampleReplayData.length;
         return;
     }
@@ -130,6 +149,10 @@ export async function updateScore() {
                     break;
             }
             console.log(`Using mock data: ${params.debug}`);
+            if (params.card && !sampleCardShown) {
+                sampleCardShown = true;
+                showSampleCard(params.card);
+            }
         } else {
             trackOnce('overlay_start', { clubId: params.clubId, matchId: params.matchId, theme: params.theme, logo: params.logo });
             const apiUrl = `https://cricclubs.com/liveScoreOverlayData.do?clubId=${params.clubId}&matchId=${params.matchId}`;
@@ -137,7 +160,7 @@ export async function updateScore() {
         }
 
         await updateTeamLogos(data);
-        updateScoreboard(data);
+        renderFrame(data, params.quiet);
         hasRenderedScore = true;
 
     } catch (error) {

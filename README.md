@@ -4,7 +4,8 @@ A professional, lightweight, and responsive cricket scorecard overlay designed f
 
 ## Features
 - **Real-Time Updates**: Polls the API automatically for live scores.
-- **17 Themes**: Broadcast-style themes for every IPL franchise, plus core classic/modern/neon themes and a set of Topguns themes. See [Available Themes](#available-themes) below.
+- **17 Themes**: One clean broadcast layout with a colour palette for every IPL franchise, three core palettes (classic, modern, neon) and the Topguns set. See [Available Themes](#available-themes) below.
+- **Home page with a link builder**: Visit the site with no parameters to build your overlay URL, preview any theme with sample data, and link a YouTube stream to a match.
 - **Link Live Stream**: A home-screen utility to attach a YouTube live stream link to a CricClubs match without leaving the overlay.
 - **Self-Hosted Fonts**: Uses **Montserrat** (bundled) for consistent rendering across all devices without external dependencies.
 - **Performance Optimized**: Zero layout shifts (CLS), minimal network footprint, and bundled CSS.
@@ -25,7 +26,7 @@ npm run dev
 ```
 The server usually starts at `http://localhost:5173`.
 
-Visiting the app with no `matchId` shows a home screen with setup instructions and the Link Live Stream form (see below) instead of the overlay.
+Visiting the app with no `matchId` shows the home page: a URL builder that writes the overlay link for you, one-click theme previews, the Link Live Stream form (see below) and a reference table of every parameter.
 
 ### 2. Add to OBS
 1.  Add a **Browser Source** in OBS.
@@ -43,10 +44,23 @@ Control the behavior and look of the overlay using URL parameters:
 | :--- | :--- | :--- | :--- |
 | `matchId` | **Yes** | The unique Match ID from CricClubs. | `?matchId=1939` |
 | `clubId` | No | The Club ID (Default: `1089463`, LPCL). | `?clubId=12345` |
-| `theme` | No | One of the themes listed below (default: `modern`). | `?theme=kkr` |
+| `theme` | No | One of the themes listed below (default: `modern-light`; `modern` still works as an alias). | `?theme=kkr` |
 | `debug` | No | Use mock data (1-5) instead of live API. | `?debug=1` |
 | `mode` | No | Special modes like `replay`. | `?mode=replay` |
+| `quiet` | No | Turns off the event cards and shows only the bar. | `?quiet` |
 | `logo` | No | Displays specific sponsor logos. | `?logo=1` |
+
+### Event cards
+The bar stays constant; moments earn a card that slides in over the batter and bowler slots, holds, and leaves. Cards are derived by diffing one poll against the previous one, so nothing extra is requested:
+
+| Card | Trigger | Holds |
+| :--- | :--- | :--- |
+| Wicket | batting side's wicket count rises | 8s |
+| Fifty / Hundred | a batter crosses 50 or 100 | 8s |
+| Four / Six | the newest ball is a boundary | 2s |
+| 50 / 100 partnership | the current stand crosses 50 or 100 | 6s |
+
+Cards queue and play one at a time; a wicket suppresses the boundary flash on the same ball. `?quiet` disables them. In debug mode, `&card=wicket` (or `milestone`, `partnership`, `boundary`) holds a sample card so you can position it in OBS.
 
 ### Debug Modes
 Test layouts without a live match:
@@ -57,15 +71,16 @@ Test layouts without a live match:
 - `?debug=5`: No Team Logos
 
 ### Available Themes
-- **Core**: `classic`, `modern`, `neon`
+Every theme shares the same layout (`src/css/overlay-base.css`); a theme is a palette of colour tokens.
+- **Core**: `classic` (cream/navy), `modern-light` (default), `modern-dark`, `neon`
 - **IPL Franchises**: `kkr`, `rcb`, `mi`, `csk`, `dc`, `rr`, `srh`, `pbks`, `gt`, `lsg`
-- **Topguns**: `tel`, `ted`, `tul`, `tud`
+- **Topguns**: `topguns-light`, `topguns-dark` (the old `tel`/`ted`/`tul`/`tud` names still work as aliases)
 
 ---
 
 ## Link Live Stream
 
-The home screen (shown when no `matchId` is provided) includes a form to attach a YouTube live stream link to a CricClubs match: enter the Club ID (prefilled to the default), Match ID, and the YouTube URL, then submit.
+The home page (shown when no `matchId` is provided) includes a form to attach a YouTube live stream link to a CricClubs match: enter the Club ID (prefilled to the default), Match ID, and the YouTube URL, then submit. The button shows a busy state while the request is sent; success means CricClubs received it, and the public feed can take up to a minute to reflect it.
 
 ---
 

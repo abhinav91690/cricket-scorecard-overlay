@@ -115,20 +115,42 @@ function setDisplay(element: HTMLElement | null, display: string) {
     }
 }
 
+const RATE = /^\d+(\.\d+)?$/;
+
+export interface StatusText {
+    /** Tail of the score row: `CRR 7.10` in the first innings, `Target 143` in a chase. */
+    inline: string;
+    /** Third row, chase only: `Need 81 off 16.4 ov · RRR 4.86`. */
+    line: string;
+}
+
 /**
- * Toggles visibility of an element while preserving its layout space.
- * Uses visibility + opacity so the element still occupies space when hidden.
- * @param element - The DOM element to toggle.
- * @param visible - Whether the element should be visible.
+ * The context around the score, computed here rather than using CricClubs' pre-built HTML message.
  */
-function setVisible(element: HTMLElement | null, visible: boolean) {
-    if (!element) return;
-    const current = element.classList.contains('is-visible');
-    if (visible && !current) {
-        element.classList.add('is-visible');
-    } else if (!visible && current) {
-        element.classList.remove('is-visible');
+export function statusText(values: CricketAPIData['values'], isSecondInnings: boolean): StatusText {
+    if (!isSecondInnings) {
+        const rr = values.t1RR;
+        return { inline: rr && RATE.test(rr) ? `CRR ${rr}` : '', line: '' };
     }
+    const target = (parseInt(values.t1Total || '0', 10) || 0) + 1;
+    const need = target - (parseInt(values.t2Total || '0', 10) || 0);
+    const parts: string[] = [];
+    if (need > 0) {
+        const oversLeft = oversRemaining(values.totalOvers, values.t2Overs);
+        parts.push(oversLeft !== null ? `Need ${need} off ${oversLeft} ov` : `Need ${need}`);
+    }
+    if (values.RRR && RATE.test(values.RRR)) parts.push(`RRR ${values.RRR}`);
+    return { inline: `Target ${target}`, line: parts.join(' · ') };
+}
+
+/** Overs left in cricket notation ("16.4"), or null when the match length isn't known. */
+function oversRemaining(totalOvers: number | undefined, oversBowled: string | undefined): string | null {
+    if (!totalOvers) return null;
+    const [whole, part] = (oversBowled || '0').split('.');
+    const bowled = (parseInt(whole, 10) || 0) * 6 + (parseInt(part || '0', 10) || 0);
+    const left = Math.max(0, totalOvers * 6 - bowled);
+    const balls = left % 6;
+    return balls ? `${Math.floor(left / 6)}.${balls}` : `${left / 6}`;
 }
 
 /**
@@ -139,7 +161,7 @@ export function updateScoreboard(data: CricketAPIData) {
     const { values } = data;
 
     // Batsman Info
-    setText(DOM.batsman1Name, `${values.batsman1Name || 'Batsman 1'} *`);
+    setText(DOM.batsman1Name, values.batsman1Name || 'Batsman 1');
     setText(DOM.batsman1RunsBalls, `${values.batsman1Runs || '0'} (${values.batsman1Balls || '0'})`);
     setText(DOM.batsman2Name, values.batsman2Name || 'Batsman 2');
     setText(DOM.batsman2RunsBalls, `${values.batsman2Runs || '0'} (${values.batsman2Balls || '0'})`);
@@ -150,8 +172,9 @@ export function updateScoreboard(data: CricketAPIData) {
     setText(DOM.bowlerOvers, `${values.bowlerOvers || '0.0'}`);
 
     const isSecondInnings = values.isSecondInningsStarted === "true";
+    const isMatchEnded = values.isMatchEnded === "1";
 
-    // Team 1 (Chasing Team in 2nd Innings, Batting Team in 1st)
+    // The batting side: team 2 in a chase, team 1 otherwise
     const currentTeamName = isSecondInnings ? values.t2Name : values.t1Name;
     const currentTeamScore = isSecondInnings ? values.t2Total : values.t1Total;
     const currentTeamWickets = isSecondInnings ? values.t2Wickets : values.t1Wickets;
@@ -159,35 +182,15 @@ export function updateScoreboard(data: CricketAPIData) {
 
     setText(DOM.teamName, currentTeamName || 'Team 1');
     setText(DOM.teamScore, currentTeamScore || '0');
-    setText(DOM.teamWickets, `/ ${currentTeamWickets || '0'}`);
+    setText(DOM.teamWickets, `/${currentTeamWickets || '0'}`);
     setText(DOM.teamOvers, `${currentTeamOvers || '0.0'}`);
+    const status = isMatchEnded ? { inline: '', line: '' } : statusText(values, isSecondInnings);
+    setText(DOM.statusInline, status.inline);
+    setText(DOM.statusLine, status.line);
 
-    if (!isSecondInnings) {
-        setVisible(DOM.secondInnings, false);
-        setDisplay(DOM.result, 'none');
-    } else {
-        // Second Team (The team that batted first)
-        setText(DOM.secondTeamName, values.t1Name || 'Team 1');
-        setText(DOM.secondTeamScore, values.t1Total || '0');
-        setText(DOM.secondTeamWickets, values.t1Wickets || '0');
-        setText(DOM.secondTeamOvers, `${values.t1Overs || '0.0'}`);
-
-        if (DOM.scoreNeeded) {
-            const newHTML = values.showMsgForScoreNeeded || '-';
-            if (DOM.scoreNeeded.innerHTML !== newHTML) {
-                DOM.scoreNeeded.innerHTML = newHTML;
-            }
-        }
-
-        const isMatchEnded = values.isMatchEnded === "1";
-
-        setVisible(DOM.secondInnings, true);
-        setDisplay(DOM.result, isMatchEnded ? 'flex' : 'none');
-        setDisplay(DOM.scoreNeeded, isMatchEnded ? 'none' : 'block');
-
-        if (isMatchEnded) {
-            setText(DOM.matchResult, values.result || 'Match Result');
-        }
+    setDisplay(DOM.result, isMatchEnded ? 'flex' : 'none');
+    if (isMatchEnded) {
+        setText(DOM.matchResult, values.result || 'Match Result');
     }
 
     updateBallByBall(data.balls || [], currentTeamOvers || '0.0');

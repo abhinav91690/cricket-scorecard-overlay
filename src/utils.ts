@@ -12,7 +12,9 @@ export function getQueryParams() {
         logo: urlParams.get('logo'),
         debug: urlParams.get('debug'), // Returns string value or null
         theme: urlParams.get('theme'),
-        mode: urlParams.get('mode')
+        mode: urlParams.get('mode'),
+        quiet: urlParams.has('quiet'),
+        card: urlParams.get('card'),
     };
 }
 

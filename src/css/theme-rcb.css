@@ -1,60 +1,33 @@
-/* RCB theme colours. Structure comes from broadcast-base.css. */
+/* RCB: brand colour on the team block, dark neutral bar. Layout lives in overlay-base.css. */
 .theme-rcb {
     /* Brand */
-    --brand-accent: #d4a843;
+    --brand-accent: #E1B94B;
 
     /* Surfaces */
-    --surface-frame: linear-gradient(180deg, rgba(20, 20, 20, 0.95), rgba(40, 40, 40, 0.92));
-    --surface-pill: linear-gradient(180deg, #cc0000, #8b0000);
-    --surface-innings: linear-gradient(180deg, #1a1a1a, #0a0a0a);
-    --surface-panel: rgba(30, 30, 30, 0.6);
-    --surface-row: rgba(30, 30, 30, 0.5);
+    --surface-frame: rgba(42, 18, 27, 0.94);
+    --surface-pill: #C8102E;
+    --surface-panel: rgba(255, 255, 255, 0.04);
+    --surface-row: rgba(255, 255, 255, 0.02);
 
     /* Lines */
-    --border-frame: rgba(204, 0, 0, 0.2);
-    --border-ball: rgba(204, 0, 0, 0.15);
-    --border-innings: rgba(204, 0, 0, 0.2);
-    --border-result: rgba(212, 168, 67, 0.3);
-    --divider: rgba(204, 0, 0, 0.25);
-    --divider-overs: rgba(255, 255, 255, 0.25);
-    --divider-row: rgba(204, 0, 0, 0.1);
-
-    /* Shadows & glows */
-    --shadow-frame: 0 4px 20px rgba(0, 0, 0, 0.6);
-    --glow-pill: rgba(0, 0, 0, 0.3);
-    --glow-result: rgba(204, 0, 0, 0.25);
-    --glow-six: rgba(212, 168, 67, 0.5);
-    --depth: 0.4;
+    --border-frame: rgba(255, 255, 255, 0.12);
+    --divider: rgba(255, 255, 255, 0.14);
+    --divider-row: rgba(255, 255, 255, 0.08);
 
     /* Text */
-    --fg: #ffffff;
-    --fg-title: #ffffff;
-    --fg-accent: #d4a843;
-    --fg-result: #ffffff;
-    --fg-muted: #c0c0c0;
-    --fg-overs: rgba(255, 255, 255, 0.8);
-    --fg-ball-idle: #808080;
-    --fg-on-bright: #1a1a1a;
-    --fg-on-six: #1a1a1a;
+    --fg: #F5F7FA;
+    --fg-pill: #FFFFFF;
+    --fg-title: #E1B94B;
+    --fg-accent: #E1B94B;
+    --fg-muted: #A0A8B8;
+    --fg-on-bright: #14171F;
 
-    /* Ball outcomes */
-    --ball-default: #2a2a2a;
-    --ball-run: #cc0000;
-    --ball-six: #d4a843;
-    --ball-extra: #e040fb;
-    --ball-noball: #ffd740;
-}
+    /* Balls */
+    --ball-idle: rgba(255, 255, 255, 0.12);
+    --ball-neutral: #FFFFFF;
+    --ball-neutral-fg: #14171F;
 
-.theme-rcb .scorecard-pill {
-    border-left: none;
-    border-right: none;
-    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.3);
-}
-
-.theme-rcb .team-name {
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-}
-
-.theme-rcb #result {
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    /* Cards */
+    --card-bg: #242935;
+    --card-fg: #F5F7FA;
 }

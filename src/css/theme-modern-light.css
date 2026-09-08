@@ -1,0 +1,35 @@
+/* MODERN LIGHT (default): cool white bar with a blue score tab. Layout lives in overlay-base.css. */
+.theme-modern-light {
+    --radius: 12px;
+
+    /* Brand */
+    --brand-accent: #2563eb;
+
+    /* Surfaces */
+    --surface-frame: rgba(250, 251, 253, 0.96);
+    --surface-pill: #2563eb;
+    --surface-panel: rgba(15, 23, 42, 0.04);
+    --surface-row: rgba(15, 23, 42, 0.02);
+
+    /* Lines */
+    --border-frame: rgba(15, 23, 42, 0.14);
+    --divider: rgba(15, 23, 42, 0.12);
+    --divider-row: rgba(15, 23, 42, 0.07);
+
+    /* Text */
+    --fg: #0f172a;
+    --fg-pill: #ffffff;
+    --fg-title: rgba(255, 255, 255, 0.9);
+    --fg-accent: #1d4ed8;
+    --fg-muted: #64748b;
+    --fg-on-bright: #0f172a;
+
+    /* Balls */
+    --ball-idle: rgba(15, 23, 42, 0.08);
+    --ball-neutral: #0f172a;
+    --ball-neutral-fg: #ffffff;
+
+    /* Cards */
+    --card-bg: #E8EBF0;
+    --card-fg: #14171F;
+}

@@ -18,6 +18,9 @@ cricket-scorecard-overlay/
 │   ├── script.ts       # Entry point: imports fonts/CSS, then calls into app.ts
 │   ├── app.ts          # pollLoop(), updateScore() mode switch, Link Live Stream form wiring
 │   ├── analytics.ts    # track()/trackOnce(), client detection, opt-out rules
+│   ├── events.ts       # detectEvents(prev, next): wicket / milestone / partnership / boundary from poll diffs
+│   ├── cards.ts        # Event card queue: copy, hold times, one-at-a-time playback, sample cards
+│   ├── urlBuilder.ts   # Home page link builder: theme options, live URL, copy, preview
 │   ├── config.ts       # CONFIG constant (refresh rate, default club ID, logo map)
 │   ├── types.ts        # CricketAPIData/CricketAPIValues interfaces modeling the CricClubs response
 │   ├── dom.ts          # DOM element lookup map
@@ -32,7 +35,8 @@ cricket-scorecard-overlay/
 │   ├── *.test.ts       # Vitest unit tests (ui, utils, liveStream)
 │   └── css/
 │       ├── instructions.css   # Home screen (setup instructions + Link Live Stream form) styling
-│       └── theme-*.css        # One file per theme (see Theming System below)
+│       ├── overlay-base.css   # The overlay layout, shared by every theme
+│       └── theme-*.css        # One colour palette per theme (see Theming System below)
 ├── index.html          # Application entry point & DOM structure
 ├── architecture.md     # This document
 └── README.md           # Quick start and configuration guide
@@ -48,23 +52,26 @@ Located in `src/app.ts` (started from `src/script.ts`), `updateScore()` runs onc
 
 ### 2. State Management & DOM Updates
 - **DOM Mapping**: The `DOM` constant in `src/dom.ts` maps HTML IDs to typed element references for efficient, repeated updates.
-- **Normalization**: `updateScoreboard()` (`src/ui.ts`) processes raw API data and updates text content, visibility, and styles, only touching the DOM when a value actually changes (via `setText`/`setDisplay`/`setVisible` helpers) to avoid layout thrash.
+- **Normalization**: `updateScoreboard()` (`src/ui.ts`) processes raw API data and updates text content, visibility, and styles, only touching the DOM when a value actually changes (via `setText`/`setDisplay` helpers) to avoid layout thrash. `statusText()` computes the context around the score: `CRR x.xx` at the end of the score row in the first innings; in a chase `Target n` on the score row and `Need n off o ov · RRR x.xx` on a third row (from the totals, not CricClubs' pre-built HTML message).
+- **Event cards**: `app.ts` keeps the previous frame and passes `(prev, next)` to `detectEvents()` (`src/events.ts`), a pure diff that yields wicket, fifty/hundred, partnership and boundary events (`parseDismissal()` reduces CricClubs' HTML dismissal string to text). `enqueueCards()` (`src/cards.ts`) plays them one at a time over the batter/bowler slots with per-type hold times; `?quiet` disables them and `?debug=…&card=<type>` holds a sample.
 - **Ball-by-Ball Tracking**: `updateBallByBall()` manages the history of the current over, injecting a styled indicator per delivery.
 - **Team Logos**: `updateTeamLogos()` caches loaded logo images and only re-fetches when the URL changes.
 
 ### 3. Theming System
-- **Selection**: `applyTheme()` (`src/theme.ts`) toggles a `theme-<name>` class on `<body>`. Its `THEMES` map also tags each theme as `standalone` or `broadcast`; broadcast themes additionally get a `skin-broadcast` class.
-- **Standalone themes** (`classic`, `modern`, `neon`): each `theme-*.css` is a complete, self-contained stylesheet with its own layout rules.
-- **Broadcast themes** (the 10 IPL franchises plus `tel`, `ted`, `tul`, `tud`): all layout, typography, geometry and animation live once in `src/css/broadcast-base.css`, scoped under `.skin-broadcast`. Each `theme-*.css` is only a block of colour tokens on `.theme-<name>` (surfaces, lines, glows, text, ball outcomes) plus, rarely, a one-off override (RCB drops the pill's accent borders and adds a text shadow; CSK uses white text on no-balls).
-- **Adding a broadcast theme**: copy any broadcast `theme-*.css`, change the token values, import it in `theme.ts`, add it to `THEMES` as `'broadcast'`, then add its tag to the theme grid in `index.html` / `instructions.css` and the lists in README.md.
-- **Outcome Styling**: `getBallStyleClass()` (`src/utils.ts`) maps cricket outcomes (Wicket, Wide, 4, 6, etc.) to CSS classes (`wicket`, `wide`, `run-4`, `dot`, …) that the stylesheets colour via the `--ball-*` tokens.
+- **One layout, many palettes.** `src/css/overlay-base.css` holds the entire overlay layout, an ICC-style lower third: batting logo, then the brand-coloured team block (name, score, overs, status line), two batter rows, bowler row plus this-over balls, bowling logo. Event cards slide in over the batter/bowler slots; the result card sits above the bar. It is written in px on purpose, because the overlay renders on a fixed 1920×1080 broadcast canvas rather than in a browser someone zooms, and it honours `prefers-reduced-motion`.
+- **Themes are tokens.** Each `src/css/theme-<name>.css` sets ~22 colour custom properties on `.theme-<name>` (surfaces, lines, text, ball outcomes; the list is documented at the top of `overlay-base.css`). No theme file contains layout. `applyTheme()` (`src/theme.ts`) toggles the `theme-<name>` class on `<body>` and falls back to `modern-light` for unknown names (`modern` is an alias for it).
+- **Available themes** (17): `classic` (cream/navy), `modern-light` (default), `modern-dark`, `neon`; the 10 IPL franchises `kkr`, `rcb`, `mi`, `csk`, `dc`, `rr`, `srh`, `pbks`, `gt`, `lsg`; and `topguns-light`, `topguns-dark` (old `tel`/`ted`/`tul`/`tud` names are aliases).
+- **Adding a theme**: copy any `theme-*.css`, change the token values, `import` it in `theme.ts`, add the name to `AVAILABLE_THEMES`, add a `theme-tag tag-<name>` link to the theme grid in `index.html` plus its `.tag-<name>` colours in `instructions.css`, and update the lists in README.md.
+- **Outcome Styling**: `getBallStyleClass()` (`src/utils.ts`) maps cricket outcomes (Wicket, Wide, 4, 6, etc.) to CSS classes (`wicket`, `wide`, `run-4`, `dot`, …) that the base colours via the `--ball-*` tokens. The striker (always batsman 1 in the feed) is marked with an accent dot via the static `on-strike` class in `index.html`, not with text.
 
-### 4. Home Screen & Link Live Stream
-When no `matchId`/`debug`/`mode=replay` is present, `updateScore()` shows `#instructions` instead of the overlay. That screen has two cards:
-- Setup instructions (required/optional params, example URL, theme list).
-- The **Link Live Stream** form (Club ID, Match ID, YouTube URL), wired up once at startup by `setupLinkStreamForm()` in `src/app.ts`.
+### 4. Home Page & Link Live Stream
+When no `matchId`/`debug`/`mode=replay` is present, `updateScore()` shows `#instructions` instead of the overlay. It is a small landing page (`index.html` + `src/css/instructions.css`) with proper landmarks, light/dark palettes from `prefers-color-scheme`, `:focus-visible` rings, 44px targets, fluid type and reduced-motion support:
+- **Build your overlay link** (`src/urlBuilder.ts`): match ID, club ID (prefilled) and a theme `<select>` render the URL live into an `<output>`, omitting defaults to keep it short; a Copy button uses the Clipboard API and confirms via toast; a preview link opens `?debug=1&theme=<x>`.
+- **Themes**: every theme is a link to its sample-data preview.
+- **Link Live Stream** form (Club ID, Match ID, YouTube URL), wired up once at startup by `setupLinkStreamForm()` in `src/app.ts`. The submit button is never disabled; it gets `aria-busy` and a "Linking..." label while in flight and repeat submits are ignored.
+- **All URL parameters**: a collapsible reference table.
 
-`linkLiveStream()` (`src/liveStream.ts`) attaches a YouTube URL to a CricClubs match via `updateLiveStreamURLFromCP.do`. That endpoint blocks cross-origin subresource requests outright — `fetch` (including `mode: 'no-cors'`) and `<img>`/`<iframe>` embeds all get rejected by a `Cross-Origin-Resource-Policy` check plus WAF heuristics that flag embedded/automated-looking requests. A genuine top-level navigation isn't a subresource load, so it isn't subject to either check. The workaround: open the URL in a small popup synchronously from the click handler (required for the browser to allow it), then close the popup shortly after. This only confirms the request was *sent*; CricClubs' own feed can take up to a minute to reflect the change, so there's no fast, reliable way to verify it client-side, and the toast/copy is worded accordingly ("submitted", not "linked").
+`linkLiveStream()` (`src/liveStream.ts`) attaches a YouTube URL to a CricClubs match via `updateLiveStreamURLFromCP.do`. That endpoint blocks cross-origin subresource requests outright — `fetch` (including `mode: 'no-cors'`) and `<img>`/`<iframe>` embeds all get rejected by a `Cross-Origin-Resource-Policy` check plus WAF heuristics that flag embedded/automated-looking requests. A genuine top-level navigation isn't a subresource load, so it isn't subject to either check. The workaround: open the URL in a small popup synchronously from the click handler (required for the browser to allow it), then close the popup shortly after. This only confirms the request was *sent*; CricClubs' own feed can take up to a minute to reflect the change, so there's no fast, reliable way to verify it client-side, and the toast/copy is worded accordingly ("submitted", not "linked"). It throws `LinkLiveStreamError` with a `code` (`invalid_url` | `popup_blocked`) so the outcome can be reported.
 
 ### 5. Usage Analytics
 - **Client** (`src/analytics.ts`): `track()` POSTs a small JSON event to `CONFIG.ANALYTICS_ENDPOINT` (`/api/collect`, same origin) with `keepalive`, swallowing every error. `trackOnce()` guards the events fired from the 5-second poll loop so each is sent once per page load. `isTrackingEnabled()` returns false on localhost, in `?debug=`/`?mode=replay`, with `?nostats`, or when Do Not Track is on. `detectClient()` identifies OBS via the injected `window.obsstudio` object or the `OBS/<version>` user-agent token, and vMix / Streamlabs / Prism via user agent.
@@ -81,10 +88,13 @@ graph TD
     C -->|API Response| D[updateScoreboard]
     C -->|Mock/Replay| D
     D --> E[DOM Updates]
-    E --> F[Scorecard Pill]
-    E --> G[Player Stats]
-    E --> H[Ball-by-Ball Container]
-    F & G & H -->|Styled By| I(theme-*.css, selected via theme.ts)
+    E --> F[Team block + status line]
+    E --> G[Batter / bowler rows]
+    E --> H[This over]
+    B -->|prev, next| Q(events.ts detectEvents)
+    Q -->|wicket / fifty / partnership / boundary| R(cards.ts queue)
+    R --> S[Event card over the bar]
+    F & G & H & S -->|Styled By| I(overlay-base.css + theme-*.css tokens)
 
     J[Link Live Stream form] -->|popup navigation| K[CricClubs updateLiveStreamURLFromCP.do]
     J -->|success/error| L[toast.ts]

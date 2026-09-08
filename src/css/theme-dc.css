@@ -1,46 +1,33 @@
-/* DC theme colours. Structure comes from broadcast-base.css. */
+/* DC: brand colour on the team block, dark neutral bar. Layout lives in overlay-base.css. */
 .theme-dc {
     /* Brand */
-    --brand-accent: #cc0000;
+    --brand-accent: #FF6B6B;
 
     /* Surfaces */
-    --surface-frame: linear-gradient(180deg, rgba(0, 40, 100, 0.95), rgba(0, 68, 170, 0.92));
-    --surface-pill: linear-gradient(180deg, #0044aa, #003388);
-    --surface-innings: linear-gradient(180deg, #002255, #001133);
-    --surface-panel: rgba(0, 50, 120, 0.6);
-    --surface-row: rgba(0, 50, 120, 0.5);
+    --surface-frame: rgba(14, 25, 44, 0.94);
+    --surface-pill: #0044AA;
+    --surface-panel: rgba(255, 255, 255, 0.04);
+    --surface-row: rgba(255, 255, 255, 0.02);
 
     /* Lines */
-    --border-frame: rgba(204, 0, 0, 0.15);
-    --border-ball: rgba(204, 0, 0, 0.15);
-    --border-innings: rgba(204, 0, 0, 0.15);
-    --border-result: rgba(204, 0, 0, 0.3);
-    --divider: rgba(204, 0, 0, 0.25);
-    --divider-overs: rgba(204, 0, 0, 0.3);
-    --divider-row: rgba(204, 0, 0, 0.1);
-
-    /* Shadows & glows */
-    --shadow-frame: 0 4px 20px rgba(0, 0, 0, 0.5);
-    --glow-pill: rgba(204, 0, 0, 0.05);
-    --glow-result: rgba(204, 0, 0, 0.15);
-    --glow-six: rgba(212, 168, 67, 0.5);
-    --depth: 0.3;
+    --border-frame: rgba(255, 255, 255, 0.12);
+    --divider: rgba(255, 255, 255, 0.14);
+    --divider-row: rgba(255, 255, 255, 0.08);
 
     /* Text */
-    --fg: #ffffff;
-    --fg-title: #ff4444;
-    --fg-accent: #ff4444;
-    --fg-result: #ff4444;
-    --fg-muted: #90b0d0;
-    --fg-overs: #90b0d0;
-    --fg-ball-idle: #607090;
-    --fg-on-bright: #002255;
-    --fg-on-six: #002255;
+    --fg: #F5F7FA;
+    --fg-pill: #FFFFFF;
+    --fg-title: #FFFFFF;
+    --fg-accent: #FF6B6B;
+    --fg-muted: #A0A8B8;
+    --fg-on-bright: #14171F;
 
-    /* Ball outcomes */
-    --ball-default: #003388;
-    --ball-run: #2979ff;
-    --ball-six: #d4a843;
-    --ball-extra: #e040fb;
-    --ball-noball: #ffd740;
+    /* Balls */
+    --ball-idle: rgba(255, 255, 255, 0.12);
+    --ball-neutral: #FFFFFF;
+    --ball-neutral-fg: #14171F;
+
+    /* Cards */
+    --card-bg: #242935;
+    --card-fg: #F5F7FA;
 }

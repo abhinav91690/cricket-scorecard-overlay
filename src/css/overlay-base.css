@@ -1,0 +1,413 @@
+/*
+ * Overlay layout shared by every theme. Themes (theme-*.css) only set the colour tokens
+ * below on `.theme-<name>`; nothing in a theme file should touch layout.
+ *
+ * Sizes are deliberately in px: this renders on a fixed 1920x1080 broadcast canvas
+ * (OBS/vMix browser source), not in a browser a person zooms.
+ *
+ * Tokens (all colours):
+ *   --brand-accent       small accents: striker dot, chase numbers
+ *   --surface-frame      the lower-third slab
+ *   --surface-panel      logo end caps
+ *   --surface-row        batter/bowler rows
+ *   --surface-pill       team block, event cards and result card (brand colour)
+ *   --border-frame       hairline around slab, strip and result
+ *   --divider            vertical separators
+ *   --divider-row        line between the two rows
+ *   --fg                 primary text on the slab
+ *   --fg-muted           secondary text (overs, idle balls)
+ *   --fg-accent          highlighted numbers (runs, figures, chase)
+ *   --fg-title           team name inside the team block
+ *   --fg-pill            text inside the team block and cards (defaults to --fg)
+ *   --radius             corner radius shared by the bar, the cards and the result
+ *   --ball-idle          blank / dot ball fill
+ *   --ball-neutral       fill for singles, twos, threes and fives
+ *   --ball-neutral-fg    digit colour on --ball-neutral
+ *   --card-bg / --card-fg  event card surface and text (the bar's neutral, one shade apart)
+ *
+ * Ball outcome colours for wicket, four, six, extras and byes are fixed here so "this over"
+ * reads the same on every theme. Decision (Sep 2026): the ICC / wTVision convention, red W,
+ * green 4, purple 6, amber extras, blue byes. Green/purple is the most distinguishable pair
+ * for colour-blind viewers and avoids clashing with team blues and golds. Do not theme these.
+ */
+
+body {
+    margin: 0;
+}
+
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    padding-block-end: 28px;
+    overflow: hidden;
+    font-family: 'Montserrat', system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+    color: var(--fg);
+    --radius: 8px;
+    --ob-wicket: #d7263d;
+    --ob-four: #1b9e4b;
+    --ob-six: #6d3df5;
+    --ob-extra: #f5b700;
+    --ob-bye: #3b82f6;
+    /* One shadow layer and no backdrop blur: the bar renders inside OBS's embedded browser, where
+       backdrop-filter costs a full-frame blur of the video every frame. */
+    --shadow-slab: 0 10px 28px rgba(0, 0, 0, 0.32);
+}
+
+/* Sponsor logo, top right */
+.overlay-image {
+    position: absolute;
+    inset-block-start: 24px;
+    inset-inline-end: 24px;
+    inline-size: 120px;
+    block-size: auto;
+    z-index: 101;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+}
+
+/* ---- Lower third slab ---- */
+
+#firstInnings {
+    position: relative;
+    display: grid;
+    grid-template-columns: 96px auto minmax(340px, 1fr) minmax(360px, 1fr) 96px;
+    grid-template-rows: 100px;
+    align-items: stretch;
+    overflow: hidden;
+    background: var(--surface-frame);
+    border: 1px solid var(--border-frame);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-slab);
+}
+
+.batting-team-info,
+.bowling-team-info {
+    display: grid;
+    place-items: center;
+    background: var(--surface-panel);
+}
+
+.batting-team-info { grid-column: 1; grid-row: 1; }
+.team-block         { grid-column: 2; grid-row: 1; }
+.batsman-info       { grid-column: 3; grid-row: 1; }
+.bowler-info        { grid-column: 4; grid-row: 1; border-inline-start: 1px solid var(--divider); }
+.bowling-team-info  { grid-column: 5; grid-row: 1; border-inline-start: 1px solid var(--divider); }
+
+.team-logo {
+    inline-size: 64px;
+    block-size: 64px;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+}
+
+/* Batters (left) and bowler (right): two equal rows each */
+.batsman-info,
+.bowler-info {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    background: var(--surface-row);
+    min-inline-size: 0;
+}
+
+.batsman-row,
+.bowler-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-inline: 22px;
+    min-inline-size: 0;
+}
+
+.batsman-row + .batsman-row,
+.bowler-row + .bowler-row {
+    border-block-start: 1px solid var(--divider-row);
+}
+
+.batsman-name,
+.bowler-name {
+    display: inline-flex;
+    align-items: center;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    color: var(--fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Batsman 1 is always on strike in the CricClubs feed: a bat icon after the name */
+.batsman-row.on-strike .batsman-name::after {
+    content: '';
+    flex: none;
+    inline-size: 16px;
+    block-size: 16px;
+    margin-inline-start: 9px;
+    background: var(--brand-accent);
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M14.2 2.3a1.6 1.6 0 0 1 2.3 0l5.2 5.2a1.6 1.6 0 0 1 0 2.3L12.4 19a3.2 3.2 0 0 1-4.5 0L5 16.1a3.2 3.2 0 0 1 0-4.5z'/%3E%3Cpath d='M4.3 16.9l2.8 2.8-3.4 3.4a1.2 1.2 0 0 1-1.7 0l-1.1-1.1a1.2 1.2 0 0 1 0-1.7z'/%3E%3C/svg%3E") center / contain no-repeat;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M14.2 2.3a1.6 1.6 0 0 1 2.3 0l5.2 5.2a1.6 1.6 0 0 1 0 2.3L12.4 19a3.2 3.2 0 0 1-4.5 0L5 16.1a3.2 3.2 0 0 1 0-4.5z'/%3E%3Cpath d='M4.3 16.9l2.8 2.8-3.4 3.4a1.2 1.2 0 0 1-1.7 0l-1.1-1.1a1.2 1.2 0 0 1 0-1.7z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.batsman-runs-balls,
+.bowler-figures {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--fg-accent);
+    white-space: nowrap;
+}
+
+.bowler-overs-data {
+    padding-inline-start: 10px;
+    border-inline-start: 1px solid var(--divider);
+    font-weight: 600;
+    color: var(--fg-muted);
+}
+
+.bowler-overs-data::after,
+.overs::after {
+    content: ' ov';
+    font-size: 0.8em;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+/* ---- Team block: name, score, and one line of context ---- */
+
+.team-block {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 7px;
+    min-inline-size: 280px;
+    padding-inline: 24px;
+    background: var(--surface-pill);
+    color: var(--fg-pill, var(--fg));
+}
+
+.team-name {
+    font-size: 19px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--fg-title);
+    white-space: nowrap;
+}
+
+.score-and-overs {
+    display: flex;
+    align-items: baseline;
+}
+
+.score {
+    font-size: 38px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.01em;
+}
+
+.wickets {
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1;
+    margin-inline-start: 3px;
+    opacity: 0.9;
+}
+
+.overs {
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1;
+    margin-inline-start: 12px;
+    padding-inline-start: 12px;
+    border-inline-start: 1px solid currentColor;
+    opacity: 0.8;
+}
+
+/* Row 2 tail: CRR in the first innings, Target in a chase */
+.status-inline {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-inline-start: 12px;
+    padding-inline-start: 12px;
+    border-inline-start: 1px solid currentColor;
+    opacity: 0.85;
+    white-space: nowrap;
+}
+.status-inline:empty { display: none; }
+
+/* Row 3: Need n from b · RRR in a chase. Hidden when empty. */
+.status-line {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.85;
+    white-space: nowrap;
+}
+.status-line:empty { display: none; }
+
+/* ---- This over ---- */
+
+.ball-by-ball-container {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-block-size: 28px;
+}
+
+.ball-indicator {
+    display: grid;
+    place-items: center;
+    inline-size: 28px;
+    block-size: 28px;
+    border-radius: 50%;
+    background: var(--ball-idle);
+    color: var(--fg-muted);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    animation: overlay-pop-in 0.2s ease-out both;
+}
+
+@keyframes overlay-pop-in {
+    from { transform: scale(0.6); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+}
+
+.ball-indicator.run-1,
+.ball-indicator.run-2,
+.ball-indicator.run-3,
+.ball-indicator.run-5 { background: var(--ball-neutral); color: var(--ball-neutral-fg); }
+.ball-indicator.run-4 { background: var(--ob-four); color: #ffffff; }
+.ball-indicator.run-6 { background: var(--ob-six); color: #ffffff; }
+.ball-indicator.wicket { background: var(--ob-wicket); color: #ffffff; }
+.ball-indicator.wide,
+.ball-indicator.no-ball { background: var(--ob-extra); color: #1a1400; font-size: 10px; }
+.ball-indicator.leg-bye,
+.ball-indicator.bye { background: var(--ob-bye); color: #ffffff; font-size: 10px; }
+
+.ball-indicator.dot {
+    color: transparent;
+    font-size: 0;
+    position: relative;
+}
+.ball-indicator.dot::after {
+    content: '';
+    position: absolute;
+    inset: 50% auto auto 50%;
+    inline-size: 8px;
+    block-size: 8px;
+    border-radius: 50%;
+    background: var(--fg-muted);
+    transform: translate(-50%, -50%);
+}
+
+/* ---- Event cards: slide in over the batter and bowler slots, the score stays visible ---- */
+
+.event-card {
+    grid-column: 3 / 5;
+    grid-row: 1;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    padding-inline: 28px;
+    --type: var(--brand-accent);
+    background: var(--card-bg);
+    color: var(--card-fg);
+    border-inline-start: 5px solid var(--type);
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(-14px);
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1), visibility 0.3s;
+}
+.event-card.is-visible {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+}
+
+/* The event type sets the accent: red wicket, green four, purple six, brand for milestones */
+.event-card[data-type="wicket"] { --type: var(--ob-wicket); }
+.event-card[data-type="boundary"][data-runs="4"] { --type: var(--ob-four); }
+.event-card[data-type="boundary"][data-runs="6"] { --type: var(--ob-six); }
+
+.event-eyebrow {
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--type);
+}
+.event-eyebrow:empty { display: none; }
+
+.event-headline {
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.event-detail {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.2;
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.event-detail:empty { display: none; }
+
+.event-card[data-type="boundary"] { align-items: center; }
+.event-card[data-type="boundary"] .event-headline {
+    font-size: 44px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--type);
+}
+
+/* ---- Result card ---- */
+
+#result {
+    padding: 16px 36px;
+    border-radius: var(--radius);
+    background: var(--surface-pill);
+    color: var(--fg-pill, var(--fg));
+    border: 1px solid var(--border-frame);
+    box-shadow: var(--shadow-slab);
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ball-indicator { animation: none; }
+    .event-card { transition: none; }
+}

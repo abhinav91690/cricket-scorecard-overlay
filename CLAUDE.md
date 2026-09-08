@@ -45,7 +45,9 @@ Entry is `src/script.ts`, loaded directly from `index.html` as a module. It only
 
 `updateScore()` is the mode switch. In order: no `matchId`/`debug`/`mode=replay` → show `#instructions` and hide `.overlay`; `mode=replay` → cycle `replayData.ts`; `debug=1..5` → static state from `mockData.ts`; otherwise fetch live. Mock/replay data is cast `as unknown as CricketAPIData` because those fixtures don't fill every field of the (large) type in `types.ts`.
 
-Rendering is in `src/ui.ts`. `updateScoreboard()` picks team 1 vs team 2 fields based on `values.isSecondInningsStarted === "true"` (API booleans are strings, `isMatchEnded` is `"1"`), then writes through `setText`/`setDisplay`/`setVisible` helpers that only touch the DOM when a value changed. `#secondInnings` is toggled with a `.is-visible` class (visibility+opacity) rather than `display` so the first-innings bar doesn't jump; keep that pattern if you add rows.
+Rendering is in `src/ui.ts`. `updateScoreboard()` picks team 1 vs team 2 fields based on `values.isSecondInningsStarted === "true"` (API booleans are strings, `isMatchEnded` is `"1"`), then writes through `setText`/`setDisplay` helpers that only touch the DOM when a value changed. `statusText()` supplies the CRR / Target tail on the score row and the Need / RRR third row in a chase, computed from the totals; there is no separate second-innings strip any more.
+
+Event cards: `app.ts` keeps the previous frame and calls `detectEvents(prev, next)` (`src/events.ts`, pure, tested) after every render, then `enqueueCards()` (`src/cards.ts`) plays them one at a time over the batter/bowler slots. Hold times live in `HOLD_MS`; the exit transition length is duplicated between `cards.ts` (`TRANSITION_MS`) and the `.event-card` CSS, keep them equal. Adding a card type means a new `OverlayEvent` variant, a detection rule, `cardCopy()` text, a `HOLD_MS` entry, a `SAMPLE_EVENTS` entry (for `?debug=1&card=<type>`), and usually a `[data-type]` CSS rule. Cards are the only thing that may cover the bar; the team block must always stay visible.
 
 ### `dom.ts` runs `getElementById` at import time
 
@@ -55,14 +57,13 @@ Rendering is in `src/ui.ts`. `updateScoreboard()` picks team 1 vs team 2 fields 
 - Modules with state expose `reset*ForTests()` hooks (`app.ts`, `ui.ts`, `analytics.ts`); call them in `beforeEach` rather than reaching into module internals.
 - The Worker has its own `worker/vitest.config.ts` (node environment). Without it Vitest walks up and uses the site's jsdom config. The root config restricts `include` to `src/**` so the two suites never mix.
 - Adding a new element means adding it to `index.html`, `dom.ts`, and the `idMap` in `ui.test.ts`.
+- The home page (`#instructions`) is plain HTML in `index.html` styled by `css/instructions.css` (light/dark tokens prefixed `--h-`). Its URL builder lives in `urlBuilder.ts`; keep element ids stable, `app.test.ts` and `urlBuilder.test.ts` mount minimal copies of that markup.
 
 ### Theming
 
-`applyTheme()` puts a `theme-<name>` class on `<body>` and consults the `THEMES` map in `theme.ts`, which tags each theme `standalone` or `broadcast`. `classic`, `modern` and `neon` are standalone: each `theme-*.css` is a complete, independent stylesheet. The 14 broadcast themes (IPL franchises + `tel`/`ted`/`tul`/`tud`) share `src/css/broadcast-base.css`, scoped under the `skin-broadcast` class that `applyTheme()` also adds; their `theme-*.css` files are only colour tokens (surfaces, lines, glows, text, `--ball-*`) plus the odd explicit override (RCB, CSK). Change layout in the base, never in a broadcast theme file. Unknown names fall back to `modern`.
+`applyTheme()` puts a `theme-<name>` class on `<body>`; unknown names fall back to `modern-light`, and `modern` is kept as an alias in `THEME_ALIASES`. All 17 themes share one layout, `src/css/overlay-base.css`, and each `theme-*.css` is only a block of colour tokens on `.theme-<name>` (the token list is documented at the top of the base file). Never put layout in a theme file; change the base. The base uses px deliberately (fixed 1920x1080 broadcast canvas) and respects `prefers-reduced-motion`. The striker is marked with the static `on-strike` class on the first batter row in `index.html`, not with text.
 
-Adding a broadcast theme: copy any broadcast `theme-*.css` and change the tokens, `import` it in `theme.ts`, add it to `THEMES` as `'broadcast'`, add a `theme-tag tag-<name>` span in `index.html` plus its `.tag-<name>` colour in `instructions.css`, and update the theme lists in README.md/architecture.md.
-
-Ball indicator colors come from `getBallStyleClass()` in `utils.ts`, which maps outcome strings (`W`, `1wd`, `nb`, `4`, `.`) to classes (`wicket`, `wide`, `run-4`, `dot`, …) that each theme styles.
+Adding a theme: copy any `theme-*.css` and change the tokens, `import` it in `theme.ts`, add the name to `AVAILABLE_THEMES`, add a `theme-tag tag-<name>` link in the `index.html` theme grid plus its `.tag-<name>` colours in `instructions.css`, and update the theme lists in README.md/architecture.md.
 
 ### Link Live Stream (`src/liveStream.ts`)
 
@@ -70,7 +71,7 @@ Attaches a YouTube URL to a CricClubs match via `updateLiveStreamURLFromCP.do`. 
 
 ### Analytics (`src/analytics.ts`, `worker/`)
 
-`track()` POSTs to the same-origin `/api/collect`, handled by the Cloudflare Worker in `worker/` and stored in D1. Use `trackOnce()` for anything called from the poll loop; there is deliberately no heartbeat and no per-poll event. `isTrackingEnabled()` disables everything on localhost, `?debug=`, `?mode=replay`, `?nostats`, and Do Not Track, so nothing you do locally is recorded. Adding a new event means adding it to `EVENTS` in `worker/src/collect.ts` (the Worker rejects unknown names) and, if it needs new columns, a new file in `worker/migrations/`. The Worker's `wrangler.toml` routes claim only `/api/collect` and `/stats*`; everything else on the domain passes through to Netlify.
+`track()` sends to the same-origin `/api/collect` (handled by the Cloudflare Worker in `worker/`, stored in D1) via `navigator.sendBeacon` from an idle callback, so it never touches the first paint or a poll; it falls back to a keepalive `fetch`. Use `trackOnce()` for anything called from the poll loop; there is deliberately no heartbeat and no per-poll event. `isTrackingEnabled()` disables everything on localhost, `?debug=`, `?mode=replay`, `?nostats`, and Do Not Track, so nothing you do locally is recorded. Adding a new event means adding it to `EVENTS` in `worker/src/collect.ts` (the Worker rejects unknown names) and, if it needs new columns, a new file in `worker/migrations/`. The Worker's `wrangler.toml` routes claim only `/api/collect` and `/stats*`; everything else on the domain passes through to Netlify.
 
 ## Notes
 

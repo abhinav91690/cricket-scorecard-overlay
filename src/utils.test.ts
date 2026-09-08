@@ -121,6 +121,15 @@ describe('getQueryParams', () => {
         expect(params.debug).toBe('true');
     });
 
+    it('should expose quiet as a flag and card as a value', () => {
+        mockLocationSearch('?matchId=1&quiet&card=wicket');
+        expect(getQueryParams().quiet).toBe(true);
+        expect(getQueryParams().card).toBe('wicket');
+        mockLocationSearch('?matchId=1');
+        expect(getQueryParams().quiet).toBe(false);
+        expect(getQueryParams().card).toBeNull();
+    });
+
     it('should parse multiple parameters', () => {
         mockLocationSearch('?matchId=100&clubId=200&debug=true&mode=replay');
         const params = getQueryParams();

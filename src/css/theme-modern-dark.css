@@ -1,0 +1,34 @@
+/* MODERN DARK: neutral dark bar with a blue score tab. Layout lives in overlay-base.css. */
+.theme-modern-dark {
+    --radius: 12px;
+
+    /* Brand */
+    --brand-accent: #60a5fa;
+
+    /* Surfaces */
+    --surface-frame: rgba(15, 18, 26, 0.92);
+    --surface-pill: #2563eb;
+    --surface-panel: rgba(255, 255, 255, 0.05);
+    --surface-row: rgba(255, 255, 255, 0.03);
+
+    /* Lines */
+    --border-frame: rgba(255, 255, 255, 0.12);
+    --divider: rgba(255, 255, 255, 0.14);
+    --divider-row: rgba(255, 255, 255, 0.08);
+
+    /* Text */
+    --fg: #f5f7fa;
+    --fg-title: rgba(255, 255, 255, 0.85);
+    --fg-accent: #93c5fd;
+    --fg-muted: #9aa3b5;
+    --fg-on-bright: #0b1220;
+
+    /* Balls */
+    --ball-idle: rgba(255, 255, 255, 0.12);
+    --ball-neutral: #ffffff;
+    --ball-neutral-fg: #14171f;
+
+    /* Cards */
+    --card-bg: #242935;
+    --card-fg: #F5F7FA;
+}

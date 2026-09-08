@@ -1,0 +1,35 @@
+/* Topguns (dark): pale turquoise team block on a black bar, turquoise accents. Layout lives in overlay-base.css. */
+.theme-topguns-dark {
+    --radius: 6px;
+
+    /* Brand */
+    --brand-accent: #7ED6CB;
+
+    /* Surfaces */
+    --surface-frame: rgba(11, 12, 14, 0.95);
+    --surface-pill: #7ED6CB;
+    --surface-panel: rgba(126, 214, 203, 0.06);
+    --surface-row: rgba(255, 255, 255, 0.02);
+
+    /* Lines */
+    --border-frame: rgba(126, 214, 203, 0.28);
+    --divider: rgba(255, 255, 255, 0.14);
+    --divider-row: rgba(255, 255, 255, 0.08);
+
+    /* Text */
+    --fg: #F4FAF9;
+    --fg-pill: #0B0C0E;
+    --fg-title: #0B0C0E;
+    --fg-accent: #7ED6CB;
+    --fg-muted: #9AAAA7;
+    --fg-on-bright: #0B0C0E;
+
+    /* Balls */
+    --ball-idle: rgba(255, 255, 255, 0.12);
+    --ball-neutral: #FFFFFF;
+    --ball-neutral-fg: #0B0C0E;
+
+    /* Cards */
+    --card-bg: #1B1E24;
+    --card-fg: #F4FAF9;
+}
