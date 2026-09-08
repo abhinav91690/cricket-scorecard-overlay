@@ -144,10 +144,10 @@ describe('updateScoreboard edge cases', () => {
 
     it('falls back to placeholders when values are missing', () => {
         updateScoreboard({ values: { ...base, t1Name: '', t1Total: '', t1Wickets: '', t1Overs: '' }, balls: [] } as any);
-        expect(DOM.batsman1Name.textContent).toBe('Batsman 1');
+        expect(DOM.batsman1Name.textContent).toBe(''); // never a literal placeholder on air
         expect(DOM.batsman1RunsBalls.textContent).toBe('0 (0)');
-        expect(DOM.batsman2Name.textContent).toBe('Batsman 2');
-        expect(DOM.bowlerName.textContent).toBe('Bowler Name');
+        expect(DOM.batsman2Name.textContent).toBe('');
+        expect(DOM.bowlerName.textContent).toBe('');
         expect(DOM.bowlerWicketsRuns.textContent).toBe('0-0');
         expect(DOM.bowlerOvers.textContent).toBe('0.0');
         expect(DOM.teamName.textContent).toBe('Team 1');

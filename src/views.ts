@@ -42,7 +42,7 @@ export function isFullFrame(data: CricketAPIData): boolean {
  * The view to request after receiving `data`, or null to leave it alone.
  * - After any peek, come home to the scorebar.
  * - Pre-match: peek the two squads once.
- * - Innings break / match over: peek the match summary once (cards, extras, fall of wickets).
+ * - Innings break: peek team 1's batting and bowling cards once (views 2, 3). Match over: team 2's as well (4, 5).
  * - In play: never leave the scorebar.
  */
 export function desiredView(data: CricketAPIData, phase: MatchPhase, cache: ViewCache): number | null {
@@ -53,12 +53,16 @@ export function desiredView(data: CricketAPIData, phase: MatchPhase, cache: View
         if (!cache.t2PlayersList) return VIEW.team2;
         return null;
     }
+    // The full card views carry each side's fall of wickets; the summary view (8) only has the
+    // latest innings', so the break peeks team 1's cards and the end peeks team 2's.
     if (phase === 'break' || phase === 'ended') {
-        // First innings: team 1 batted, team 2 bowled. Second innings: the reverse.
-        const haveFirst = !!(cache.t1Batting && cache.t2Bowling);
-        const haveSecond = !!(cache.t2Batting && cache.t1Bowling);
-        const haveSummary = phase === 'break' ? haveFirst : haveFirst && haveSecond;
-        return haveSummary ? null : VIEW.summary;
+        if (!cache.t1Batting) return VIEW.batting1;   // team 1 batted first
+        if (!cache.t2Bowling) return VIEW.bowling1;   // team 2 bowled first
+        if (phase === 'ended') {
+            if (!cache.t2Batting) return VIEW.batting2;
+            if (!cache.t1Bowling) return VIEW.bowling2;
+        }
+        return null;
     }
     return null;
 }

@@ -43,12 +43,14 @@ describe('desiredView', () => {
         expect(desiredView(full({}), 'pre', { t1PlayersList: [] as any, t2PlayersList: [] as any })).toBeNull();
     });
 
-    it('peeks the summary once at the break and again at the end when team 2 cards are missing', () => {
-        expect(desiredView(full({}), 'break', {})).toBe(VIEW.summary);
+    it('peeks the first-innings cards at the break and the second-innings cards at the end', () => {
+        expect(desiredView(full({}), 'break', {})).toBe(VIEW.batting1);
+        expect(desiredView(full({}), 'break', { t1Batting: [{}] as any })).toBe(VIEW.bowling1);
         const firstInnings = { t1Batting: [{}] as any, t2Bowling: [{}] as any }; // team 1 batted, team 2 bowled
         expect(desiredView(full({}), 'break', firstInnings)).toBeNull();
-        expect(desiredView(full({}), 'break', { t1Batting: [{}] as any, t1Bowling: [{}] as any })).toBe(VIEW.summary); // wrong bowling side is not enough
-        expect(desiredView(full({}), 'ended', firstInnings)).toBe(VIEW.summary);
+        expect(desiredView(full({}), 'break', { t1Batting: [{}] as any, t1Bowling: [{}] as any })).toBe(VIEW.bowling1); // wrong bowling side is not enough
+        expect(desiredView(full({}), 'ended', firstInnings)).toBe(VIEW.batting2);
+        expect(desiredView(full({}), 'ended', { ...firstInnings, t2Batting: [{}] as any })).toBe(VIEW.bowling2);
         expect(desiredView(full({}), 'ended', { ...firstInnings, t2Batting: [{}] as any, t1Bowling: [{}] as any })).toBeNull();
     });
 });
@@ -78,11 +80,12 @@ describe('mergeCache', () => {
     });
 
     it('ignores empty card lists so the summary is peeked again once the side has batted', () => {
-        const atBreak = frame({ t1Batting: [{ firstName: 'A' }], t1Bowling: [{ firstName: 'B' }], t2Batting: [], t2Bowling: [] }, [], 8);
+        const atBreak = frame({ t1Batting: [{ firstName: 'A' }], t2Bowling: [{ firstName: 'B' }], t2Batting: [], t1Bowling: [] }, [], 8);
         const c = mergeCache({}, atBreak);
         expect(c.t1Batting).toHaveLength(1);
         expect(c.t2Batting).toBeUndefined();
-        expect(desiredView(frame({ batsman1Name: 'x' }), 'ended', c)).toBe(VIEW.summary);
+        expect(c.t1Bowling).toBeUndefined();
+        expect(desiredView(frame({ batsman1Name: 'x' }), 'ended', c)).toBe(VIEW.batting2);
     });
 
     it('files fall of wickets under the view\'s team, not the current innings', () => {

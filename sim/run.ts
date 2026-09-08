@@ -102,7 +102,7 @@ async function main() {
     // returning to view 1 is always allowed; only outgoing peeks must avoid play
     check('Peeks only while idle: none requested during play', !switches.some(s => s.to !== 1 && ['inn1', 'inn2'].includes(phaseAt(s.sim))), sw.join(' '));
     check('Pre-match peeks: squads (48, 49) each followed by a return to view 1', /pre:1>48 pre:48>1 pre:1>49 pre:49>1/.test(sw.join(' ')), sw.filter(x => x.startsWith('pre')).join(' '));
-    check('Break and end peek the summary (8) and come home', sw.some(x => x.startsWith('break:1>8')) && sw.some(x => /^(break|inn2):8>1/.test(x)) && sw.some(x => x.startsWith('ended:1>8')) && sw.some(x => x.startsWith('ended:8>1')), sw.filter(x => !x.startsWith('pre')).join(' '));
+    check('Break peeks team 1 cards (2, 3); end peeks team 2 cards (4, 5); each comes home', ['break:1>2', 'break:2>1', 'break:1>3', 'break:3>1', 'ended:1>4', 'ended:4>1', 'ended:1>5', 'ended:5>1'].every(x => sw.includes(x)), sw.filter(x => !x.startsWith('pre')).join(' '));
     const outgoing = switches.filter(s => s.to !== 1).map(s => `${phaseAt(s.sim)}:${s.to}`);
     check('No repeated peeks: each data view requested once per phase', new Set(outgoing).size === outgoing.length, outgoing.join(' '));
     const peekRuns = frames.reduce((acc, f, i) => (!f.full && !(frames[i - 1] && !frames[i - 1].full) ? acc + 1 : acc), 0);
@@ -121,9 +121,9 @@ async function main() {
     const firstShow = (type: string) => shows.find(s => s.type === type);
     const lastPeekFrame = (view: number, before: number) => frames.filter(f => f.view === view && !f.full && f.t < before).at(-1);
     check('Line-up waited for both squad peeks', !!firstShow('lineup') && !!lastPeekFrame(48, firstShow('lineup')!.t) && !!lastPeekFrame(49, firstShow('lineup')!.t), '');
-    check('Innings summary waited for the summary peek', !!firstShow('innings-summary') && !!lastPeekFrame(8, firstShow('innings-summary')!.t), '');
+    check('Innings summary waited for both first-innings card peeks', !!firstShow('innings-summary') && !!lastPeekFrame(2, firstShow('innings-summary')!.t) && !!lastPeekFrame(3, firstShow('innings-summary')!.t), '');
     const endedShow = shows.find(s => s.type === 'match-summary' && phaseAt(s.sim) === 'ended');
-    const endedPeek = frames.find(f => f.view === 8 && !f.full && phaseAt(f.sim) === 'ended');
+    const endedPeek = frames.find(f => f.view === 5 && !f.full && phaseAt(f.sim) === 'ended');
     check('Match summary waited for the end-of-match peek', !!endedShow && !!endedPeek && endedPeek.t < endedShow.t, '');
     // every card left the screen within hold + 2 polls (naturally or dismissed)
     const overstays: string[] = [];
