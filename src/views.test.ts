@@ -172,7 +172,7 @@ describe('phasePanels', () => {
             expect(lineup.teams[1].players).toEqual([]); // team 2 squad not cached yet
             expect(lineup.toss).toBe('Topguns United elected to bat');
             expect(lineup.teams.map(t => t.role)).toEqual(['Batting', 'Fielding']);
-            expect(lineup.overs).toBe('20 overs');
+            expect(lineup.matchOvers).toBe('20 overs');
             expect(lineup.series).toBe('2024 Fall Champions');
         }
         expect(phasePanels('break', v, cache).map(p => p.type)).toEqual(['innings-summary']);
@@ -181,6 +181,9 @@ describe('phasePanels', () => {
         expect(inn.type).toBe('innings-summary');
         if (inn.type === 'innings-summary') {
             expect(inn.score).toBe('188/7'); // from the data views; the scorebar frame says 10/0 (super over)
+            expect(inn.teams.map(t => t.name)).toEqual(['TOPGUNS UNITED', 'Lions']); // batted, bowled
+            expect(inn.matchOvers).toBe('20 overs');
+            expect(inn.series).toBe('2024 Fall Champions');
             expect(inn.batters.length).toBe(3);
             expect(inn.batters[0].initials).toMatch(/^[A-Z]{1,2}$/);
             expect(inn.fow).toContain('1-');

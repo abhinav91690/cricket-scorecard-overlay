@@ -1,6 +1,6 @@
 import { DOM } from './dom';
 import { OverlayEvent } from './events';
-import type { PanelRow } from './views';
+import { tidyName, type PanelRow } from './views';
 import { e2eLog } from './e2e';
 
 /**
@@ -11,11 +11,14 @@ import { e2eLog } from './e2e';
 
 export interface PanelTeam { name: string; logo?: string; }
 export interface LineupTeam extends PanelTeam { players: PanelRow[]; role?: 'Batting' | 'Fielding'; }
+/** The strip along the top of a panel: competition, ground and the match length. */
+export interface PanelMeta { series: string; ground: string; matchOvers: string; }
 export interface InningsBlock { team: PanelTeam; score: string; overs: string; batters: PanelRow[]; bowlers: PanelRow[]; fow: string; }
 
 export type PanelEvent =
-    | { type: 'lineup'; teams: [LineupTeam, LineupTeam]; toss: string; series: string; ground: string; overs: string }
-    | { type: 'innings-summary'; label: string; team: PanelTeam; score: string; overs: string; batters: PanelRow[]; bowlers: PanelRow[]; extras: string; fow: string }
+    | ({ type: 'lineup'; teams: [LineupTeam, LineupTeam]; toss: string } & PanelMeta)
+    /** `teams[0]` batted, `teams[1]` bowled. */
+    | ({ type: 'innings-summary'; label: string; teams: [PanelTeam, PanelTeam]; score: string; overs: string; batters: PanelRow[]; bowlers: PanelRow[]; extras: string; fow: string } & PanelMeta)
     | { type: 'match-summary'; result: string; innings: InningsBlock[] };
 
 export type AnyCard = OverlayEvent | PanelEvent;
@@ -158,13 +161,30 @@ function rowList(cls: string): HTMLUListElement {
     return ul;
 }
 
-function list(title: string, rows: PanelRow[]): HTMLElement {
-    const col = el('panel-col');
-    if (title) col.appendChild(el('panel-col-title', title));
-    const ul = rowList('panel-list');
-    rows.forEach(r => ul.appendChild(personRow(r, 'md')));
-    col.appendChild(ul);
-    return col;
+/** A titled column: "TEAM XI · FIELDING" rule, accent when it is the side of interest, then the rows. */
+function column(title: string, tag: string | undefined, accent: boolean, rows: HTMLElement): HTMLElement {
+    const block = el('panel-block');
+    const head = el(`panel-col-head${accent ? ' is-accent' : ''}`);
+    head.appendChild(el('panel-col-head-title', title));
+    if (tag) head.appendChild(el('panel-col-head-tag', tag));
+    block.append(head, rows);
+    return block;
+}
+
+function matchup(a: PanelTeam, b: PanelTeam) {
+    DOM.panelMatchup.append(teamHead(a), el('panel-vs', 'v'), teamHead(b));
+}
+
+/** Series · ground on the left, match length on the right; rendered into the footer slot and ordered to the top by CSS. */
+function metaStrip(meta: PanelMeta) {
+    footer([['', meta.series], ['', meta.ground]]);
+    if (meta.matchOvers) DOM.panelFooter.appendChild(el('panel-kv panel-kv-end', meta.matchOvers));
+}
+
+/** One label/value line in the detail slot (fall of wickets under the innings columns). */
+function detailLine(label: string, value: string) {
+    if (!value) { text(DOM.panelDetail, ''); return; }
+    DOM.panelDetail.replaceChildren(el('k', label), el('v', value));
 }
 
 /** Footer as label/value pairs: labels stay small caps, values keep their case and tabular digits. */
@@ -185,34 +205,33 @@ function renderPanel(card: PanelEvent) {
     DOM.panelColumns.replaceChildren();
     switch (card.type) {
         case 'lineup': {
-            const [a, b] = card.teams;
-            DOM.panelMatchup.append(teamHead(a), el('panel-vs', 'v'), teamHead(b));
+            matchup(card.teams[0], card.teams[1]);
             text(DOM.panelEyebrow, 'Toss');
             text(DOM.panelHeadline, card.toss);
             text(DOM.panelDetail, '');
             for (const t of card.teams) {
-                const block = el('panel-block');
-                const head = el(`panel-xi-head${t.role === 'Batting' ? ' is-batting' : ''}`);
-                head.appendChild(el('panel-xi-title', `${t.name} XI`));
-                if (t.role) head.appendChild(el('panel-xi-role', t.role));
-                block.appendChild(head);
                 const grid = rowList('panel-xi');
                 grid.style.setProperty('--rows', String(Math.max(1, Math.ceil(t.players.length / 2))));
                 t.players.forEach(p => grid.appendChild(personRow(p, 'sm')));
-                block.appendChild(grid);
-                DOM.panelColumns.appendChild(block);
+                DOM.panelColumns.appendChild(column(`${t.name} XI`, t.role, t.role === 'Batting', grid));
             }
-            footer([['', card.series], ['', card.ground]]);
-            if (card.overs) DOM.panelFooter.appendChild(el('panel-kv panel-kv-end', card.overs));
+            metaStrip(card);
             break;
         }
         case 'innings-summary': {
-            DOM.panelMatchup.appendChild(teamHead(card.team, card.label));
-            text(DOM.panelEyebrow, '');
-            text(DOM.panelHeadline, `${card.score} · ${card.overs}`);
-            text(DOM.panelDetail, '');
-            DOM.panelColumns.append(list('Top scorers', card.batters), list('Best bowling', card.bowlers));
-            footer([['Extras', card.extras], ['Fall of wickets', card.fow]]);
+            const [bat, bowl] = card.teams;
+            matchup(bat, bowl);
+            text(DOM.panelEyebrow, card.label);
+            text(DOM.panelHeadline, `${tidyName(bat.name)} ${card.score} · ${card.overs}`);
+            const batting = rowList('panel-list'), bowling = rowList('panel-list');
+            card.batters.forEach(r => batting.appendChild(personRow(r, 'md')));
+            card.bowlers.forEach(r => bowling.appendChild(personRow(r, 'md')));
+            DOM.panelColumns.append(
+                column(`${bat.name} batting`, card.extras ? `Extras ${card.extras}` : undefined, true, batting),
+                column(`${bowl.name} bowling`, undefined, false, bowling),
+            );
+            detailLine('Fall of wickets', card.fow);
+            metaStrip(card);
             break;
         }
         case 'match-summary': {
@@ -258,11 +277,11 @@ export const SAMPLE_EVENTS: Record<string, AnyCard> = {
     milestone: { type: 'milestone', mark: 50, name: 'Abhinav V', runs: '52', balls: '31', fours: '6', sixes: '2' },
     partnership: { type: 'partnership', mark: 50, names: 'Abhinav & Raja', runs: '54', balls: '38' },
     boundary: { type: 'boundary', runs: 6 },
-    lineup: { type: 'lineup', toss: 'Topguns United elected to bat', series: '2024 Fall Champions', ground: 'LPCL-G1', overs: '20 overs', teams: [
+    lineup: { type: 'lineup', toss: 'Topguns United elected to bat', series: '2024 Fall Champions', ground: 'LPCL-G1', matchOvers: '20 overs', teams: [
         { name: 'Lions', role: 'Fielding', players: ['Sumeer G','Qasim A','Ravi T','Aamir K','Nayan G','Vijaykumar V','Mahesh P','Ranjeet P','Goutham R','Vijay D','Manideep M'].map(n => ({ name: n, value: '', initials: n.split(' ').map(w => w[0]).join('') })).sort((a, b) => a.name.localeCompare(b.name)) },
         { name: 'Topguns United', role: 'Batting', players: ['Pavan V','Gautham R','Rakesh K','Abhinav V','Raja K','Chandu B','Vikas B','Siva Krishna V','Abhinandan K','Kiran R','Sandeep M'].map(n => ({ name: n, value: '', initials: n.split(' ').map(w => w[0]).join('') })).sort((a, b) => a.name.localeCompare(b.name)) },
     ] },
-    'innings-summary': { type: 'innings-summary', label: '1st innings', team: { name: 'Lions' }, score: '142/8', overs: '20 ov',
+    'innings-summary': { type: 'innings-summary', label: '1st innings', teams: [{ name: 'Lions' }, { name: 'Topguns United' }], score: '142/8', overs: '20 ov', series: '2024 Fall Champions', ground: 'LPCL-G1', matchOvers: '20 overs',
         batters: [{ name: 'Pavan V', value: '45 (30)', initials: 'PV' }, { name: 'Gautham R', value: '32 (21)', note: 'not out', initials: 'GR' }, { name: 'Rakesh K', value: '18 (12)', initials: 'RK' }],
         bowlers: [{ name: 'Siva Krishna V', value: '3-21', note: '4.0 ov', initials: 'SV' }, { name: 'Chandu B', value: '2-18', note: '4.0 ov', initials: 'CB' }, { name: 'Aamir K', value: '1-24', note: '4.0 ov', initials: 'AK' }],
         extras: '11', fow: '1-14, 2-21, 3-24, 4-45, 5-90, 6-148, 7-171, 8-181' },

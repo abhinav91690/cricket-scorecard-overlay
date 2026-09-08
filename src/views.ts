@@ -208,7 +208,7 @@ export function squadRows(rows: Player[] | undefined): PanelRow[] {
 }
 
 // ---------- panel builders (what to show while nothing can happen) ----------
-import type { PanelEvent, PanelTeam } from './cards';
+import type { PanelEvent, PanelMeta, PanelTeam } from './cards';
 
 const teamLabel = (v: CricketAPIValues, n: 1 | 2, cache?: ViewCache) => (cache && (n === 1 ? cache.t1Name : cache.t2Name)) || (n === 1 ? v.t1Name : v.t2Name) || `Team ${n}`;
 const pick = <K extends keyof ViewCache & keyof CricketAPIValues>(v: CricketAPIValues, cache: ViewCache, key: K) => (cache[key] as string | undefined) || (v[key] as string | undefined);
@@ -245,6 +245,14 @@ export function tossInfo(toss: string | undefined, t1Name: string, t2Name: strin
     return { headline: `${tidyName(name)} elected to ${bats ? 'bat' : 'bowl'}`, batting };
 }
 
+function panelMeta(v: CricketAPIValues): PanelMeta {
+    return {
+        series: (v.seriesName || '').replace(/-/g, ' '), // "2024-Fall-Champions" is a slug, not a title
+        ground: v.groundName || '',
+        matchOvers: v.totalOvers ? `${v.totalOvers} overs` : '',
+    };
+}
+
 /** Pre-match card: meta strip, both teams, the toss, then the two XIs with who bats first. */
 export function lineupPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent {
     const t1 = team(v, cache, 1), t2 = team(v, cache, 2);
@@ -257,17 +265,16 @@ export function lineupPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent {
             { ...t2, players: squadRows(cache.t2PlayersList), role: role(2) },
         ],
         toss: toss.headline,
-        series: (v.seriesName || '').replace(/-/g, ' '), // "2024-Fall-Champions" is a slug, not a title
-        ground: v.groundName || '',
-        overs: v.totalOvers ? `${v.totalOvers} overs` : '',
+        ...panelMeta(v),
     };
 }
 
 export function inningsSummaryPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent {
     return {
-        type: 'innings-summary', label: '1st innings', team: team(v, cache, 1), score: scoreLabel(v, cache, 1), overs: oversLabel(v, cache, 1),
+        type: 'innings-summary', label: '1st innings', teams: [team(v, cache, 1), team(v, cache, 2)], score: scoreLabel(v, cache, 1), overs: oversLabel(v, cache, 1),
         batters: topBatters(cache.t1Batting), bowlers: topBowlers(cache.t2Bowling),
         extras: cache.t1Extras || '', fow: fowText(cache.fow1),
+        ...panelMeta(v),
     };
 }
 

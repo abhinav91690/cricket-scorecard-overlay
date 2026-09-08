@@ -432,8 +432,6 @@ body {
 /* Columns / blocks */
 .panel-columns { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 12px 40px; margin-block-start: 8px; }
 .panel-columns:empty { display: none; }
-.panel-col { display: grid; gap: 8px; align-content: start; }
-.panel-col-title { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.65; padding-block-end: 6px; border-block-end: 1px solid var(--divider); }
 .panel-block { display: grid; gap: 8px; align-content: start; }
 .panel-block > .panel-team-head { padding-block-end: 8px; border-block-end: 1px solid var(--divider); }
 .panel-block > .panel-team-head .panel-team-logo { inline-size: 32px; block-size: 32px; }
@@ -457,33 +455,37 @@ body {
 .panel-xi .panel-row { font-size: 15px; gap: 10px; }
 .panel-xi .avatar-sm { inline-size: 30px; block-size: 30px; }
 
-/* Line-up: meta strip, mirrored team heads, toss callout, then the two XIs in two sub-columns each. */
-.panel-card[data-type="lineup"] { box-sizing: border-box; inline-size: min(1240px, calc(100vw - 80px)); row-gap: 0; border-block-start-width: 1px; border-inline-start: 6px solid var(--brand-accent); padding: 20px 30px 22px 30px; }
-.panel-card[data-type="lineup"] .panel-footer { order: 1; margin: 0 0 22px; padding: 0; border: 0; font-size: 13px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; opacity: 1; }
-.panel-card[data-type="lineup"] .panel-footer .v { opacity: 0.6; }
-.panel-card[data-type="lineup"] .panel-footer .panel-sep { opacity: 0.35; }
+/* Sheet layout (line-up, innings summary): meta strip, mirrored team heads, accent callout, titled columns. */
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) { box-sizing: border-box; inline-size: min(1240px, calc(100vw - 80px)); row-gap: 0; border-block-start-width: 1px; border-inline-start: 6px solid var(--brand-accent); padding: 20px 30px 22px 30px; }
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-footer { order: 1; margin: 0 0 22px; padding: 0; border: 0; font-size: 13px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; opacity: 1; }
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-footer .v { opacity: 0.6; }
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-footer .panel-sep { opacity: 0.35; }
 .panel-kv-end { margin-inline-start: auto; color: var(--brand-accent); }
-.panel-card[data-type="lineup"] .panel-matchup { order: 2; justify-content: space-between; gap: 32px; margin-block-end: 22px; }
-.panel-card[data-type="lineup"] .panel-team-head { gap: 16px; flex: 1 1 0; }
-.panel-card[data-type="lineup"] .panel-team-head:last-child { flex-direction: row-reverse; text-align: end; }
-.panel-card[data-type="lineup"] .panel-team-logo { inline-size: 64px; block-size: 64px; }
-.panel-card[data-type="lineup"] .panel-team-name { font-size: 40px; line-height: 0.95; letter-spacing: 0.02em; white-space: normal; text-wrap: balance; max-inline-size: 14ch; }
-.panel-card[data-type="lineup"] .panel-vs { flex: none; font-size: 20px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.4; }
-.panel-card[data-type="lineup"] .panel-eyebrow,
-.panel-card[data-type="lineup"] .panel-headline { background: rgba(127, 127, 127, 0.1); border-inline-start: 5px solid var(--brand-accent); padding-inline: 22px; }
-.panel-card[data-type="lineup"] .panel-eyebrow { order: 3; padding-block: 14px 4px; border-start-end-radius: 8px; }
-.panel-card[data-type="lineup"] .panel-headline { order: 4; padding-block: 0 16px; margin-block-end: 24px; border-end-end-radius: 8px; font-size: 34px; letter-spacing: -0.01em; white-space: normal; text-wrap: balance; }
-.panel-card[data-type="lineup"] .panel-columns { order: 5; gap: 0 40px; margin: 0; }
-.panel-card[data-type="lineup"] .panel-block { gap: 0; }
-.panel-xi-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-block-end: 8px; margin-block-end: 2px; border-block-end: 2px solid var(--divider); font-size: 13px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
-.panel-xi-head.is-batting { border-block-end-color: var(--brand-accent); }
-.panel-xi-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.panel-xi-role { flex: none; opacity: 0.55; }
-.panel-xi-head.is-batting .panel-xi-role { opacity: 1; color: var(--brand-accent); }
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-matchup { order: 2; justify-content: space-between; gap: 32px; margin-block-end: 22px; }
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-team-head { gap: 16px; flex: 1 1 0; }
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-team-head:last-child { flex-direction: row-reverse; text-align: end; }
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-team-logo { inline-size: 64px; block-size: 64px; }
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-team-name { font-size: 40px; line-height: 0.95; letter-spacing: 0.02em; white-space: normal; text-wrap: balance; max-inline-size: 14ch; }
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-vs { flex: none; font-size: 20px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.4; }
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-eyebrow,
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-headline { background: rgba(127, 127, 127, 0.1); border-inline-start: 5px solid var(--brand-accent); padding-inline: 22px; }
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-eyebrow { order: 3; padding-block: 14px 4px; border-start-end-radius: 8px; }
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-headline { order: 4; padding-block: 0 16px; margin-block-end: 24px; border-end-end-radius: 8px; font-size: 34px; letter-spacing: -0.01em; white-space: normal; text-wrap: balance; }
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-columns { order: 5; gap: 0 40px; margin: 0; }
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-block { gap: 0; }
+.panel-col-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-block-end: 8px; margin-block-end: 2px; border-block-end: 2px solid var(--divider); font-size: 13px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
+.panel-col-head.is-accent { border-block-end-color: var(--brand-accent); }
+.panel-col-head-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.panel-col-head-tag { flex: none; opacity: 0.55; }
+.panel-col-head.is-accent .panel-col-head-tag { opacity: 1; color: var(--brand-accent); }
 .panel-card[data-type="lineup"] .panel-xi { grid-template-columns: 1fr 1fr; grid-auto-flow: column; grid-template-rows: repeat(var(--rows, 6), auto); gap: 0 28px; }
 .panel-card[data-type="lineup"] .panel-xi .panel-row { padding-block: 5px; border-block-end: 1px solid var(--divider-row, var(--divider)); }
-
-.panel-card[data-type="innings-summary"] .panel-headline { font-size: 40px; }
+/* Innings summary: batting and bowling rows with dividers, fall of wickets as a labelled line underneath. */
+.panel-card[data-type="innings-summary"] .panel-list { gap: 0; }
+.panel-card[data-type="innings-summary"] .panel-list .panel-row { padding-block: 7px; border-block-end: 1px solid var(--divider-row, var(--divider)); }
+.panel-card[data-type="innings-summary"] .panel-detail { order: 6; display: flex; align-items: baseline; gap: 10px; margin-block-start: 18px; font-size: 15px; font-weight: 600; opacity: 1; white-space: nowrap; overflow: hidden; }
+.panel-card[data-type="innings-summary"] .panel-detail .k { flex: none; font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.65; }
+.panel-card[data-type="innings-summary"] .panel-detail .v { font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; }
 
 .panel-list, .panel-xi { list-style: none; margin: 0; padding: 0; }
 .panel-list { display: grid; gap: 8px; }

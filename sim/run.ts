@@ -92,7 +92,11 @@ async function main() {
     writeFileSync(`${OUT}/events.json`, JSON.stringify({ events, timeline, shots }, null, 1));
 
     // ---------- grade ----------
-    const page_ = (k: string) => events.filter(e => e.kind === 'page' && (e.detail as any).kind === k).map(e => ({ sim: e.sim, ...(e.detail as any).detail as any, t: (e.detail as any).t as number }));
+    const page_ = (k: string) => events.filter(e => e.kind === 'page' && (e.detail as any).kind === k).map(e => ({ sim: e.sim, ...(e.detail as any).detail as any, t: (e.detail as any).t as number, seq: (e.detail as any).seq as number }));
+    // The page numbers its log entries; a gap means a POST never reached us, not that the overlay skipped a step.
+    const seqs = new Set(events.filter(e => e.kind === 'page').map(e => (e.detail as any).seq as number).filter(n => Number.isFinite(n)));
+    const lost = seqs.size ? Math.max(...seqs) + 1 - seqs.size : 0;
+    const logGap = (a: number, b: number) => { for (let i = a + 1; i < b; i++) if (!seqs.has(i)) return true; return false; };
     const frames = page_('frame'), shows = page_('card:show'), hides = page_('card:hide'), dismissals = page_('card:dismiss'), switches = page_('switch');
     const phaseAt = (simT: number) => { let p = 'pre'; for (const s of timeline) { if (s.t <= simT) p = s.phase; else break; } return p; };
     const checks: { name: string; pass: boolean; detail: string }[] = [];
@@ -126,13 +130,17 @@ async function main() {
     const endedPeek = frames.find(f => f.view === 5 && !f.full && phaseAt(f.sim) === 'ended');
     check('Match summary waited for the end-of-match peek', !!endedShow && !!endedPeek && endedPeek.t < endedShow.t, '');
     // every card left the screen within hold + 2 polls (naturally or dismissed)
-    const overstays: string[] = [];
+    const overstays: string[] = [], inconclusive: string[] = [];
     for (const s of shows) {
         const gone = [...hides, ...dismissals].filter(h => h.surface === s.surface && h.t > s.t).sort((a, b) => a.t - b.t)[0];
         if (!gone) { if (Date.now() - s.t > s.hold + 2 * REFRESH + 1000) overstays.push(`${s.type} never hidden`); continue; }
-        if (gone.t - s.t > s.hold + 2 * REFRESH + 500) overstays.push(`${s.type} stayed ${gone.t - s.t}ms (hold ${s.hold})`);
+        if (gone.t - s.t > s.hold + 2 * REFRESH + 500) {
+            if (logGap(s.seq, gone.seq)) inconclusive.push(`${s.type} at sim ${s.sim}s: a log entry between show and hide was lost`);
+            else overstays.push(`${s.type} stayed ${gone.t - s.t}ms (hold ${s.hold})`);
+        }
     }
-    check('Every card is timed: none outstayed its hold', overstays.length === 0, overstays.slice(0, 5).join('; '));
+    check('Every card is timed: none outstayed its hold', overstays.length === 0, [...overstays, ...inconclusive].slice(0, 5).join('; '));
+    check('Every page log entry reached the harness', lost === 0, lost ? `${lost} of ${seqs.size + lost} lost` : `${seqs.size} entries`);
     // every dismissal was caused by a score change on the poll right before it
     const scoreOf = (f: any) => f.score;
     const badDismiss = dismissals.filter(d => { const before = frames.filter(f => f.t <= d.t).slice(-2); return !(before.length === 2 && (scoreOf(before[0]) !== scoreOf(before[1]) || before[0].balls !== before[1].balls)); });
