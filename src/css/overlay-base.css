@@ -25,7 +25,9 @@
  *   --ball-neutral-fg    digit colour on --ball-neutral
  *
  * Ball outcome colours for wicket, four, six, extras and byes are fixed here so "this over"
- * reads the same on every theme, following broadcast convention.
+ * reads the same on every theme. Decision (Sep 2026): the ICC / wTVision convention, red W,
+ * green 4, purple 6, amber extras, blue byes. Green/purple is the most distinguishable pair
+ * for colour-blind viewers and avoids clashing with team blues and golds. Do not theme these.
  */
 
 body {
