@@ -188,7 +188,7 @@ export function inningsSummaryPanel(v: CricketAPIValues, cache: ViewCache): Pane
 
 export function matchSummaryPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent {
     return {
-        type: 'match-summary', result: v.result || 'Match over',
+        type: 'match-summary', teams: `${teamLabel(v, 1)} v ${teamLabel(v, 2)}`,
         innings: [
             { team: teamLabel(v, 1), score: scoreLabel(v, 1), batters: topBatters(cache.t1Batting, 2), bowlers: topBowlers(cache.t2Bowling, 2), fow: fowText(cache.fow1) },
             { team: teamLabel(v, 2), score: scoreLabel(v, 2), batters: topBatters(cache.t2Batting, 2), bowlers: topBowlers(cache.t1Bowling, 2), fow: fowText(cache.fow2) },

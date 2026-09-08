@@ -12,7 +12,7 @@ export type PanelEvent =
     | { type: 'intro'; series: string; teams: string; ground: string; toss: string }
     | { type: 'squad'; team: string; players: PanelRow[] }
     | { type: 'innings-summary'; label: string; team: string; score: string; batters: PanelRow[]; bowlers: PanelRow[]; extras: string; fow: string; target: string }
-    | { type: 'match-summary'; result: string; innings: { team: string; score: string; batters: PanelRow[]; bowlers: PanelRow[]; fow: string }[] };
+    | { type: 'match-summary'; teams: string; innings: { team: string; score: string; batters: PanelRow[]; bowlers: PanelRow[]; fow: string }[] };
 
 export type AnyCard = OverlayEvent | PanelEvent;
 type Surface = 'bar' | 'panel';
@@ -141,8 +141,9 @@ function renderPanel(card: PanelEvent) {
             text(DOM.panelFooter, [card.extras ? `Extras ${card.extras}` : '', card.fow ? `FoW ${card.fow}` : '', card.target].filter(Boolean).join('   ·   '));
             break;
         case 'match-summary':
+            // The result itself stays on the persistent result card; don't repeat it here.
             text(DOM.panelEyebrow, 'Match summary');
-            text(DOM.panelHeadline, card.result);
+            text(DOM.panelHeadline, card.teams);
             text(DOM.panelDetail, '');
             for (const inn of card.innings) {
                 const col = column(`${inn.team} ${inn.score}`, [...inn.batters, ...inn.bowlers]);
@@ -181,7 +182,7 @@ export const SAMPLE_EVENTS: Record<string, AnyCard> = {
         batters: [{ name: 'Pavan V', value: '45 (30)' }, { name: 'Gautham R', value: '32 (21)', note: 'not out' }, { name: 'Rakesh K', value: '18 (12)' }],
         bowlers: [{ name: 'Siva Krishna V', value: '3-21', note: '4.0 ov' }, { name: 'Chandu B', value: '2-18', note: '4.0 ov' }, { name: 'Aamir K', value: '1-24', note: '4.0 ov' }],
         extras: '11', fow: '1-14, 2-21, 3-24, 4-45, 5-90, 6-148, 7-171, 8-181', target: 'Target 143' },
-    'match-summary': { type: 'match-summary', result: 'Topguns United won by 5 wickets',
+    'match-summary': { type: 'match-summary', teams: 'Lions v Topguns United',
         innings: [
             { team: 'Lions', score: '142/8 (20 ov)', batters: [{ name: 'Pavan V', value: '45 (30)' }, { name: 'Gautham R', value: '32 (21)' }], bowlers: [{ name: 'Siva Krishna V', value: '3-21', note: '4.0 ov' }], fow: '1-14, 2-21, 3-24' },
             { team: 'Topguns United', score: '143/5 (18.4 ov)', batters: [{ name: 'Abhinav V', value: '52 (31)' }, { name: 'Raja K', value: '40 (28)' }], bowlers: [{ name: 'Ravi T', value: '2-30', note: '4.0 ov' }], fow: '1-67, 2-82, 3-84' },
