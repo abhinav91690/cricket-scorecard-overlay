@@ -456,4 +456,6 @@ export interface Config {
     LOGO_MAP: { [key: string]: string };
     /** Same-origin endpoint of the analytics Worker (see worker/) */
     ANALYTICS_ENDPOINT: string;
+    /** CricClubs origin; overridable on localhost with ?api= for simulated matches */
+    API_BASE: string;
 }

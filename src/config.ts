@@ -13,4 +13,5 @@ export const CONFIG: Config = {
         '2': perryHomesLogo,
     },
     ANALYTICS_ENDPOINT: '/api/collect',
+    API_BASE: 'https://cricclubs.com',
 };

@@ -13,6 +13,7 @@ cricket-scorecard-overlay/
 │   ├── src/access.ts   # Cloudflare Access JWT verification for /stats
 │   ├── migrations/     # D1 schema
 │   └── wrangler.toml   # Routes, D1 binding, Access vars
+├── sim/                # Simulated match: generator (match.ts), fake CricClubs (server.ts), headless end-to-end runner (run.ts)
 ├── src/
 │   ├── assets/images/  # Sponsor logos, imported by config.ts so Vite bundles them
 │   ├── script.ts       # Entry point: imports fonts/CSS, then calls into app.ts
@@ -111,6 +112,7 @@ graph TD
 
 ## Testing & Debugging Modes
 
+- **End-to-end**: `npm run sim:run` plays an entire simulated match (built from the recorded cards of match 2079) through the real overlay in headless Chrome against a fake CricClubs that mimics view switching, then grades the rules and writes screenshots and a report to `sim/out/`. Localhost-only hooks in `src/e2e.ts` (`?api=`, `?refresh=`, `?e2e`) make this possible without touching production behaviour.
 - **Unit Tests**: Vitest + jsdom for the site (`app.ts` mode switch, error handling, poll loop and form; `ui.ts` scoreboard, ball-by-ball and logo caching; `utils.ts`; `theme.ts`; `liveStream.ts`; `analytics.ts`; `api.ts`; `toast.ts`) and Vitest + node for the Worker (`worker/vitest.config.ts`; request handling, stats rendering/escaping, Access JWT verification with a generated RSA key, event normalisation). Run via `npm run test` (watch), `npm run test:run` (single run, used in `npm run build`) or `npm run test:coverage` in either package. Line coverage is ~99% for both; `dom.ts` is excluded in spirit because every test mocks it.
 - **Debug Mode**: `?debug=1-5` renders static states from `mockData.ts` (1st/2nd innings, match ended, toss, no team logos).
 - **Replay Mode**: `?mode=replay` cycles through the states in `replayData.ts` to demonstrate transitions and animations.

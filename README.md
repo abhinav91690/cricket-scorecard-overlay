@@ -149,6 +149,9 @@ npm run build
 # Preview the production build locally
 npm run preview
 
+# Simulated match (see sim/): fake CricClubs + headless Chrome through a whole game, graded
+npm run sim:run
+
 # Analytics Worker (run inside worker/)
 npm run dev              # local Worker + local D1 on http://localhost:8787
 npm run test:run         # Worker unit tests

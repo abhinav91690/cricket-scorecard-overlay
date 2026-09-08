@@ -54,7 +54,10 @@ export function desiredView(data: CricketAPIData, phase: MatchPhase, cache: View
         return null;
     }
     if (phase === 'break' || phase === 'ended') {
-        const haveSummary = !!(cache.t1Batting && cache.t1Bowling && (phase === 'break' || (cache.t2Batting && cache.t2Bowling)));
+        // First innings: team 1 batted, team 2 bowled. Second innings: the reverse.
+        const haveFirst = !!(cache.t1Batting && cache.t2Bowling);
+        const haveSecond = !!(cache.t2Batting && cache.t1Bowling);
+        const haveSummary = phase === 'break' ? haveFirst : haveFirst && haveSecond;
         return haveSummary ? null : VIEW.summary;
     }
     return null;
@@ -97,7 +100,8 @@ export function mergeCache(cache: ViewCache, data: CricketAPIData): ViewCache {
     const next: ViewCache = { ...cache };
     for (const key of ['t1Batting', 't2Batting', 't1Bowling', 't2Bowling', 't1PlayersList', 't2PlayersList', 't1Extras', 't2Extras', 't1Logo', 't2Logo'] as const) {
         const value = v[key];
-        if (value !== undefined && value !== null && value !== '') (next as Record<string, unknown>)[key] = value;
+        // Empty lists mean "not available yet" (the summary view sends [] for the side still to bat)
+        if (value !== undefined && value !== null && value !== '' && !(Array.isArray(value) && value.length === 0)) (next as Record<string, unknown>)[key] = value;
     }
     // Names and totals only from data views: the scorebar view swaps the sides and shows
     // super-over totals during a super over, while data views keep the main match.

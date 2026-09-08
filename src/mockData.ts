@@ -1,4 +1,4 @@
-import { CricketAPIData } from './types';
+import type { CricketAPIData } from './types';
 export const mock_toss: CricketAPIData = {
     "view": 1,
     "values": {

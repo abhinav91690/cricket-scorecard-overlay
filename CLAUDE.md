@@ -23,6 +23,11 @@ npm run preview        # serve the production build
 ```
 
 ```bash
+npm run sim            # fake CricClubs serving a simulated match on :8788 (--speed 60)
+npm run sim:run        # full end-to-end run: sim server + dev server + headless Chrome; report in sim/out/
+```
+
+```bash
 cd worker                # Cloudflare Worker: analytics collector + /stats page
 npm run dev              # local Worker with a local D1 (needs worker/.dev.vars with STATS_KEY for /stats)
 npm run test:run         # Worker unit tests
@@ -53,9 +58,13 @@ Event cards: `app.ts` keeps the previous frame and calls `detectEvents(prev, nex
 
 Two rules are enforced in `renderFrame()` and must survive any refactor: every card/panel is timed (`HOLD_MS`), and `scoreChanged()` → `dismissAll()` runs before a frame's cards are queued. Panels (line-up, innings/match summary) live in `views.ts` and play on the `panel` surface only while `matchPhase()` is not `play`.
 
+### Simulated matches (`sim/`)
+
+`sim/match.ts` turns the recorded cards of match 2079 into a full ball-by-ball game (pre-match, first innings, break, chase, result; wickets, boundaries, fifties, wides), deterministic per seed. `sim/server.ts` serves it through the real endpoint shapes, including view switching that drops the live fields exactly like CricClubs, with a controllable clock (`/sim/control?speed=&seek=&pause=`). `sim/run.ts` drives the real overlay in headless Chrome over the DevTools protocol through the whole match, screenshots every phase and card, and grades the rules (peeks only while idle and never repeated, panels wait for their peeks, every card timed, every dismissal explained by a score change). **Run it after any change to `views.ts`, `cards.ts`, `events.ts` or `app.ts`**; unit tests did not catch the three bugs it found on its first runs. Node runs the `.ts` directly (no build); the overlay hooks it relies on (`?api=`, `?refresh=`, `?e2e`, in `src/e2e.ts`) only work on localhost.
+
 ### CricClubs views (`src/views.ts`, `docs/cricclubs-api.md`)
 
-The overlay drives CricClubs' server-side view with `switchView()` but **never during play**: data views drop the batter/bowler/ball fields, so `desiredView()` only peeks for one poll (squads pre-match, summary at the break and the end) and immediately asks for view 1 again. `isFullFrame()` gates the bar; peek frames only feed `ViewCache`. Debug and replay never switch views. Player rows carry `email`; `stripPii()` runs first in `renderFrame()`, and the fixtures in `mockData.ts` were captured live with emails removed. Switching a view also switches CricClubs' own overlay for that match, which the owner has accepted.
+The overlay drives CricClubs' server-side view with `switchView()` but **never during play**: data views drop the batter/bowler/ball fields, so `desiredView()` only peeks for one poll (squads pre-match, summary at the break and the end) and immediately asks for view 1 again. Panels for a phase are held until its peeks have landed (`PEEK_ATTEMPTS` tries, then shown anyway), and empty card lists in a view mean "not yet", not "present". `isFullFrame()` gates the bar; peek frames only feed `ViewCache`. Debug and replay never switch views. Player rows carry `email`; `stripPii()` runs first in `renderFrame()`, and the fixtures in `mockData.ts` were captured live with emails removed. Switching a view also switches CricClubs' own overlay for that match, which the owner has accepted.
 
 ### `dom.ts` runs `getElementById` at import time
 

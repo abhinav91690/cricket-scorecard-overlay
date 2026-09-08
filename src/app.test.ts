@@ -174,9 +174,9 @@ describe('views: peeks, dismissal and panels', () => {
         setSearch('?matchId=2079&clubId=1089463');
         vi.mocked(fetchScoreData).mockResolvedValueOnce(pre).mockResolvedValueOnce(mock_view_48 as any);
         await updateScore();
-        expect(switchView).toHaveBeenCalledWith('1089463', '2079', 48);
+        expect(switchView).toHaveBeenCalledWith('1089463', '2079', 48, 'https://cricclubs.com');
         await updateScore();
-        expect(switchView).toHaveBeenLastCalledWith('1089463', '2079', 1);
+        expect(switchView).toHaveBeenLastCalledWith('1089463', '2079', 1, 'https://cricclubs.com');
         // the peek frame never reached the bar or the event detector
         expect(updateScoreboard).toHaveBeenCalledTimes(1);
         expect(detectEvents).toHaveBeenCalledTimes(1);
@@ -205,13 +205,30 @@ describe('views: peeks, dismissal and panels', () => {
         expect(enq.length).toBeGreaterThan(0);
     });
 
-    it('rotates phase panels while waiting and the panel surface is idle', async () => {
-        setSearch('?matchId=1');
-        vi.mocked(fetchScoreData).mockResolvedValue(pre);
-        await updateScore();
-        const panels = vi.mocked(enqueueCards).mock.calls.flat(2).filter((c: any) => c.type === 'lineup');
-        expect(panels).toHaveLength(1);
-        expect(panels[0]).toMatchObject({ teams: [{ name: 'Lions' }, { name: 'TGU' }], toss: 'Lions won the toss' });
+    it('holds phase panels until the phase\'s peeks have landed, then rotates them', async () => {
+        setSearch('?matchId=2079&clubId=1');
+        const squad49 = { ...(mock_view_48 as any), view: 49, values: { ...(mock_view_48 as any).values, t2Name: 'TGU', t2PlayersList: (mock_view_48 as any).values.t1PlayersList } };
+        vi.mocked(fetchScoreData).mockResolvedValueOnce(pre).mockResolvedValueOnce(mock_view_48 as any).mockResolvedValueOnce(pre).mockResolvedValueOnce(squad49).mockResolvedValue(pre);
+        const lineups = () => vi.mocked(enqueueCards).mock.calls.flat(2).filter((c: any) => c.type === 'lineup');
+        await updateScore(); // pre, asks for 48
+        expect(lineups()).toHaveLength(0);
+        await updateScore(); // 48 lands (peek frame)
+        await updateScore(); // pre, asks for 49
+        expect(lineups()).toHaveLength(0);
+        await updateScore(); // 49 lands
+        await updateScore(); // pre, nothing left to fetch -> panel
+        expect(lineups()).toHaveLength(1);
+        expect(lineups()[0]).toMatchObject({ toss: 'Lions won the toss' });
+        expect((lineups()[0] as any).teams[0].players.length).toBeGreaterThan(0);
+    });
+
+    it('gives up on a view that never yields and shows the panel anyway', async () => {
+        setSearch('?matchId=2079&clubId=1');
+        vi.mocked(fetchScoreData).mockResolvedValue(pre); // the peek never lands: every poll is the scorebar
+        for (let i = 0; i < 6; i++) await updateScore();
+        const asks = vi.mocked(switchView).mock.calls.filter(c => c[2] === 48).length;
+        expect(asks).toBe(3);
+        expect(vi.mocked(enqueueCards).mock.calls.flat(2).filter((c: any) => c.type === 'lineup').length).toBeGreaterThan(0);
     });
 
     it('strips emails before anything else sees the frame', async () => {
@@ -262,7 +279,7 @@ describe('pollLoop', () => {
         const timeoutSpy = vi.spyOn(globalThis, 'setTimeout');
 
         await pollLoop();
-        expect(timeoutSpy).toHaveBeenCalledWith(pollLoop, CONFIG.REFRESH_RATE);
+        expect(timeoutSpy).toHaveBeenCalledWith(pollLoop, CONFIG.REFRESH_RATE); // no ?refresh override in tests
         expect(fetchScoreData).toHaveBeenCalledTimes(1);
 
         // Advance one interval: exactly one more poll, scheduled only after the first finished.

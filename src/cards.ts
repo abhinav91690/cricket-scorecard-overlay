@@ -1,6 +1,7 @@
 import { DOM } from './dom';
 import { OverlayEvent } from './events';
 import type { PanelRow } from './views';
+import { e2eLog } from './e2e';
 
 /**
  * Timed cards. Two surfaces: the in-bar event card (wicket, fifty, boundary, partnership) and the
@@ -82,6 +83,7 @@ export function dismissAll(): void {
         if (s.showing) {
             element(surface).classList.remove('is-visible');
             s.showing = false;
+            e2eLog('card:dismiss', { surface });
         }
     }
 }
@@ -232,8 +234,10 @@ function pump(surface: Surface) {
     s.showing = true;
     if (surface === 'bar') renderBar(card as OverlayEvent); else renderPanel(card as PanelEvent);
     element(surface).classList.add('is-visible');
+    e2eLog('card:show', { surface, type: card.type, hold });
     s.timer = setTimeout(() => {
         element(surface).classList.remove('is-visible');
+        e2eLog('card:hide', { surface, type: card.type });
         s.timer = setTimeout(() => {
             s.showing = false;
             pump(surface);

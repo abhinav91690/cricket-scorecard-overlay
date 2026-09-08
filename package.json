@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "sim": "node --no-warnings sim/server.ts",
+    "sim:run": "node --no-warnings sim/run.ts"
   },
   "repository": {
     "type": "git",

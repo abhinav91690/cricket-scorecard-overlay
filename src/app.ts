@@ -17,6 +17,7 @@ import { trackOnce, track, LinkOutcome } from './analytics';
 import { showToast } from './toast';
 import { detectEvents } from './events';
 import { enqueueCards, showSampleCard, dismissAll, isIdle, PanelEvent } from './cards';
+import { apiBase, refreshMs, e2eLog } from './e2e';
 import { ViewCache, desiredView, isFullFrame, matchPhase, mergeCache, phasePanels, scoreChanged, stripPii, lineupPanel, inningsSummaryPanel, matchSummaryPanel } from './views';
 
 let replayIndex = 0;
@@ -27,6 +28,9 @@ let lastData: CricketAPIData | null = null;
 let sampleCardShown = false;
 /** Richer data gathered from view peeks (cards, squads, fall of wickets). */
 let viewCache: ViewCache = {};
+/** How many times each data view has been requested; after PEEK_ATTEMPTS we stop waiting for it. */
+let peekAttempts: Record<number, number> = {};
+const PEEK_ATTEMPTS = 3;
 
 /** Test hook: forget replay position, last frame and whether a frame has rendered. */
 export function resetAppStateForTests() {
@@ -35,6 +39,7 @@ export function resetAppStateForTests() {
     lastData = null;
     sampleCardShown = false;
     viewCache = {};
+    peekAttempts = {};
 }
 
 /**
@@ -44,6 +49,7 @@ export function resetAppStateForTests() {
 function renderFrame(data: CricketAPIData, quiet: boolean) {
     stripPii(data);
     viewCache = mergeCache(viewCache, data);
+    e2eLog('frame', { view: data.view ?? 1, full: isFullFrame(data), phase: isFullFrame(data) ? matchPhase(data) : null, score: `${data.values.t1Total ?? ''}/${data.values.t1Wickets ?? ''}|${data.values.t2Total ?? ''}/${data.values.t2Wickets ?? ''}`, balls: data.balls?.length ?? 0 });
     if (!isFullFrame(data)) return;
 
     updateScoreboard(data);
@@ -52,7 +58,10 @@ function renderFrame(data: CricketAPIData, quiet: boolean) {
         if (scoreChanged(lastData, data)) dismissAll();
         enqueueCards(detectEvents(lastData, data));
         const phase = matchPhase(data);
-        if (phase !== 'play' && isIdle('panel')) enqueueCards(phasePanels(phase, data.values, viewCache));
+        // Panels wait until the phase's peeks have landed (or been given up on), so they never render half-empty.
+        const pending = desiredView(data, phase, viewCache);
+        const dataReady = pending === null || (peekAttempts[pending] ?? 0) >= PEEK_ATTEMPTS;
+        if (phase !== 'play' && dataReady && isIdle('panel')) enqueueCards(phasePanels(phase, data.values, viewCache));
     }
     lastData = data;
 }
@@ -77,7 +86,14 @@ function samplePanel(type: string): PanelEvent | null {
 /** Ask CricClubs for the next view we want, if any (live matches only). */
 function steerView(data: CricketAPIData, clubId: string, matchId: string) {
     const want = desiredView(data, isFullFrame(data) ? matchPhase(data) : (lastData ? matchPhase(lastData) : 'play'), viewCache);
-    if (want !== null && want !== (data.view ?? 1)) switchView(clubId, matchId, want);
+    if (want !== null && want !== (data.view ?? 1)) {
+        if (want !== 1) {
+            peekAttempts[want] = (peekAttempts[want] ?? 0) + 1;
+            if (peekAttempts[want] > PEEK_ATTEMPTS) return; // this view never yields; stop asking
+        }
+        e2eLog('switch', { from: data.view ?? 1, to: want });
+        switchView(clubId, matchId, want, apiBase());
+    }
 }
 
 /**
@@ -199,7 +215,7 @@ export async function updateScore() {
             }
         } else {
             trackOnce('overlay_start', { clubId: params.clubId, matchId: params.matchId, theme: params.theme, logo: params.logo });
-            const apiUrl = `https://cricclubs.com/liveScoreOverlayData.do?clubId=${params.clubId}&matchId=${params.matchId}`;
+            const apiUrl = `${apiBase()}/liveScoreOverlayData.do?clubId=${params.clubId}&matchId=${params.matchId}`;
             data = await fetchScoreData(apiUrl);
         }
 
@@ -230,5 +246,5 @@ export async function pollLoop() {
     } catch (error) {
         console.error('Unexpected error in update loop:', error);
     }
-    setTimeout(pollLoop, CONFIG.REFRESH_RATE);
+    setTimeout(pollLoop, refreshMs());
 }
