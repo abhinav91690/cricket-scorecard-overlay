@@ -45,10 +45,15 @@ describe('isTrackingEnabled', () => {
 
 describe('track', () => {
     const fetchMock = vi.fn(() => Promise.resolve(new Response(null, { status: 204 })));
+    const beacon = vi.fn(() => true);
+    const flush = () => vi.runAllTimers();
 
     beforeEach(() => {
+        vi.useFakeTimers();
         vi.stubGlobal('fetch', fetchMock);
+        Object.defineProperty(navigator, 'sendBeacon', { value: beacon, configurable: true, writable: true });
         fetchMock.mockClear();
+        beacon.mockClear();
         resetTrackingForTests();
         // jsdom defaults to localhost, which disables tracking; pretend we're in production.
         Object.defineProperty(window, 'location', {
@@ -58,25 +63,45 @@ describe('track', () => {
     });
 
     afterEach(() => {
+        vi.useRealTimers();
         vi.unstubAllGlobals();
     });
 
-    it('posts the event with client info to the collect endpoint', () => {
+    it('sends the event with client info as a beacon, after the page is idle', async () => {
         track('overlay_start', { clubId: '1089463', matchId: '2079', theme: 'kkr' });
+        expect(beacon).not.toHaveBeenCalled(); // deferred, never on the critical path
+        flush();
 
+        expect(beacon).toHaveBeenCalledTimes(1);
+        expect(fetchMock).not.toHaveBeenCalled();
+        const [url, blob] = beacon.mock.calls[0] as unknown as [string, Blob];
+        expect(url).toBe('/api/collect');
+        expect(blob.type).toBe('application/json');
+        const body = JSON.parse(await new Response(blob).text()); // jsdom Blob has no .text()
+        expect(body).toMatchObject({ event: 'overlay_start', clubId: '1089463', matchId: '2079', theme: 'kkr', client: 'browser' });
+        expect(body.screen).toMatch(/^\d+x\d+$/);
+    });
+
+    it('falls back to a keepalive fetch when beacons are unavailable or refused', () => {
+        beacon.mockReturnValueOnce(false);
+        track('home_view');
+        flush();
         expect(fetchMock).toHaveBeenCalledTimes(1);
         const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
         expect(url).toBe('/api/collect');
-        expect(init.method).toBe('POST');
         expect(init.keepalive).toBe(true);
-        const body = JSON.parse(init.body as string);
-        expect(body).toMatchObject({ event: 'overlay_start', clubId: '1089463', matchId: '2079', theme: 'kkr', client: 'browser' });
-        expect(body.screen).toMatch(/^\d+x\d+$/);
+
+        Object.defineProperty(navigator, 'sendBeacon', { value: undefined, configurable: true, writable: true });
+        track('home_view');
+        flush();
+        expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
     it('sends nothing in debug mode', () => {
         Object.defineProperty(window, 'location', { value: { hostname: 'score.abhinav.dev', search: '?debug=1' }, writable: true });
         track('overlay_start');
+        flush();
+        expect(beacon).not.toHaveBeenCalled();
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
@@ -84,11 +109,12 @@ describe('track', () => {
         trackOnce('overlay_start', { matchId: '1' });
         trackOnce('overlay_start', { matchId: '1' });
         trackOnce('home_view');
-        expect(fetchMock).toHaveBeenCalledTimes(2);
+        flush();
+        expect(beacon).toHaveBeenCalledTimes(2);
     });
 
-    it('never throws when fetch fails', () => {
-        fetchMock.mockImplementationOnce(() => Promise.reject(new Error('offline')));
-        expect(() => track('home_view')).not.toThrow();
+    it('never throws when sending fails', () => {
+        beacon.mockImplementationOnce(() => { throw new Error('boom'); });
+        expect(() => { track('home_view'); flush(); }).not.toThrow();
     });
 });

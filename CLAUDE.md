@@ -71,7 +71,7 @@ Attaches a YouTube URL to a CricClubs match via `updateLiveStreamURLFromCP.do`. 
 
 ### Analytics (`src/analytics.ts`, `worker/`)
 
-`track()` POSTs to the same-origin `/api/collect`, handled by the Cloudflare Worker in `worker/` and stored in D1. Use `trackOnce()` for anything called from the poll loop; there is deliberately no heartbeat and no per-poll event. `isTrackingEnabled()` disables everything on localhost, `?debug=`, `?mode=replay`, `?nostats`, and Do Not Track, so nothing you do locally is recorded. Adding a new event means adding it to `EVENTS` in `worker/src/collect.ts` (the Worker rejects unknown names) and, if it needs new columns, a new file in `worker/migrations/`. The Worker's `wrangler.toml` routes claim only `/api/collect` and `/stats*`; everything else on the domain passes through to Netlify.
+`track()` sends to the same-origin `/api/collect` (handled by the Cloudflare Worker in `worker/`, stored in D1) via `navigator.sendBeacon` from an idle callback, so it never touches the first paint or a poll; it falls back to a keepalive `fetch`. Use `trackOnce()` for anything called from the poll loop; there is deliberately no heartbeat and no per-poll event. `isTrackingEnabled()` disables everything on localhost, `?debug=`, `?mode=replay`, `?nostats`, and Do Not Track, so nothing you do locally is recorded. Adding a new event means adding it to `EVENTS` in `worker/src/collect.ts` (the Worker rejects unknown names) and, if it needs new columns, a new file in `worker/migrations/`. The Worker's `wrangler.toml` routes claim only `/api/collect` and `/stats*`; everything else on the domain passes through to Netlify.
 
 ## Notes
 
