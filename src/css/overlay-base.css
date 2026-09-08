@@ -459,7 +459,14 @@ body {
 .panel-card[data-type="lineup"] { inline-size: max-content; min-inline-size: 640px; max-inline-size: min(1240px, calc(100vw - 80px)); }
 .panel-card[data-type="lineup"] .panel-matchup { justify-content: space-between; padding-block-end: 12px; border-block-end: 1px solid var(--divider); }
 .panel-card[data-type="lineup"] .panel-xi { min-inline-size: 250px; }
-.panel-card[data-type="lineup"] .panel-headline { white-space: normal; text-wrap: balance; max-inline-size: 30ch; }
+.panel-card[data-type="lineup"] .panel-headline { white-space: normal; text-wrap: balance; max-inline-size: 30ch; margin-inline: auto; }
+/* Everything on the line-up card is centred */
+.panel-card[data-type="lineup"] { text-align: center; justify-items: center; }
+.panel-card[data-type="lineup"] .panel-matchup { inline-size: 100%; justify-content: center; gap: 36px; }
+.panel-card[data-type="lineup"] .panel-eyebrow { inline-size: 100%; }
+.panel-card[data-type="lineup"] .panel-footer { justify-content: center; inline-size: 100%; }
+.panel-card[data-type="lineup"] .panel-xi .panel-row { justify-content: center; }
+.panel-card[data-type="lineup"] .panel-xi .panel-name { flex: 0 1 auto; }
 .panel-card[data-type="lineup"] .panel-team-logo { inline-size: 56px; block-size: 56px; }
 .panel-card[data-type="lineup"] .panel-team-name { font-size: 26px; }
 .panel-card[data-type="lineup"] .panel-columns { order: 1; gap: 12px 40px; margin-block-start: 6px; }
