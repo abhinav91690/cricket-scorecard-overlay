@@ -104,17 +104,6 @@ function setText(element: HTMLElement | null, text: string) {
     }
 }
 
-/**
- * Updates the display style of a DOM element only if it has changed.
- * @param element - The DOM element to update.
- * @param display - The new display value (e.g. 'none', 'block', 'flex').
- */
-function setDisplay(element: HTMLElement | null, display: string) {
-    if (element && element.style.display !== display) {
-        element.style.display = display;
-    }
-}
-
 const RATE = /^\d+(\.\d+)?$/;
 
 export interface StatusText {
@@ -187,11 +176,6 @@ export function updateScoreboard(data: CricketAPIData) {
     const status = isMatchEnded ? { inline: '', line: '' } : statusText(values, isSecondInnings);
     setText(DOM.statusInline, status.inline);
     setText(DOM.statusLine, status.line);
-
-    setDisplay(DOM.result, isMatchEnded ? 'flex' : 'none');
-    if (isMatchEnded) {
-        setText(DOM.matchResult, values.result || 'Match Result');
-    }
 
     updateBallByBall(data.balls || [], currentTeamOvers || '0.0');
 }

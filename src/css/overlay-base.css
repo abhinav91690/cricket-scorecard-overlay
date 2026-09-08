@@ -10,7 +10,7 @@
  *   --surface-frame      the lower-third slab
  *   --surface-panel      logo end caps
  *   --surface-row        batter/bowler rows
- *   --surface-pill       team block, event cards and result card (brand colour)
+ *   --surface-pill       team block (brand colour)
  *   --border-frame       hairline around slab, strip and result
  *   --divider            vertical separators
  *   --divider-row        line between the two rows
@@ -19,7 +19,7 @@
  *   --fg-accent          highlighted numbers (runs, figures, chase)
  *   --fg-title           team name inside the team block
  *   --fg-pill            text inside the team block and cards (defaults to --fg)
- *   --radius             corner radius shared by the bar, the cards and the result
+ *   --radius             corner radius shared by the bar and the cards
  *   --ball-idle          blank / dot ball fill
  *   --ball-neutral       fill for singles, twos, threes and fives
  *   --ball-neutral-fg    digit colour on --ball-neutral
@@ -431,22 +431,6 @@ body {
 .panel-card[data-type="intro"] .panel-headline { font-size: 40px; }
 .panel-card[data-type="intro"] .panel-footer { text-transform: none; letter-spacing: 0; font-size: 17px; }
 .panel-card[data-type="squad"] .panel-row { font-size: 16px; }
-
-/* ---- Result card ---- */
-
-#result {
-    padding: 16px 36px;
-    border-radius: var(--radius);
-    background: var(--surface-pill);
-    color: var(--fg-pill, var(--fg));
-    border: 1px solid var(--border-frame);
-    box-shadow: var(--shadow-slab);
-    font-size: 24px;
-    font-weight: 800;
-    line-height: 1;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-}
 
 @media (prefers-reduced-motion: reduce) {
     .ball-indicator { animation: none; }

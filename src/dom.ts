@@ -14,8 +14,6 @@ export const DOM = {
     teamScore: document.getElementById('team-score') as HTMLSpanElement,
     teamWickets: document.getElementById('team-wickets') as HTMLSpanElement,
     teamOvers: document.getElementById('team-overs') as HTMLSpanElement,
-    result: document.getElementById('result') as HTMLDivElement,
-    matchResult: document.getElementById('match-result') as HTMLDivElement,
     statusInline: document.getElementById('status-inline') as HTMLSpanElement,
     statusLine: document.getElementById('status-line') as HTMLDivElement,
     eventCard: document.getElementById('event-card') as HTMLDivElement,

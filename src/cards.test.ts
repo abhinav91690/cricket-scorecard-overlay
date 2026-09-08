@@ -101,7 +101,8 @@ describe('card queue', () => {
         resetCardsForTests();
 
         enqueueCards([panel('match-summary')]);
-        expect(DOM.panelHeadline.textContent).toBe('Lions v Topguns United');
+        expect(DOM.panelHeadline.textContent).toBe('Topguns United won by 5 wickets');
+        expect(DOM.panelDetail.textContent).toBe('Lions v Topguns United');
         expect(DOM.panelColumns.querySelectorAll('.panel-col-title')).toHaveLength(2);
     });
 
