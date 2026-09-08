@@ -146,9 +146,13 @@ describe('phasePanels', () => {
         const cache = mergeCache(mergeCache(mergeCache({}, mock_view_2 as CricketAPIData), mock_view_3 as CricketAPIData), mock_view_48 as CricketAPIData);
         const v = (mock_view_1 as CricketAPIData).values;
         expect(phasePanels('play', v, cache)).toEqual([]);
-        expect(phasePanels('pre', v, cache).map(p => p.type)).toEqual(['intro', 'squads']);
-        const squads = phasePanels('pre', v, cache)[1];
-        if (squads.type === 'squads') expect(squads.teams).toHaveLength(1); // team 2 squad not cached yet
+        expect(phasePanels('pre', v, cache).map(p => p.type)).toEqual(['lineup']);
+        const lineup = phasePanels('pre', v, cache)[0];
+        if (lineup.type === 'lineup') {
+            expect(lineup.teams[0].players.length).toBeGreaterThan(10);
+            expect(lineup.teams[1].players).toEqual([]); // team 2 squad not cached yet
+            expect(lineup.toss).toBe(v.toss);
+        }
         expect(phasePanels('break', v, cache).map(p => p.type)).toEqual(['innings-summary']);
         expect(phasePanels('ended', v, cache).map(p => p.type)).toEqual(['match-summary']);
         const inn = inningsSummaryPanel(v, cache);

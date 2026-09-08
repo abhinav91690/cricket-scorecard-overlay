@@ -66,37 +66,38 @@ describe('card queue', () => {
     });
 
     it('runs the panel surface independently of the bar surface', () => {
-        enqueueCards([panel('intro'), ev('wicket')]);
+        enqueueCards([panel('lineup'), ev('wicket')]);
         expect(DOM.panelCard.classList.contains('is-visible')).toBe(true);
         expect(DOM.eventCard.classList.contains('is-visible')).toBe(true);
         expect(isIdle('panel')).toBe(false);
         vi.advanceTimersByTime(HOLD_MS.wicket + 300);
         expect(DOM.eventCard.classList.contains('is-visible')).toBe(false);
         expect(DOM.panelCard.classList.contains('is-visible')).toBe(true);
-        vi.advanceTimersByTime(HOLD_MS.intro - HOLD_MS.wicket);
+        vi.advanceTimersByTime(HOLD_MS.lineup - HOLD_MS.wicket);
         expect(DOM.panelCard.classList.contains('is-visible')).toBe(false);
         vi.advanceTimersByTime(300);
         expect(isIdle('panel')).toBe(true);
     });
 
     it('renders each panel type into the panel skeleton without HTML injection', () => {
-        enqueueCards([panel('intro')]);
+        enqueueCards([panel('lineup')]);
+        expect(DOM.panelMatchup.querySelectorAll('.panel-team-name')).toHaveLength(2);
         expect(DOM.panelEyebrow.textContent).toBe('Toss');
         expect(DOM.panelHeadline.textContent).toBe('Topguns United won the toss and elected to bat');
-        expect(DOM.panelMatchup.querySelectorAll('.panel-team-name')).toHaveLength(2);
+        expect(DOM.panelColumns.querySelectorAll('.panel-block')).toHaveLength(2);
+        expect(DOM.panelColumns.querySelectorAll('.panel-row')).toHaveLength(22);
+        expect(DOM.panelColumns.querySelectorAll('.panel-col-title')[0].textContent).toBe('Playing XI');
         expect(DOM.panelFooter.textContent).toBe('2024 Fall Champions · LPCL-G1');
         resetCardsForTests();
 
-        enqueueCards([{ type: 'squads', teams: [{ name: '<b>x</b>', players: [{ name: '<img src=x>', value: '', note: 'BAT', initials: 'XX' }] }] }]);
-        expect(DOM.panelColumns.querySelector('.panel-team-name')!.textContent).toBe('<b>x</b>');
+        enqueueCards([{ type: 'lineup', toss: 't', series: '', ground: '', teams: [
+            { name: '<b>x</b>', players: Array.from({ length: 12 }, (_, i) => ({ name: `<img src=x>${i}`, value: '', note: 'BAT', initials: 'XX' })) },
+            { name: 'y', players: Array.from({ length: 11 }, (_, i) => ({ name: `p${i}`, value: '', initials: 'P' })) },
+        ] }]);
+        expect(DOM.panelMatchup.querySelector('.panel-team-name')!.textContent).toBe('<b>x</b>');
         expect(DOM.panelColumns.querySelector('.panel-name img')).toBeNull();
-        expect(DOM.panelColumns.querySelector('.avatar-initials')!.textContent).toBe('XX');
-        expect(DOM.panelColumns.querySelectorAll('.panel-row')).toHaveLength(1);
-        resetCardsForTests();
-
-        enqueueCards([panel('squads')]);
-        expect(DOM.panelColumns.querySelectorAll('.panel-block')).toHaveLength(2);
-        expect(DOM.panelColumns.querySelectorAll('.panel-row')).toHaveLength(22);
+        expect(DOM.panelColumns.querySelectorAll('.panel-col-title')[0].textContent).toBe('Line-up · 12');
+        expect(DOM.panelColumns.querySelectorAll('.panel-row')).toHaveLength(23);
         resetCardsForTests();
 
         enqueueCards([panel('innings-summary')]);
@@ -114,7 +115,7 @@ describe('card queue', () => {
     });
 
     it('uses a headshot when there is a picture and falls back to initials when it fails to load', () => {
-        enqueueCards([{ type: 'squads', teams: [{ name: 'T', players: [{ name: 'A B', value: '', initials: 'AB', pic: 'https://cricclubs.com/x.jpg' }] }] }]);
+        enqueueCards([{ type: 'lineup', toss: '', series: '', ground: '', teams: [{ name: 'T', players: [{ name: 'A B', value: '', initials: 'AB', pic: 'https://cricclubs.com/x.jpg' }] }, { name: 'U', players: [] }] }]);
         const img = DOM.panelColumns.querySelector('.avatar img') as HTMLImageElement;
         expect(img.src).toBe('https://cricclubs.com/x.jpg');
         img.dispatchEvent(new Event('error'));
@@ -123,7 +124,7 @@ describe('card queue', () => {
     });
 
     it('dismissAll hides both surfaces at once and empties the queues', () => {
-        enqueueCards([panel('intro'), panel('squads'), ev('wicket'), ev('milestone')]);
+        enqueueCards([panel('lineup'), panel('innings-summary'), ev('wicket'), ev('milestone')]);
         expect(DOM.panelCard.classList.contains('is-visible')).toBe(true);
         expect(DOM.eventCard.classList.contains('is-visible')).toBe(true);
         dismissAll();

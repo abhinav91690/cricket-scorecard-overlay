@@ -195,15 +195,18 @@ function team(v: CricketAPIValues, cache: ViewCache, n: 1 | 2): PanelTeam {
     return { name: teamLabel(v, n), logo: imageUrl(cached || base) };
 }
 
-export function introPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent {
-    return { type: 'intro', teams: [team(v, cache, 1), team(v, cache, 2)], toss: v.toss || 'Toss to come', series: v.seriesName || '', ground: v.groundName || '' };
-}
-
-export function squadsPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent | null {
-    const sides = ([1, 2] as const)
-        .map(n => ({ ...team(v, cache, n), players: squadRows(n === 1 ? cache.t1PlayersList : cache.t2PlayersList) }))
-        .filter(t => t.players.length > 0);
-    return sides.length ? { type: 'squads', teams: sides } : null;
+/** Pre-match card: both line-ups, then the toss as the headline, series and ground as the caption. */
+export function lineupPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent {
+    return {
+        type: 'lineup',
+        teams: [
+            { ...team(v, cache, 1), players: squadRows(cache.t1PlayersList) },
+            { ...team(v, cache, 2), players: squadRows(cache.t2PlayersList) },
+        ],
+        toss: v.toss || 'Toss to come',
+        series: v.seriesName || '',
+        ground: v.groundName || '',
+    };
 }
 
 export function inningsSummaryPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent {
@@ -226,7 +229,7 @@ export function matchSummaryPanel(v: CricketAPIValues, cache: ViewCache): PanelE
 
 /** The panels to rotate through while the match is waiting, in order. Empty during play. */
 export function phasePanels(phase: MatchPhase, v: CricketAPIValues, cache: ViewCache): PanelEvent[] {
-    if (phase === 'pre') return [introPanel(v, cache), squadsPanel(v, cache)].filter((p): p is PanelEvent => p !== null);
+    if (phase === 'pre') return [lineupPanel(v, cache)];
     if (phase === 'break') return [inningsSummaryPanel(v, cache)];
     if (phase === 'ended') return [matchSummaryPanel(v, cache)];
     return [];

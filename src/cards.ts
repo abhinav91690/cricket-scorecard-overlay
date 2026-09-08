@@ -12,8 +12,7 @@ export interface PanelTeam { name: string; logo?: string; }
 export interface InningsBlock { team: PanelTeam; score: string; overs: string; batters: PanelRow[]; bowlers: PanelRow[]; fow: string; }
 
 export type PanelEvent =
-    | { type: 'intro'; teams: [PanelTeam, PanelTeam]; toss: string; series: string; ground: string }
-    | { type: 'squads'; teams: (PanelTeam & { players: PanelRow[] })[] }
+    | { type: 'lineup'; teams: [PanelTeam & { players: PanelRow[] }, PanelTeam & { players: PanelRow[] }]; toss: string; series: string; ground: string }
     | { type: 'innings-summary'; label: string; team: PanelTeam; score: string; overs: string; batters: PanelRow[]; bowlers: PanelRow[]; extras: string; fow: string }
     | { type: 'match-summary'; result: string; innings: InningsBlock[] };
 
@@ -25,8 +24,7 @@ export const HOLD_MS: Record<AnyCard['type'], number> = {
     milestone: 8000,
     partnership: 6000,
     boundary: 2000,
-    intro: 12000,
-    squads: 14000,
+    lineup: 16000,
     'innings-summary': 15000,
     'match-summary': 15000,
 };
@@ -35,7 +33,7 @@ export const HOLD_MS: Record<AnyCard['type'], number> = {
 const TRANSITION_MS = 300;
 
 const surfaceOf = (c: AnyCard): Surface =>
-    c.type === 'intro' || c.type === 'squads' || c.type === 'innings-summary' || c.type === 'match-summary' ? 'panel' : 'bar';
+    c.type === 'lineup' || c.type === 'innings-summary' || c.type === 'match-summary' ? 'panel' : 'bar';
 
 export interface CardCopy { eyebrow: string; headline: string; detail: string; }
 
@@ -161,28 +159,22 @@ function renderPanel(card: PanelEvent) {
     DOM.panelMatchup.replaceChildren();
     DOM.panelColumns.replaceChildren();
     switch (card.type) {
-        case 'intro': {
+        case 'lineup': {
             const [a, b] = card.teams;
+            const eleven = card.teams.every(t => t.players.length === 11);
             DOM.panelMatchup.append(teamHead(a), el('panel-vs', 'v'), teamHead(b));
             text(DOM.panelEyebrow, 'Toss');
             text(DOM.panelHeadline, card.toss);
             text(DOM.panelDetail, '');
-            text(DOM.panelFooter, [card.series, card.ground].filter(Boolean).join(' · '));
-            break;
-        }
-        case 'squads': {
-            text(DOM.panelEyebrow, 'Playing XI');
-            text(DOM.panelHeadline, '');
-            text(DOM.panelDetail, '');
-            text(DOM.panelFooter, '');
             for (const t of card.teams) {
                 const block = el('panel-block');
-                block.appendChild(teamHead(t));
+                block.appendChild(el('panel-col-title', eleven ? 'Playing XI' : `Line-up · ${t.players.length}`));
                 const grid = el('panel-xi');
                 t.players.forEach(p => grid.appendChild(personRow(p, 'sm')));
                 block.appendChild(grid);
                 DOM.panelColumns.appendChild(block);
             }
+            text(DOM.panelFooter, [card.series, card.ground].filter(Boolean).join(' · '));
             break;
         }
         case 'innings-summary': {
@@ -232,8 +224,7 @@ export const SAMPLE_EVENTS: Record<string, AnyCard> = {
     milestone: { type: 'milestone', mark: 50, name: 'Abhinav V', runs: '52', balls: '31', fours: '6', sixes: '2' },
     partnership: { type: 'partnership', mark: 50, names: 'Abhinav & Raja', runs: '54', balls: '38' },
     boundary: { type: 'boundary', runs: 6 },
-    intro: { type: 'intro', teams: [{ name: 'Lions' }, { name: 'Topguns United' }], toss: 'Topguns United won the toss and elected to bat', series: '2024 Fall Champions', ground: 'LPCL-G1' },
-    squads: { type: 'squads', teams: [
+    lineup: { type: 'lineup', toss: 'Topguns United won the toss and elected to bat', series: '2024 Fall Champions', ground: 'LPCL-G1', teams: [
         { name: 'Lions', players: ['Sumeer G','Qasim A','Ravi T','Aamir K','Nayan G','Vijaykumar V','Mahesh P','Ranjeet P','Goutham R','Vijay D','Manideep M'].map((n, i) => ({ name: n, value: '', note: ['BAT','AR','BOWL','WK'][i % 4], initials: n.split(' ').map(w => w[0]).join('') })) },
         { name: 'Topguns United', players: ['Pavan V','Gautham R','Rakesh K','Abhinav V','Raja K','Chandu B','Vikas B','Siva Krishna V','Abhinandan K','Kiran R','Sandeep M'].map((n, i) => ({ name: n, value: '', note: ['WK','BAT','AR','BOWL'][i % 4], initials: n.split(' ').map(w => w[0]).join('') })) },
     ] },

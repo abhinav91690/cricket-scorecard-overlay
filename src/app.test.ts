@@ -209,7 +209,7 @@ describe('views: peeks, dismissal and panels', () => {
         setSearch('?matchId=1');
         vi.mocked(fetchScoreData).mockResolvedValue(pre);
         await updateScore();
-        const panels = vi.mocked(enqueueCards).mock.calls.flat(2).filter((c: any) => c.type === 'intro');
+        const panels = vi.mocked(enqueueCards).mock.calls.flat(2).filter((c: any) => c.type === 'lineup');
         expect(panels).toHaveLength(1);
         expect(panels[0]).toMatchObject({ teams: [{ name: 'Lions' }, { name: 'TGU' }], toss: 'Lions won the toss' });
     });

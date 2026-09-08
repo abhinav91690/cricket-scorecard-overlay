@@ -451,24 +451,22 @@ body {
 .avatar-initials { font-size: 13px; font-weight: 800; letter-spacing: 0.04em; }
 .avatar-sm .avatar-initials { font-size: 11px; }
 
-/* Playing XI: each team is a block with two sub-columns of rows */
-.panel-xi { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; }
-.panel-xi .panel-row { font-size: 15px; }
-.panel-card[data-type="squads"] .panel-columns { gap: 12px 56px; }
-
-/* Intro: the toss sentence is the headline */
-.panel-card[data-type="intro"] .panel-matchup { justify-content: space-between; padding-block-end: 12px; border-block-end: 1px solid var(--divider); }
-.panel-card[data-type="intro"] .panel-team-logo { inline-size: 56px; block-size: 56px; }
-.panel-card[data-type="intro"] .panel-team-name { font-size: 26px; }
-.panel-card[data-type="intro"] .panel-eyebrow { margin-block-start: 6px; }
-.panel-card[data-type="intro"] .panel-headline { font-size: 32px; text-transform: uppercase; letter-spacing: 0.02em; }
+/* Line-up card (pre-match): crests, one column per side, then the toss as the headline */
+.panel-xi { display: grid; grid-template-columns: 1fr; gap: 7px; }
+.panel-xi .panel-row { font-size: 16px; }
+.panel-card[data-type="lineup"] .panel-matchup { justify-content: space-between; padding-block-end: 12px; border-block-end: 1px solid var(--divider); }
+.panel-card[data-type="lineup"] .panel-team-logo { inline-size: 56px; block-size: 56px; }
+.panel-card[data-type="lineup"] .panel-team-name { font-size: 26px; }
+.panel-card[data-type="lineup"] .panel-columns { order: 1; gap: 12px 64px; margin-block-start: 6px; }
+.panel-card[data-type="lineup"] .panel-eyebrow { order: 2; margin-block-start: 14px; padding-block-start: 14px; border-block-start: 1px solid var(--divider); }
+.panel-card[data-type="lineup"] .panel-headline { order: 3; font-size: 30px; text-transform: uppercase; letter-spacing: 0.02em; }
+.panel-card[data-type="lineup"] .panel-footer { order: 4; margin-block-start: 8px; padding-block-start: 0; border: 0; text-transform: none; letter-spacing: 0; font-size: 15px; }
 
 /* Innings summary: total is the headline */
 .panel-card[data-type="innings-summary"] .panel-headline { font-size: 40px; }
 
 .panel-footer { margin-block-start: 12px; padding-block-start: 10px; border-block-start: 1px solid var(--divider); font-size: 14px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .panel-footer:empty { display: none; }
-.panel-card[data-type="intro"] .panel-footer { text-transform: none; letter-spacing: 0; font-size: 15px; }
 
 @media (prefers-reduced-motion: reduce) {
     .ball-indicator { animation: none; }

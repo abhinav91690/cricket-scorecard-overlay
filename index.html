@@ -112,7 +112,7 @@
                                 <tr><td><code>clubId</code></td><td>No</td><td>CricClubs club ID. Defaults to <code>1089463</code> (LPCL).</td></tr>
                                 <tr><td><code>theme</code></td><td>No</td><td>One of the themes above. Defaults to <code>modern-light</code>.</td></tr>
                                 <tr><td><code>logo</code></td><td>No</td><td>Shows a sponsor logo in the top-right corner (<code>1</code> or <code>2</code>).</td></tr>
-                                <tr><td><code>debug</code></td><td>No</td><td>Sample data instead of a live match: <code>1</code> first innings, <code>2</code> chase, <code>3</code> result, <code>4</code> toss, <code>5</code> no logos. Add <code>card=wicket|milestone|partnership|boundary</code> or <code>panel=intro|squads|innings-summary|match-summary</code> to hold a sample on screen.</td></tr>
+                                <tr><td><code>debug</code></td><td>No</td><td>Sample data instead of a live match: <code>1</code> first innings, <code>2</code> chase, <code>3</code> result, <code>4</code> toss, <code>5</code> no logos. Add <code>card=wicket|milestone|partnership|boundary</code> or <code>panel=lineup|innings-summary|match-summary</code> to hold a sample on screen.</td></tr>
                                 <tr><td><code>mode</code></td><td>No</td><td><code>replay</code> cycles through a recorded match to test transitions.</td></tr>
                                 <tr><td><code>quiet</code></td><td>No</td><td>Turns off the event cards (wicket, fifty, partnership, boundary) and shows only the bar.</td></tr>
                                 <tr><td><code>nostats</code></td><td>No</td><td>Opts this browser out of anonymous usage statistics.</td></tr>
@@ -133,7 +133,7 @@
     <section class="overlay" aria-label="Live score">
         <img alt="" id="overlay-image" class="overlay-image" style="display: none;" width="120" height="120">
 
-        <!-- Panels (intro, squads, innings/match summary) rotate above the bar while nothing can happen -->
+        <!-- Panels (line-up, innings/match summary) rotate above the bar while nothing can happen -->
         <div id="panel-card" class="panel-card" role="status" aria-live="polite">
             <div class="panel-matchup" id="panel-matchup"></div>
             <div class="panel-eyebrow" id="panel-eyebrow"></div>

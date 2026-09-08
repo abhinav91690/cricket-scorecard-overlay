@@ -51,7 +51,7 @@ Rendering is in `src/ui.ts`. `updateScoreboard()` picks team 1 vs team 2 fields 
 
 Event cards: `app.ts` keeps the previous frame and calls `detectEvents(prev, next)` (`src/events.ts`, pure, tested) after every render, then `enqueueCards()` (`src/cards.ts`) plays them one at a time over the batter/bowler slots. Hold times live in `HOLD_MS`; the exit transition length is duplicated between `cards.ts` (`TRANSITION_MS`) and the `.event-card` CSS, keep them equal. Adding a card type means a new `OverlayEvent` variant, a detection rule, `cardCopy()` text, a `HOLD_MS` entry, a `SAMPLE_EVENTS` entry (for `?debug=1&card=<type>`), and usually a `[data-type]` CSS rule. Cards are the only thing that may cover the bar; the team block must always stay visible.
 
-Two rules are enforced in `renderFrame()` and must survive any refactor: every card/panel is timed (`HOLD_MS`), and `scoreChanged()` → `dismissAll()` runs before a frame's cards are queued. Panels (intro, squads, innings/match summary) live in `views.ts` and play on the `panel` surface only while `matchPhase()` is not `play`.
+Two rules are enforced in `renderFrame()` and must survive any refactor: every card/panel is timed (`HOLD_MS`), and `scoreChanged()` → `dismissAll()` runs before a frame's cards are queued. Panels (line-up, innings/match summary) live in `views.ts` and play on the `panel` surface only while `matchPhase()` is not `play`.
 
 ### CricClubs views (`src/views.ts`, `docs/cricclubs-api.md`)
 

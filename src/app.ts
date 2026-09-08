@@ -17,7 +17,7 @@ import { trackOnce, track, LinkOutcome } from './analytics';
 import { showToast } from './toast';
 import { detectEvents } from './events';
 import { enqueueCards, showSampleCard, dismissAll, isIdle, PanelEvent } from './cards';
-import { ViewCache, desiredView, isFullFrame, matchPhase, mergeCache, phasePanels, scoreChanged, stripPii, introPanel, squadsPanel, inningsSummaryPanel, matchSummaryPanel } from './views';
+import { ViewCache, desiredView, isFullFrame, matchPhase, mergeCache, phasePanels, scoreChanged, stripPii, lineupPanel, inningsSummaryPanel, matchSummaryPanel } from './views';
 
 let replayIndex = 0;
 /** True once the overlay has painted at least one successful frame of live/mock data. */
@@ -62,8 +62,7 @@ function samplePanel(type: string, data: CricketAPIData): PanelEvent | null {
     const cache = [mock_view_2, mock_view_3, mock_view_4, mock_view_5, mock_view_48, mock_view_49]
         .reduce<ViewCache>((c, v) => mergeCache(c, stripPii(v as unknown as CricketAPIData)), {});
     switch (type) {
-        case 'intro': return introPanel(data.values, cache);
-        case 'squads': return squadsPanel(data.values, cache);
+        case 'lineup': return lineupPanel(data.values, cache);
         case 'innings-summary': return inningsSummaryPanel(data.values, cache);
         case 'match-summary': return matchSummaryPanel(data.values, cache);
         default: return null;
