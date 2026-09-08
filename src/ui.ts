@@ -117,24 +117,30 @@ function setDisplay(element: HTMLElement | null, display: string) {
 
 const RATE = /^\d+(\.\d+)?$/;
 
+export interface StatusText {
+    /** Tail of the score row: `CRR 7.10` in the first innings, `Target 143` in a chase. */
+    inline: string;
+    /** Third row, chase only: `Need 81 from 100 · RRR 4.86`. */
+    line: string;
+}
+
 /**
- * The line under the score: current run rate in the first innings, target / need / required
- * rate in a chase. Computed here rather than using CricClubs' pre-built HTML message.
+ * The context around the score, computed here rather than using CricClubs' pre-built HTML message.
  */
-export function statusLine(values: CricketAPIData['values'], isSecondInnings: boolean): string {
+export function statusText(values: CricketAPIData['values'], isSecondInnings: boolean): StatusText {
     if (!isSecondInnings) {
         const rr = values.t1RR;
-        return rr && RATE.test(rr) ? `CRR ${rr}` : '';
+        return { inline: rr && RATE.test(rr) ? `CRR ${rr}` : '', line: '' };
     }
     const target = (parseInt(values.t1Total || '0', 10) || 0) + 1;
     const need = target - (parseInt(values.t2Total || '0', 10) || 0);
-    const parts = [`Target ${target}`];
+    const parts: string[] = [];
     if (need > 0) {
         const ballsLeft = ballsRemaining(values.totalOvers, values.t2Overs);
-        parts.push(ballsLeft !== null ? `Need ${need} off ${ballsLeft}` : `Need ${need}`);
+        parts.push(ballsLeft !== null ? `Need ${need} from ${ballsLeft}` : `Need ${need}`);
     }
     if (values.RRR && RATE.test(values.RRR)) parts.push(`RRR ${values.RRR}`);
-    return parts.join(' · ');
+    return { inline: `Target ${target}`, line: parts.join(' · ') };
 }
 
 function ballsRemaining(totalOvers: number | undefined, oversBowled: string | undefined): number | null {
@@ -175,7 +181,9 @@ export function updateScoreboard(data: CricketAPIData) {
     setText(DOM.teamScore, currentTeamScore || '0');
     setText(DOM.teamWickets, `/${currentTeamWickets || '0'}`);
     setText(DOM.teamOvers, `${currentTeamOvers || '0.0'}`);
-    setText(DOM.statusLine, isMatchEnded ? '' : statusLine(values, isSecondInnings));
+    const status = isMatchEnded ? { inline: '', line: '' } : statusText(values, isSecondInnings);
+    setText(DOM.statusInline, status.inline);
+    setText(DOM.statusLine, status.line);
 
     setDisplay(DOM.result, isMatchEnded ? 'flex' : 'none');
     if (isMatchEnded) {
