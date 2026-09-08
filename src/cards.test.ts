@@ -101,7 +101,7 @@ describe('card queue', () => {
 
         enqueueCards([panel('innings-summary')]);
         expect(DOM.panelMatchup.textContent).toContain('Lions');
-        expect(DOM.panelHeadline.textContent).toBe('142/8  20 ov');
+        expect(DOM.panelHeadline.textContent).toBe('142/8 · 20 ov');
         expect(DOM.panelColumns.querySelectorAll('.panel-col')).toHaveLength(2);
         expect(DOM.panelColumns.querySelectorAll('.panel-row')).toHaveLength(6);
         expect(DOM.panelFooter.textContent).toContain('FoW 1-14');
@@ -110,7 +110,7 @@ describe('card queue', () => {
         enqueueCards([panel('match-summary')]);
         expect(DOM.panelHeadline.textContent).toBe('Topguns United won by 5 wickets');
         expect(DOM.panelColumns.querySelectorAll('.panel-block')).toHaveLength(2);
-        expect(DOM.panelColumns.querySelectorAll('.panel-team-extra')[0].textContent).toBe('142/8  20 ov');
+        expect(DOM.panelColumns.querySelectorAll('.panel-team-extra')[0].textContent).toBe('142/8 · 20 ov');
     });
 
     it('uses a headshot when there is a picture and falls back to initials when it fails to load', () => {

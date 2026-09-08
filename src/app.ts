@@ -3,7 +3,7 @@
  * Link Live Stream form. Kept separate from script.ts (the entry point with side effects)
  * so it can be unit-tested.
  */
-import { mock_1stInnings, mock_2ndInnings, mock_matchEnded, mock_toss, mock_noTeamImage } from './mockData';
+import { mock_1stInnings, mock_2ndInnings, mock_matchEnded, mock_toss, mock_noTeamImage, mock_view_2, mock_view_3, mock_view_4, mock_view_5, mock_view_48, mock_view_49 } from './mockData';
 import { sampleReplayData } from './replayData';
 import { CONFIG } from './config';
 import { DOM } from './dom';
@@ -16,8 +16,8 @@ import { linkLiveStream, LinkLiveStreamError, extractYouTubeVideoId } from './li
 import { trackOnce, track, LinkOutcome } from './analytics';
 import { showToast } from './toast';
 import { detectEvents } from './events';
-import { enqueueCards, showSampleCard, dismissAll, isIdle } from './cards';
-import { ViewCache, desiredView, isFullFrame, matchPhase, mergeCache, phasePanels, scoreChanged, stripPii } from './views';
+import { enqueueCards, showSampleCard, dismissAll, isIdle, PanelEvent } from './cards';
+import { ViewCache, desiredView, isFullFrame, matchPhase, mergeCache, phasePanels, scoreChanged, stripPii, introPanel, squadsPanel, inningsSummaryPanel, matchSummaryPanel } from './views';
 
 let replayIndex = 0;
 /** True once the overlay has painted at least one successful frame of live/mock data. */
@@ -55,6 +55,19 @@ function renderFrame(data: CricketAPIData, quiet: boolean) {
         if (phase !== 'play' && isIdle('panel')) enqueueCards(phasePanels(phase, data.values, viewCache));
     }
     lastData = data;
+}
+
+/** A sample panel for `?debug=…&panel=<type>`, built from the live-captured view fixtures so it has real logos and faces. */
+function samplePanel(type: string, data: CricketAPIData): PanelEvent | null {
+    const cache = [mock_view_2, mock_view_3, mock_view_4, mock_view_5, mock_view_48, mock_view_49]
+        .reduce<ViewCache>((c, v) => mergeCache(c, stripPii(v as unknown as CricketAPIData)), {});
+    switch (type) {
+        case 'intro': return introPanel(data.values, cache);
+        case 'squads': return squadsPanel(data.values, cache);
+        case 'innings-summary': return inningsSummaryPanel(data.values, cache);
+        case 'match-summary': return matchSummaryPanel(data.values, cache);
+        default: return null;
+    }
 }
 
 /** Ask CricClubs for the next view we want, if any (live matches only). */
@@ -175,7 +188,10 @@ export async function updateScore() {
             if ((params.card || params.panel) && !sampleCardShown) {
                 sampleCardShown = true;
                 if (params.card) showSampleCard(params.card);
-                if (params.panel) showSampleCard(params.panel);
+                if (params.panel) {
+                    const panel = samplePanel(params.panel, data);
+                    if (panel) enqueueCards([panel], 60 * 60 * 1000);
+                }
             }
         } else {
             trackOnce('overlay_start', { clubId: params.clubId, matchId: params.matchId, theme: params.theme, logo: params.logo });

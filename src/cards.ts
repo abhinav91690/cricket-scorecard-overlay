@@ -188,7 +188,7 @@ function renderPanel(card: PanelEvent) {
         case 'innings-summary': {
             DOM.panelMatchup.appendChild(teamHead(card.team, card.label));
             text(DOM.panelEyebrow, '');
-            text(DOM.panelHeadline, `${card.score}  ${card.overs}`);
+            text(DOM.panelHeadline, `${card.score} · ${card.overs}`);
             text(DOM.panelDetail, '');
             DOM.panelColumns.append(list('Top scorers', card.batters), list('Best bowling', card.bowlers));
             text(DOM.panelFooter, [card.extras ? `Extras ${card.extras}` : '', card.fow ? `FoW ${card.fow}` : ''].filter(Boolean).join('   ·   '));
@@ -200,7 +200,7 @@ function renderPanel(card: PanelEvent) {
             text(DOM.panelDetail, '');
             for (const inn of card.innings) {
                 const block = el('panel-block');
-                block.appendChild(teamHead(inn.team, `${inn.score}  ${inn.overs}`));
+                block.appendChild(teamHead(inn.team, `${inn.score} · ${inn.overs}`));
                 [...inn.batters, ...inn.bowlers].forEach(r => block.appendChild(personRow(r, 'md')));
                 DOM.panelColumns.appendChild(block);
             }
