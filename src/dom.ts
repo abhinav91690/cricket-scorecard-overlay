@@ -21,6 +21,7 @@ export const DOM = {
     eventHeadline: document.getElementById('event-headline') as HTMLDivElement,
     eventDetail: document.getElementById('event-detail') as HTMLDivElement,
     panelCard: document.getElementById('panel-card') as HTMLDivElement,
+    panelMatchup: document.getElementById('panel-matchup') as HTMLDivElement,
     panelEyebrow: document.getElementById('panel-eyebrow') as HTMLDivElement,
     panelHeadline: document.getElementById('panel-headline') as HTMLDivElement,
     panelDetail: document.getElementById('panel-detail') as HTMLDivElement,

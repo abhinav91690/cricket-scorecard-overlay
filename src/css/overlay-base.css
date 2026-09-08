@@ -416,21 +416,59 @@ body {
 .panel-eyebrow { font-size: 13px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brand-accent); }
 .panel-eyebrow:empty { display: none; }
 .panel-headline { font-size: 30px; font-weight: 800; line-height: 1.1; letter-spacing: -0.01em; }
+.panel-headline:empty { display: none; }
 .panel-detail { font-size: 16px; font-weight: 600; opacity: 0.85; }
 .panel-detail:empty { display: none; }
-.panel-columns { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 12px 36px; margin-block-start: 10px; }
+
+/* Team headers: logo + name (+ score or label) */
+.panel-matchup { display: flex; align-items: center; gap: 24px; }
+.panel-matchup:empty { display: none; }
+.panel-team-head { display: flex; align-items: center; gap: 12px; min-inline-size: 0; }
+.panel-team-logo { inline-size: 44px; block-size: 44px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)); }
+.panel-team-name { font-size: 20px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+.panel-team-extra { font-size: 20px; font-weight: 700; opacity: 0.8; white-space: nowrap; margin-inline-start: 6px; font-variant-numeric: tabular-nums; }
+.panel-vs { font-size: 18px; font-weight: 600; opacity: 0.55; }
+
+/* Columns / blocks */
+.panel-columns { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 12px 40px; margin-block-start: 8px; }
 .panel-columns:empty { display: none; }
-.panel-col { display: grid; gap: 7px; align-content: start; }
-.panel-col-title { font-size: 13px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.7; padding-block-end: 4px; border-block-end: 1px solid var(--divider); }
-.panel-row { display: flex; align-items: baseline; gap: 12px; font-size: 17px; font-weight: 600; line-height: 1.15; }
+.panel-col { display: grid; gap: 8px; align-content: start; }
+.panel-col-title { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.65; padding-block-end: 6px; border-block-end: 1px solid var(--divider); }
+.panel-block { display: grid; gap: 8px; align-content: start; }
+.panel-block > .panel-team-head { padding-block-end: 8px; border-block-end: 1px solid var(--divider); }
+.panel-block > .panel-team-head .panel-team-logo { inline-size: 32px; block-size: 32px; }
+.panel-block > .panel-team-head .panel-team-name, .panel-block > .panel-team-head .panel-team-extra { font-size: 16px; }
+
+/* Rows with a face */
+.panel-row { display: flex; align-items: center; gap: 12px; font-size: 17px; font-weight: 600; line-height: 1.15; }
 .panel-name { flex: 1 1 auto; min-inline-size: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.panel-note { font-size: 13px; font-weight: 600; opacity: 0.65; white-space: nowrap; }
+.panel-note { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.6; white-space: nowrap; }
 .panel-value { font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.panel-footer { margin-block-start: 12px; padding-block-start: 10px; border-block-start: 1px solid var(--divider); font-size: 14px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.avatar { flex: none; border-radius: 50%; overflow: hidden; background: var(--surface-pill); color: var(--fg-pill, var(--fg)); display: grid; place-items: center; }
+.avatar-md { inline-size: 40px; block-size: 40px; }
+.avatar-sm { inline-size: 34px; block-size: 34px; }
+.avatar img { inline-size: 100%; block-size: 100%; object-fit: cover; display: block; }
+.avatar-initials { font-size: 13px; font-weight: 800; letter-spacing: 0.04em; }
+.avatar-sm .avatar-initials { font-size: 11px; }
+
+/* Playing XI: each team is a block with two sub-columns of rows */
+.panel-xi { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; }
+.panel-xi .panel-row { font-size: 15px; }
+.panel-card[data-type="squads"] .panel-columns { gap: 12px 56px; }
+
+/* Intro: the toss sentence is the headline */
+.panel-card[data-type="intro"] .panel-matchup { justify-content: space-between; padding-block-end: 12px; border-block-end: 1px solid var(--divider); }
+.panel-card[data-type="intro"] .panel-team-logo { inline-size: 56px; block-size: 56px; }
+.panel-card[data-type="intro"] .panel-team-name { font-size: 26px; }
+.panel-card[data-type="intro"] .panel-eyebrow { margin-block-start: 6px; }
+.panel-card[data-type="intro"] .panel-headline { font-size: 32px; text-transform: uppercase; letter-spacing: 0.02em; }
+
+/* Innings summary: total is the headline */
+.panel-card[data-type="innings-summary"] .panel-headline { font-size: 40px; }
+
+.panel-footer { margin-block-start: 12px; padding-block-start: 10px; border-block-start: 1px solid var(--divider); font-size: 14px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .panel-footer:empty { display: none; }
-.panel-card[data-type="intro"] .panel-headline { font-size: 40px; }
-.panel-card[data-type="intro"] .panel-footer { text-transform: none; letter-spacing: 0; font-size: 17px; }
-.panel-card[data-type="squad"] .panel-row { font-size: 16px; }
+.panel-card[data-type="intro"] .panel-footer { text-transform: none; letter-spacing: 0; font-size: 15px; }
 
 @media (prefers-reduced-motion: reduce) {
     .ball-indicator { animation: none; }

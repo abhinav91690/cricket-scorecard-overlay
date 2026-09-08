@@ -80,6 +80,8 @@ export interface ViewCache {
     t2PlayersList?: Player[];
     t1Extras?: string;
     t2Extras?: string;
+    t1Logo?: string;
+    t2Logo?: string;
     /** Fall of wickets per innings: wicket number -> team score when it fell */
     fow1?: Record<string, number>;
     fow2?: Record<string, number>;
@@ -88,7 +90,7 @@ export interface ViewCache {
 export function mergeCache(cache: ViewCache, data: CricketAPIData): ViewCache {
     const v = data.values;
     const next: ViewCache = { ...cache };
-    for (const key of ['t1Batting', 't2Batting', 't1Bowling', 't2Bowling', 't1PlayersList', 't2PlayersList', 't1Extras', 't2Extras'] as const) {
+    for (const key of ['t1Batting', 't2Batting', 't1Bowling', 't2Bowling', 't1PlayersList', 't2PlayersList', 't1Extras', 't2Extras', 't1Logo', 't2Logo'] as const) {
         const value = v[key];
         if (value !== undefined && value !== null && value !== '') (next as Record<string, unknown>)[key] = value;
     }
@@ -138,14 +140,34 @@ export function wicketFallText(wickets: number, total: string | undefined): stri
     return `${ORDINAL(wickets)} wkt · ${total ?? '0'}/${wickets}`;
 }
 
-export interface PanelRow { name: string; value: string; note?: string; }
+export interface PanelRow { name: string; value: string; note?: string; pic?: string; initials: string; }
+
+/** Absolute URL for a CricClubs image path, or undefined for missing/placeholder pictures. */
+export function imageUrl(path: string | undefined | null): string | undefined {
+    if (!path || /no[-_]?image/i.test(path)) return undefined;
+    return path.startsWith('http') ? path : `https://cricclubs.com${path}`;
+}
+
+export function initialsOf(p: { firstName?: string; lastName?: string }): string {
+    return `${(p.firstName || '').charAt(0)}${(p.lastName || '').charAt(0)}`.toUpperCase() || '?';
+}
+
+/** Short role mark, broadcast style. */
+export function roleTag(role: string | undefined): string {
+    const r = (role || '').toLowerCase();
+    if (r.includes('keeper')) return 'WK';
+    if (r.includes('all')) return 'AR';
+    if (r.includes('bowl')) return 'BOWL';
+    if (r.includes('bat')) return 'BAT';
+    return '';
+}
 
 export function topBatters(rows: BattingStats[] | undefined, n = 3): PanelRow[] {
     return (rows ?? [])
         .filter(r => (r.ballsFaced ?? 0) > 0 || (r.runsScored ?? 0) > 0)
         .sort((a, b) => (b.runsScored ?? 0) - (a.runsScored ?? 0) || (a.ballsFaced ?? 0) - (b.ballsFaced ?? 0))
         .slice(0, n)
-        .map(r => ({ name: displayName(r), value: `${r.runsScored ?? 0} (${r.ballsFaced ?? 0})`, note: String(r.isOut) === '1' ? undefined : 'not out' }));
+        .map(r => ({ name: displayName(r), value: `${r.runsScored ?? 0} (${r.ballsFaced ?? 0})`, note: String(r.isOut) === '1' ? undefined : 'not out', pic: imageUrl(r.profilepic_file_path), initials: initialsOf(r) }));
 }
 
 export function topBowlers(rows: BowlingStats[] | undefined, n = 3): PanelRow[] {
@@ -153,52 +175,58 @@ export function topBowlers(rows: BowlingStats[] | undefined, n = 3): PanelRow[] 
         .filter(r => (r.balls ?? 0) > 0)
         .sort((a, b) => (b.wickets ?? 0) - (a.wickets ?? 0) || (a.runs ?? 0) - (b.runs ?? 0))
         .slice(0, n)
-        .map(r => ({ name: displayName(r), value: `${r.wickets ?? 0}-${r.runs ?? 0}`, note: `${oversFromBalls(r.balls)} ov` }));
+        .map(r => ({ name: displayName(r), value: `${r.wickets ?? 0}-${r.runs ?? 0}`, note: `${oversFromBalls(r.balls)} ov`, pic: imageUrl(r.profilepic_file_path), initials: initialsOf(r) }));
 }
 
 export function squadRows(rows: Player[] | undefined): PanelRow[] {
-    return (rows ?? []).map(p => ({ name: displayName(p), value: '', note: p.playingRole || '' }));
+    return (rows ?? []).map(p => ({ name: displayName(p), value: '', note: roleTag(p.playingRole), pic: imageUrl(p.profilepic_file_path), initials: initialsOf(p) }));
 }
 
 // ---------- panel builders (what to show while nothing can happen) ----------
-import type { PanelEvent } from './cards';
+import type { PanelEvent, PanelTeam } from './cards';
 
 const teamLabel = (v: CricketAPIValues, n: 1 | 2) => (n === 1 ? v.t1Name : v.t2Name) || `Team ${n}`;
-const scoreLabel = (v: CricketAPIValues, n: 1 | 2) =>
-    `${(n === 1 ? v.t1Total : v.t2Total) || '0'}/${(n === 1 ? v.t1Wickets : v.t2Wickets) || '0'} (${(n === 1 ? v.t1Overs : v.t2Overs) || '0.0'} ov)`;
+const scoreLabel = (v: CricketAPIValues, n: 1 | 2) => `${(n === 1 ? v.t1Total : v.t2Total) || '0'}/${(n === 1 ? v.t1Wickets : v.t2Wickets) || '0'}`;
+const oversLabel = (v: CricketAPIValues, n: 1 | 2) => `${(n === 1 ? v.t1Overs : v.t2Overs) || '0.0'} ov`;
 
-export function introPanel(v: CricketAPIValues): PanelEvent {
-    return { type: 'intro', series: v.seriesName || '', teams: `${teamLabel(v, 1)} v ${teamLabel(v, 2)}`, ground: v.groundName || '', toss: v.toss || '' };
+function team(v: CricketAPIValues, cache: ViewCache, n: 1 | 2): PanelTeam {
+    const cached = n === 1 ? cache.t1Logo : cache.t2Logo;
+    const base = n === 1 ? v.firstLogo : v.secondLogo;
+    return { name: teamLabel(v, n), logo: imageUrl(cached || base) };
 }
 
-export function squadPanel(v: CricketAPIValues, cache: ViewCache, n: 1 | 2): PanelEvent | null {
-    const list = n === 1 ? cache.t1PlayersList : cache.t2PlayersList;
-    if (!list?.length) return null;
-    return { type: 'squad', team: teamLabel(v, n), players: squadRows(list) };
+export function introPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent {
+    return { type: 'intro', teams: [team(v, cache, 1), team(v, cache, 2)], toss: v.toss || 'Toss to come', series: v.seriesName || '', ground: v.groundName || '' };
+}
+
+export function squadsPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent | null {
+    const sides = ([1, 2] as const)
+        .map(n => ({ ...team(v, cache, n), players: squadRows(n === 1 ? cache.t1PlayersList : cache.t2PlayersList) }))
+        .filter(t => t.players.length > 0);
+    return sides.length ? { type: 'squads', teams: sides } : null;
 }
 
 export function inningsSummaryPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent {
-    const target = (parseInt(v.t1Total || '0', 10) || 0) + 1;
     return {
-        type: 'innings-summary', label: '1st innings', team: teamLabel(v, 1), score: scoreLabel(v, 1),
+        type: 'innings-summary', label: '1st innings', team: team(v, cache, 1), score: scoreLabel(v, 1), overs: oversLabel(v, 1),
         batters: topBatters(cache.t1Batting), bowlers: topBowlers(cache.t2Bowling),
-        extras: cache.t1Extras || '', fow: fowText(cache.fow1), target: `Target ${target}`,
+        extras: cache.t1Extras || '', fow: fowText(cache.fow1),
     };
 }
 
 export function matchSummaryPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent {
     return {
-        type: 'match-summary', result: v.result || 'Match over', teams: `${teamLabel(v, 1)} v ${teamLabel(v, 2)}`,
+        type: 'match-summary', result: v.result || 'Match over',
         innings: [
-            { team: teamLabel(v, 1), score: scoreLabel(v, 1), batters: topBatters(cache.t1Batting, 2), bowlers: topBowlers(cache.t2Bowling, 2), fow: fowText(cache.fow1) },
-            { team: teamLabel(v, 2), score: scoreLabel(v, 2), batters: topBatters(cache.t2Batting, 2), bowlers: topBowlers(cache.t1Bowling, 2), fow: fowText(cache.fow2) },
+            { team: team(v, cache, 1), score: scoreLabel(v, 1), overs: oversLabel(v, 1), batters: topBatters(cache.t1Batting, 2), bowlers: topBowlers(cache.t2Bowling, 1), fow: fowText(cache.fow1) },
+            { team: team(v, cache, 2), score: scoreLabel(v, 2), overs: oversLabel(v, 2), batters: topBatters(cache.t2Batting, 2), bowlers: topBowlers(cache.t1Bowling, 1), fow: fowText(cache.fow2) },
         ],
     };
 }
 
 /** The panels to rotate through while the match is waiting, in order. Empty during play. */
 export function phasePanels(phase: MatchPhase, v: CricketAPIValues, cache: ViewCache): PanelEvent[] {
-    if (phase === 'pre') return [introPanel(v), squadPanel(v, cache, 1), squadPanel(v, cache, 2)].filter((p): p is PanelEvent => p !== null);
+    if (phase === 'pre') return [introPanel(v, cache), squadsPanel(v, cache)].filter((p): p is PanelEvent => p !== null);
     if (phase === 'break') return [inningsSummaryPanel(v, cache)];
     if (phase === 'ended') return [matchSummaryPanel(v, cache)];
     return [];

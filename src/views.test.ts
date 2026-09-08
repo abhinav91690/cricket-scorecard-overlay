@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { VIEW, matchPhase, desiredView, isFullFrame, stripPii, mergeCache, scoreChanged, displayName, oversFromBalls, fowText, wicketFallText, topBatters, topBowlers, phasePanels, inningsSummaryPanel } from './views';
+import { VIEW, matchPhase, desiredView, isFullFrame, stripPii, mergeCache, scoreChanged, displayName, oversFromBalls, fowText, wicketFallText, topBatters, topBowlers, phasePanels, inningsSummaryPanel, imageUrl, initialsOf, roleTag, squadRows } from './views';
 import { mock_view_1, mock_view_2, mock_view_3, mock_view_4, mock_view_8, mock_view_48 } from './mockData';
 import { CricketAPIData } from './types';
 
@@ -122,19 +122,41 @@ describe('formatting helpers', () => {
     });
 });
 
+describe('people helpers', () => {
+    it('resolves pictures, skips placeholders, builds initials and role tags', () => {
+        expect(imageUrl('/documentsRep/profilePics/abc.jpeg')).toBe('https://cricclubs.com/documentsRep/profilePics/abc.jpeg');
+        expect(imageUrl('/documentsRep/profilePics/no_image.png')).toBeUndefined();
+        expect(imageUrl('https://static.cricclubs.com/utilsv2/img/icons/no-image-team3.jpg')).toBeUndefined();
+        expect(imageUrl('')).toBeUndefined();
+        expect(initialsOf({ firstName: 'Pavan', lastName: 'Vakkalam' })).toBe('PV');
+        expect(initialsOf({})).toBe('?');
+        expect(roleTag('Wicket Keeper')).toBe('WK');
+        expect(roleTag('All Rounder')).toBe('AR');
+        expect(roleTag('Bowler')).toBe('BOWL');
+        expect(roleTag('Batter')).toBe('BAT');
+        expect(roleTag(undefined)).toBe('');
+        const rows = squadRows(mock_view_48.values.t1PlayersList as any);
+        expect(rows.length).toBeGreaterThan(5);
+        expect(rows[0]).toMatchObject({ initials: expect.stringMatching(/^[A-Z]{1,2}$/) });
+    });
+});
+
 describe('phasePanels', () => {
     it('builds the right set per phase and nothing during play', () => {
         const cache = mergeCache(mergeCache(mergeCache({}, mock_view_2 as CricketAPIData), mock_view_3 as CricketAPIData), mock_view_48 as CricketAPIData);
         const v = (mock_view_1 as CricketAPIData).values;
         expect(phasePanels('play', v, cache)).toEqual([]);
-        expect(phasePanels('pre', v, cache).map(p => p.type)).toEqual(['intro', 'squad']); // team 2 squad not cached
+        expect(phasePanels('pre', v, cache).map(p => p.type)).toEqual(['intro', 'squads']);
+        const squads = phasePanels('pre', v, cache)[1];
+        if (squads.type === 'squads') expect(squads.teams).toHaveLength(1); // team 2 squad not cached yet
         expect(phasePanels('break', v, cache).map(p => p.type)).toEqual(['innings-summary']);
         expect(phasePanels('ended', v, cache).map(p => p.type)).toEqual(['match-summary']);
         const inn = inningsSummaryPanel(v, cache);
         expect(inn.type).toBe('innings-summary');
         if (inn.type === 'innings-summary') {
-            expect(inn.target).toBe(`Target ${parseInt(v.t1Total!) + 1}`);
+            expect(inn.score).toBe(`${v.t1Total}/${v.t1Wickets}`);
             expect(inn.batters.length).toBe(3);
+            expect(inn.batters[0].initials).toMatch(/^[A-Z]{1,2}$/);
             expect(inn.fow).toContain('1-');
         }
     });

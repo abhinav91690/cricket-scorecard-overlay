@@ -67,11 +67,11 @@ While nothing can happen the overlay fills the gap by itself, using richer CricC
 
 | Match state | Panel above the bar |
 | :--- | :--- |
-| Before the first ball | Intro (series, teams, ground, toss), then each side's playing XI |
+| Before the first ball | Intro (both crests, the toss as the headline, series and ground), then both playing XIs side by side with headshots |
 | Innings break | First-innings summary: top batters and bowlers, extras, fall of wickets, target |
 | Match over | Match summary: the result, then both innings side by side |
 
-Panels rotate on timers and disappear the moment a ball is bowled. The overlay never leaves the live scorebar view while play is possible. `&panel=intro` (or `squad`, `innings-summary`, `match-summary`) with `?debug=` holds a sample.
+Panels rotate on timers and disappear the moment a ball is bowled. The overlay never leaves the live scorebar view while play is possible. `&panel=intro` (or `squads`, `innings-summary`, `match-summary`) with `?debug=` holds a sample.
 
 ### Debug Modes
 Test layouts without a live match:

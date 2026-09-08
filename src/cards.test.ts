@@ -4,7 +4,7 @@ vi.mock('./dom', () => {
     const el = (id: string) => { const d = document.createElement('div'); d.id = id; document.body.appendChild(d); return d; };
     return { DOM: {
         eventCard: el('event-card'), eventEyebrow: el('event-eyebrow'), eventHeadline: el('event-headline'), eventDetail: el('event-detail'),
-        panelCard: el('panel-card'), panelEyebrow: el('panel-eyebrow'), panelHeadline: el('panel-headline'), panelDetail: el('panel-detail'), panelColumns: el('panel-columns'), panelFooter: el('panel-footer'),
+        panelCard: el('panel-card'), panelMatchup: el('panel-matchup'), panelEyebrow: el('panel-eyebrow'), panelHeadline: el('panel-headline'), panelDetail: el('panel-detail'), panelColumns: el('panel-columns'), panelFooter: el('panel-footer'),
     } };
 });
 
@@ -81,33 +81,49 @@ describe('card queue', () => {
 
     it('renders each panel type into the panel skeleton without HTML injection', () => {
         enqueueCards([panel('intro')]);
-        expect(DOM.panelEyebrow.textContent).toBe('2024 Fall Champions');
-        expect(DOM.panelHeadline.textContent).toBe('Lions v Topguns United');
-        expect(DOM.panelFooter.textContent).toContain('won the toss');
+        expect(DOM.panelEyebrow.textContent).toBe('Toss');
+        expect(DOM.panelHeadline.textContent).toBe('Topguns United won the toss and elected to bat');
+        expect(DOM.panelMatchup.querySelectorAll('.panel-team-name')).toHaveLength(2);
+        expect(DOM.panelFooter.textContent).toBe('2024 Fall Champions · LPCL-G1');
         resetCardsForTests();
 
-        enqueueCards([{ type: 'squad', team: '<b>x</b>', players: [{ name: '<img src=x>', value: '', note: 'Batter' }] }]);
-        expect(DOM.panelHeadline.textContent).toBe('<b>x</b>');
-        expect(DOM.panelColumns.querySelector('img')).toBeNull();
+        enqueueCards([{ type: 'squads', teams: [{ name: '<b>x</b>', players: [{ name: '<img src=x>', value: '', note: 'BAT', initials: 'XX' }] }] }]);
+        expect(DOM.panelColumns.querySelector('.panel-team-name')!.textContent).toBe('<b>x</b>');
+        expect(DOM.panelColumns.querySelector('.panel-name img')).toBeNull();
+        expect(DOM.panelColumns.querySelector('.avatar-initials')!.textContent).toBe('XX');
         expect(DOM.panelColumns.querySelectorAll('.panel-row')).toHaveLength(1);
         resetCardsForTests();
 
+        enqueueCards([panel('squads')]);
+        expect(DOM.panelColumns.querySelectorAll('.panel-block')).toHaveLength(2);
+        expect(DOM.panelColumns.querySelectorAll('.panel-row')).toHaveLength(22);
+        resetCardsForTests();
+
         enqueueCards([panel('innings-summary')]);
-        expect(DOM.panelHeadline.textContent).toBe('Lions 142/8 (20 ov)');
+        expect(DOM.panelMatchup.textContent).toContain('Lions');
+        expect(DOM.panelHeadline.textContent).toBe('142/8  20 ov');
         expect(DOM.panelColumns.querySelectorAll('.panel-col')).toHaveLength(2);
         expect(DOM.panelColumns.querySelectorAll('.panel-row')).toHaveLength(6);
-        expect(DOM.panelFooter.textContent).toContain('Target 143');
         expect(DOM.panelFooter.textContent).toContain('FoW 1-14');
         resetCardsForTests();
 
         enqueueCards([panel('match-summary')]);
         expect(DOM.panelHeadline.textContent).toBe('Topguns United won by 5 wickets');
-        expect(DOM.panelDetail.textContent).toBe('Lions v Topguns United');
-        expect(DOM.panelColumns.querySelectorAll('.panel-col-title')).toHaveLength(2);
+        expect(DOM.panelColumns.querySelectorAll('.panel-block')).toHaveLength(2);
+        expect(DOM.panelColumns.querySelectorAll('.panel-team-extra')[0].textContent).toBe('142/8  20 ov');
+    });
+
+    it('uses a headshot when there is a picture and falls back to initials when it fails to load', () => {
+        enqueueCards([{ type: 'squads', teams: [{ name: 'T', players: [{ name: 'A B', value: '', initials: 'AB', pic: 'https://cricclubs.com/x.jpg' }] }] }]);
+        const img = DOM.panelColumns.querySelector('.avatar img') as HTMLImageElement;
+        expect(img.src).toBe('https://cricclubs.com/x.jpg');
+        img.dispatchEvent(new Event('error'));
+        expect(DOM.panelColumns.querySelector('.avatar img')).toBeNull();
+        expect(DOM.panelColumns.querySelector('.avatar-initials')!.textContent).toBe('AB');
     });
 
     it('dismissAll hides both surfaces at once and empties the queues', () => {
-        enqueueCards([panel('intro'), panel('squad'), ev('wicket'), ev('milestone')]);
+        enqueueCards([panel('intro'), panel('squads'), ev('wicket'), ev('milestone')]);
         expect(DOM.panelCard.classList.contains('is-visible')).toBe(true);
         expect(DOM.eventCard.classList.contains('is-visible')).toBe(true);
         dismissAll();

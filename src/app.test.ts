@@ -211,7 +211,7 @@ describe('views: peeks, dismissal and panels', () => {
         await updateScore();
         const panels = vi.mocked(enqueueCards).mock.calls.flat(2).filter((c: any) => c.type === 'intro');
         expect(panels).toHaveLength(1);
-        expect(panels[0]).toMatchObject({ teams: 'Lions v TGU', toss: 'Lions won the toss' });
+        expect(panels[0]).toMatchObject({ teams: [{ name: 'Lions' }, { name: 'TGU' }], toss: 'Lions won the toss' });
     });
 
     it('strips emails before anything else sees the frame', async () => {
