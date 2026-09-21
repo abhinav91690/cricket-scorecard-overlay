@@ -1,0 +1,5 @@
+# ffmpeg ships inside imageio-ffmpeg, so no system install and no Homebrew.
+# Homebrew is unusable behind the corporate proxy on this machine.
+numpy>=2
+av>=14
+imageio-ffmpeg>=0.5

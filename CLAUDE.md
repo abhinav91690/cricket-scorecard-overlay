@@ -49,6 +49,8 @@ Rendering is in `src/ui.ts`. `updateScoreboard()` picks team 1 vs team 2 fields 
 
 Event cards: `app.ts` keeps the previous frame and calls `detectEvents(prev, next)` (`src/events.ts`, pure, tested) after every render, then `enqueueCards()` (`src/cards.ts`) plays them one at a time over the batter/bowler slots. Hold times live in `HOLD_MS`; the exit transition length is duplicated between `cards.ts` (`TRANSITION_MS`) and the `.event-card` CSS, keep them equal. Adding a card type means a new `OverlayEvent` variant, a detection rule, `cardCopy()` text, a `HOLD_MS` entry, a `SAMPLE_EVENTS` entry (for `?debug=1&card=<type>`), and usually a `[data-type]` CSS rule. Cards are the only thing that may cover the bar; the team block must always stay visible.
 
+**The event-card accent palette is a contract, not decoration.** Each card type has its own fixed colour (`--ob-wicket` red, `--ob-four` green, `--ob-six` purple, `--ob-milestone` orange, `--ob-partnership` cyan), declared once in `overlay-base.css` and never overridden by a theme. `highlights/` identifies what happened in a recording from that 5px stripe alone, so changing a value or letting a theme re-theme one silently breaks highlight detection on every future match. The five are chosen for maximum channel distance from each other; if you add a card type, pick a colour at least ~150 apart (summed RGB) from all of them and say so in `highlights/README.md`.
+
 ### `dom.ts` runs `getElementById` at import time
 
 `DOM` is a plain object of element references resolved when the module first loads. Consequences:

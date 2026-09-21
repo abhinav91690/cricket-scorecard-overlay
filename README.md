@@ -49,6 +49,7 @@ Control the behavior and look of the overlay using URL parameters:
 | `mode` | No | Special modes like `replay`. | `?mode=replay` |
 | `quiet` | No | Turns off the event cards and shows only the bar. | `?quiet` |
 | `logo` | No | Displays specific sponsor logos. | `?logo=1` |
+| `safe` | No | `vertical` draws a dashed 9:16 outline marking what survives a crop to a phone-shaped reel. A framing aid while filming; not for a broadcast. | `?safe=vertical` |
 
 ### Event cards
 The bar stays constant; moments earn a card that slides in over the batter and bowler slots, holds, and leaves. Cards are derived by diffing one poll against the previous one, so nothing extra is requested:

@@ -130,3 +130,15 @@ dist/
 # Cloudflare Worker
 .wrangler/
 worker/.dev.vars
+
+# Match recordings used for highlight detection. Large, and this repo is public.
+test video/
+*.mp4
+*.mov
+*.mkv
+
+# highlight tool venv
+highlights/.venv/
+highlights/events.json
+highlights/clips/
+highlights/__pycache__/

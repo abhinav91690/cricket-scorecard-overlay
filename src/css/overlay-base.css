@@ -55,6 +55,13 @@ body {
     --ob-six: #6d3df5;
     --ob-extra: #f5b700;
     --ob-bye: #3b82f6;
+    /* Milestone and partnership cards used to fall back to --brand-accent, which collides
+       with the team block in the topguns themes. These two are chosen for maximum channel
+       distance from the other card colours (nearest pair is 178 on a 0-765 scale) so a
+       highlight detector can tell the card types apart from the stripe alone. See
+       highlights/README.md. */
+    --ob-milestone: #ff7300;
+    --ob-partnership: #00bcd4;
     /* One shadow layer and no backdrop blur: the bar renders inside OBS's embedded browser, where
        backdrop-filter costs a full-frame blur of the video every frame. */
     --shadow-slab: 0 10px 28px rgba(0, 0, 0, 0.32);
@@ -347,10 +354,14 @@ body {
     transform: none;
 }
 
-/* The event type sets the accent: red wicket, green four, purple six, brand for milestones */
+/* The event type sets the accent, and every type has its own fixed colour: red wicket,
+   green four, purple six, orange milestone, cyan partnership. Themes must not override
+   these; the highlight tool identifies an event from this stripe alone. */
 .event-card[data-type="wicket"] { --type: var(--ob-wicket); }
 .event-card[data-type="boundary"][data-runs="4"] { --type: var(--ob-four); }
 .event-card[data-type="boundary"][data-runs="6"] { --type: var(--ob-six); }
+.event-card[data-type="milestone"] { --type: var(--ob-milestone); }
+.event-card[data-type="partnership"] { --type: var(--ob-partnership); }
 
 .event-eyebrow {
     font-size: 13px;
@@ -410,4 +421,37 @@ body {
 @media (prefers-reduced-motion: reduce) {
     .ball-indicator { animation: none; }
     .event-card { transition: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   Framing guide: ?safe=vertical draws the 9:16 crop that survives being cut
+   into an Instagram reel, so the camera can be placed rather than the footage
+   salvaged. A guide, never part of the broadcast: dashed, labelled, and only
+   present when the param is set.
+   --------------------------------------------------------------------------- */
+.safe-guide {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 50%;
+    transform: translateX(-50%);
+    /* 9:16 of the full height, which is what a centre crop keeps */
+    inline-size: calc(100vh * 9 / 16);
+    max-inline-size: 100vw;
+    border-inline: 3px dashed rgba(255, 115, 0, 0.9);
+    pointer-events: none;
+    z-index: 9;
+    display: grid;
+    align-content: start;
+    justify-items: center;
+}
+.safe-guide::before {
+    content: 'VERTICAL SAFE AREA · 9:16';
+    margin-block-start: 18px;
+    padding: 6px 12px;
+    background: rgba(255, 115, 0, 0.92);
+    color: #1a0d00;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    border-radius: 4px;
 }
