@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Audio Routing Probe</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --bg: #0A0C0D;
+    --panel: #14181A;
+    --line: #262D30;
+    --dim: #6B7A80;
+    --fg: #E8F0F2;
+    --ok: #00E08A;
+    --wait: #FFB000;
+    --bad: #FF3B4E;
+    --left: #37B6FF;
+    --right: #FF7BD5;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  img { max-width: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100%;
+  }
+  html, body { height: 100%; }
+
+  .stage {
+    min-height: 100%;
+    display: flex; flex-direction: column;
+    padding: clamp(14px, 2.2vw, 38px);
+    gap: clamp(12px, 1.6vw, 24px);
+  }
+
+  /* ---- status banner: the thing that must be legible in a shrunken video preview ---- */
+  .banner {
+    border: 3px solid var(--wait);
+    background: color-mix(in srgb, var(--wait) 12%, var(--panel));
+    color: var(--wait);
+    border-radius: 6px;
+    padding: clamp(12px, 1.6vw, 26px) clamp(14px, 2vw, 32px);
+    display: flex; align-items: center; gap: clamp(12px, 1.6vw, 24px);
+    flex-wrap: wrap;
+  }
+  .banner.live { border-color: var(--ok); color: var(--ok);
+    background: color-mix(in srgb, var(--ok) 12%, var(--panel)); }
+  .banner.blocked { border-color: var(--bad); color: var(--bad);
+    background: color-mix(in srgb, var(--bad) 14%, var(--panel)); }
+  .banner .word {
+    font-size: clamp(30px, 6.4vw, 104px);
+    font-weight: 700; letter-spacing: -0.02em; line-height: 1;
+  }
+  .banner .sub {
+    font-size: clamp(12px, 1.5vw, 23px); font-weight: 500;
+    color: var(--fg); opacity: .82; line-height: 1.35; max-width: 34ch;
+  }
+  .pulse { width: clamp(16px, 2.2vw, 34px); height: clamp(16px, 2.2vw, 34px);
+    border-radius: 50%; background: currentColor; flex: none; }
+  .live .pulse { animation: beat 2s steps(1, end) infinite; }
+  @keyframes beat { 0%, 49% { opacity: 1; } 50%, 100% { opacity: .18; } }
+  @media (prefers-reduced-motion: reduce) { .live .pulse { animation: none; } }
+
+  /* ---- channel cards ---- */
+  .chans { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(10px, 1.4vw, 22px); }
+  .chan {
+    background: var(--panel); border: 2px solid var(--line); border-radius: 6px;
+    padding: clamp(12px, 1.5vw, 26px);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .chan .tag {
+    font-size: clamp(11px, 1.25vw, 19px); font-weight: 600;
+    letter-spacing: .18em; color: var(--dim);
+  }
+  .chan .hz {
+    font-size: clamp(34px, 6.6vw, 108px); font-weight: 700;
+    line-height: .95; letter-spacing: -0.03em;
+  }
+  .chan .unit { font-size: .32em; font-weight: 500; color: var(--dim); letter-spacing: 0; }
+  .chan.l { border-color: color-mix(in srgb, var(--left) 55%, var(--line)); }
+  .chan.l .hz { color: var(--left); }
+  .chan.r { border-color: color-mix(in srgb, var(--right) 55%, var(--line)); }
+  .chan.r .hz { color: var(--right); }
+  .meter { height: clamp(8px, 1vw, 16px); background: #000; border-radius: 3px; overflow: hidden; margin-top: 4px; }
+  .meter i { display: block; height: 100%; width: 0; background: currentColor; }
+  .chan.l .meter i { background: var(--left); }
+  .chan.r .meter i { background: var(--right); }
+
+  /* ---- readouts ---- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: clamp(10px, 1.4vw, 22px); }
+  .cell {
+    background: var(--panel); border: 2px solid var(--line); border-radius: 6px;
+    padding: clamp(10px, 1.3vw, 22px);
+  }
+  .cell .k { font-size: clamp(10px, 1.1vw, 16px); font-weight: 600;
+    letter-spacing: .14em; color: var(--dim); }
+  .cell .v { font-size: clamp(24px, 3.4vw, 56px); font-weight: 700;
+    line-height: 1.05; letter-spacing: -0.02em; margin-top: 2px; }
+  .cell .v small { font-size: .4em; font-weight: 500; color: var(--dim); }
+
+  /* ---- instructions ---- */
+  .how {
+    margin-top: auto;
+    background: var(--panel); border: 2px solid var(--line); border-radius: 6px;
+    padding: clamp(12px, 1.5vw, 24px);
+    font-size: clamp(11.5px, 1.2vw, 17px); line-height: 1.6; color: var(--dim);
+  }
+  .how b { color: var(--fg); font-weight: 600; }
+  .how ol { margin: 8px 0 0; padding-left: 1.5em; }
+  .how li { margin-bottom: 4px; }
+
+  button#go {
+    font-family: inherit; font-size: clamp(15px, 1.8vw, 26px); font-weight: 700;
+    letter-spacing: .04em;
+    padding: clamp(12px, 1.4vw, 22px) clamp(22px, 3vw, 44px);
+    border-radius: 6px; border: 3px solid var(--ok);
+    background: var(--ok); color: #04150E; cursor: pointer;
+  }
+  button#go:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
+  button#go[hidden] { display: none; }
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <div class="banner" id="banner">
+    <span class="pulse"></span>
+    <span class="word" id="word">STARTING</span>
+    <span class="sub" id="sub">Requesting audio. If this stays amber, the browser is blocking autoplay — tap anywhere.</span>
+    <button id="go" type="button" hidden>TAP TO START TONE</button>
+  </div>
+
+  <div class="chans">
+    <div class="chan l">
+      <span class="tag">LEFT CHANNEL</span>
+      <span class="hz">1000<span class="unit"> Hz</span></span>
+      <div class="meter"><i id="mL"></i></div>
+    </div>
+    <div class="chan r">
+      <span class="tag">RIGHT CHANNEL</span>
+      <span class="hz">3000<span class="unit"> Hz</span></span>
+      <div class="meter"><i id="mR"></i></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="cell"><span class="k">ELAPSED</span><span class="v" id="t">0.0<small>s</small></span></div>
+    <div class="cell"><span class="k">TICKS · 220 Hz BOTH</span><span class="v" id="ticks">0</span></div>
+    <div class="cell"><span class="k">SAMPLE RATE</span><span class="v" id="sr">—</span></div>
+    <div class="cell"><span class="k">AUDIO STATE</span><span class="v" id="state">—</span></div>
+  </div>
+
+  <div class="how">
+    <b>What this is.</b> A test card for one question: does IRL Pro capture the audio of a browser source, and on which channel. Left carries a steady 1000&nbsp;Hz, right a steady 3000&nbsp;Hz, and both carry a short 220&nbsp;Hz tick every 2&nbsp;seconds. Those three signals are separable in analysis, so one recording tells us whether the audio was captured, whether the channels stayed apart or were summed to mono, and how the audio lines up with the video.
+    <ol>
+      <li>Add this page as a <b>browser source</b> in IRL Pro, 1920&nbsp;×&nbsp;1080.</li>
+      <li>Check the banner above reads <b>TONE LIVE</b> in green. If it is amber or red, autoplay is blocked — tap the page if IRL Pro allows it, and tell me either way, because that is itself an answer.</li>
+      <li>Record about <b>15 seconds</b>. There is a deliberate 3-second silent baseline first, so don't skip the start.</li>
+      <li>Send me the file. The on-screen elapsed time and tick count let me match the audio against the video frames.</li>
+    </ol>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var F_LEFT = 1000, F_RIGHT = 3000, F_TICK = 220;
+  var BASELINE = 3.0, TICK_EVERY = 2.0, TICK_LEN = 0.08, AMP = 0.25;
+
+  var banner = document.getElementById("banner");
+  var word = document.getElementById("word");
+  var sub = document.getElementById("sub");
+  var go = document.getElementById("go");
+  var elT = document.getElementById("t");
+  var elTicks = document.getElementById("ticks");
+  var elSr = document.getElementById("sr");
+  var elState = document.getElementById("state");
+  var mL = document.getElementById("mL"), mR = document.getElementById("mR");
+
+  var ctx = null, started = false, t0 = 0, ticks = 0, nextTick = BASELINE;
+  var gL = null, gR = null;
+
+  function build() {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) { fail("NO WEB AUDIO", "This browser has no Web Audio API, so it cannot emit a tone."); return null; }
+    var c = new AC();
+    var merger = c.createChannelMerger(2);
+
+    gL = c.createGain(); gR = c.createGain();
+    gL.gain.value = 0; gR.gain.value = 0;
+
+    var oL = c.createOscillator(); oL.type = "sine"; oL.frequency.value = F_LEFT;
+    var oR = c.createOscillator(); oR.type = "sine"; oR.frequency.value = F_RIGHT;
+    oL.connect(gL).connect(merger, 0, 0);
+    oR.connect(gR).connect(merger, 0, 1);
+
+    merger.connect(c.destination);
+    oL.start(); oR.start();
+
+    // keep a handle for the tick bursts
+    c._merger = merger;
+    return c;
+  }
+
+  function tick(c, when) {
+    var o = c.createOscillator(); o.type = "sine"; o.frequency.value = F_TICK;
+    var g = c.createGain();
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(AMP, when + 0.008);
+    g.gain.setValueAtTime(AMP, when + TICK_LEN - 0.008);
+    g.gain.linearRampToValueAtTime(0, when + TICK_LEN);
+    o.connect(g);
+    g.connect(c._merger, 0, 0);
+    g.connect(c._merger, 0, 1);
+    o.start(when); o.stop(when + TICK_LEN + 0.02);
+  }
+
+  function setBanner(cls, w, s) {
+    banner.className = "banner" + (cls ? " " + cls : "");
+    word.textContent = w; sub.textContent = s;
+  }
+  function fail(w, s) { setBanner("blocked", w, s); }
+
+  function start() {
+    if (started) return;
+    if (!ctx) ctx = build();
+    if (!ctx) return;
+    ctx.resume().then(function () {
+      if (ctx.state !== "running") { blocked(); return; }
+      started = true;
+      go.hidden = true;
+      t0 = ctx.currentTime;
+      elSr.textContent = Math.round(ctx.sampleRate / 1000) + "k";
+      setBanner("", "BASELINE", "Recording a deliberate 3-second silence first, so the tone has something to be measured against.");
+    }).catch(blocked);
+  }
+
+  function blocked() {
+    go.hidden = false;
+    setBanner("blocked", "AUTOPLAY BLOCKED",
+      "The browser will not start audio without a tap. If IRL Pro cannot be tapped, that is itself the answer — tell me and we stop here.");
+  }
+
+  function loop() {
+    if (started && ctx) {
+      var el = ctx.currentTime - t0;
+      elT.innerHTML = el.toFixed(1) + "<small>s</small>";
+      elState.textContent = ctx.state === "running" ? "RUNNING" : ctx.state.toUpperCase();
+
+      if (el >= BASELINE) {
+        if (gL.gain.value === 0) {
+          gL.gain.setTargetAtTime(AMP, ctx.currentTime, 0.01);
+          gR.gain.setTargetAtTime(AMP, ctx.currentTime, 0.01);
+          setBanner("live", "TONE LIVE", "Left 1000 Hz, right 3000 Hz, plus a 220 Hz tick on both every 2 seconds. Record about 15 seconds.");
+        }
+        while (el >= nextTick) {
+          tick(ctx, t0 + nextTick);
+          nextTick += TICK_EVERY;
+          ticks++;
+          elTicks.textContent = String(ticks);
+        }
+        var phase = (el - BASELINE) % TICK_EVERY;
+        var flash = phase < TICK_LEN + 0.06 ? 100 : 66;
+        mL.style.width = flash + "%"; mR.style.width = flash + "%";
+      } else {
+        var cd = Math.ceil(BASELINE - el);
+        word.textContent = "BASELINE " + cd;
+        mL.style.width = "0%"; mR.style.width = "0%";
+      }
+    }
+    requestAnimationFrame(loop);
+  }
+
+  ["pointerdown", "touchstart", "keydown", "click"].forEach(function (e) {
+    document.addEventListener(e, start, { passive: true });
+  });
+  go.addEventListener("click", start);
+
+  start();                       // try autoplay; falls back to the tap prompt
+  requestAnimationFrame(loop);
+  setTimeout(function () {
+    if (!started) blocked();
+  }, 1200);
+})();
+</script>
+</body>
+</html>
