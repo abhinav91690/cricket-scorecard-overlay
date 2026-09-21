@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A client-side cricket scorecard overlay for OBS/vMix browser sources. Vite + TypeScript, no framework, no backend. It polls the public CricClubs `liveScoreOverlayData.do` endpoint every 5s and paints a fixed-position DOM. Everything is driven by URL query params (`matchId`, `clubId`, `theme`, `debug`, `mode`, `logo`); see README.md for the full table and `architecture.md` for the data-flow diagram.
+A client-side cricket scorecard overlay for OBS/vMix browser sources. Vite + TypeScript, no framework, no backend. It polls the public CricClubs `liveScoreOverlayData.do` endpoint every 5s and paints a fixed-position DOM. Everything is driven by URL query params (`matchId`, `clubId`, `theme`, `debug`, `mode`, `logo`, `data`); see README.md for the full table and `architecture.md` for the data-flow diagram.
 
 ## Commands
 
@@ -48,6 +48,28 @@ Entry is `src/script.ts`, loaded directly from `index.html` as a module. It only
 Rendering is in `src/ui.ts`. `updateScoreboard()` picks team 1 vs team 2 fields based on `values.isSecondInningsStarted === "true"` (API booleans are strings, `isMatchEnded` is `"1"`), then writes through `setText`/`setDisplay` helpers that only touch the DOM when a value changed. `statusText()` supplies the CRR / Target tail on the score row and the Need / RRR third row in a chase, computed from the totals; there is no separate second-innings strip any more.
 
 Event cards: `app.ts` keeps the previous frame and calls `detectEvents(prev, next)` (`src/events.ts`, pure, tested) after every render, then `enqueueCards()` (`src/cards.ts`) plays them one at a time over the batter/bowler slots. Hold times live in `HOLD_MS`; the exit transition length is duplicated between `cards.ts` (`TRANSITION_MS`) and the `.event-card` CSS, keep them equal. Adding a card type means a new `OverlayEvent` variant, a detection rule, `cardCopy()` text, a `HOLD_MS` entry, a `SAMPLE_EVENTS` entry (for `?debug=1&card=<type>`), and usually a `[data-type]` CSS rule. Cards are the only thing that may cover the bar; the team block must always stay visible.
+
+### The `?data=1` code (`src/dataCode.ts`, `src/dataQr.ts`, `highlights/`)
+
+`?data=1` draws a QR code in the frame's top-left corner carrying the whole bar state, so
+`highlights/` can read events out of a recording instead of inferring them from event-card
+colours. Off by default; nothing changes for a normal browser source.
+
+**`src/dataCode.ts` is a wire format.** It is written here and read by `highlights/payload.py`
+on the other side of a recording, so the field order and every width are load-bearing.
+`src/dataCode.vectors.json` is generated from the TypeScript by `src/tools/genDataVectors.ts`
+and `highlights/test_payload.py` checks the Python against it — change one side and that test
+fails, which is the point. Bump `version` if you have to break it.
+
+The payload is **42 bytes** because that is exactly what a QR v3 at ECC-M holds; 43 tips it to
+v4 and grows the block. Version and ECC are pinned in `dataQr.ts` so an oversized payload
+throws rather than silently changing the geometry. Modules are **2 CSS px** with a **2-module**
+quiet zone — both measured floors, not spec defaults, and `highlights/README.md` has the
+numbers. Redraw only when the data changes: a static graphic is nearly free in h264, and that
+discount is most of why 2px modules survive.
+
+Decode with **zxing-cpp, never OpenCV** — `cv2.QRCodeDetector` returns a str and mangles
+arbitrary bytes while still reporting success.
 
 **The event-card accent palette is a contract, not decoration.** Each card type has its own fixed colour (`--ob-wicket` red, `--ob-four` green, `--ob-six` purple, `--ob-milestone` orange, `--ob-partnership` cyan), declared once in `overlay-base.css` and never overridden by a theme. `highlights/` identifies what happened in a recording from that 5px stripe alone, so changing a value or letting a theme re-theme one silently breaks highlight detection on every future match. The five are chosen for maximum channel distance from each other; if you add a card type, pick a colour at least ~150 apart (summed RGB) from all of them and say so in `highlights/README.md`.
 

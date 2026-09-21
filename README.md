@@ -49,6 +49,18 @@ Control the behavior and look of the overlay using URL parameters:
 | `mode` | No | Special modes like `replay`. | `?mode=replay` |
 | `quiet` | No | Turns off the event cards and shows only the bar. | `?quiet` |
 | `logo` | No | Displays specific sponsor logos. | `?logo=1` |
+| `data` | No | Draws a small machine-readable code in the top-left corner so a recording can be turned into highlights. Off by default. | `?data=1` |
+
+### Machine-readable data code (`?data=1`)
+
+Off unless you ask for it. When set, the overlay draws a 66 × 66 px QR code flush into the
+frame's top-left corner carrying the whole bar state — score, both batters, the bowler, the
+partnership, and what the last ball was. `highlights/` reads it back out of a recording to
+cut reels without guessing anything from the picture.
+
+It is 0.21% of a 1920 × 1080 frame, and it is meant to be discarded: a 9:16 crop for a
+vertical reel removes it for free, and one `drawbox` covers it for a 16:9 upload. Leave it
+off for a stream you are not going to make highlights from.
 
 ### Event cards
 The bar stays constant; moments earn a card that slides in over the batter and bowler slots, holds, and leaves. Cards are derived by diffing one poll against the previous one, so nothing extra is requested:
