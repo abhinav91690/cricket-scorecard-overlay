@@ -15,13 +15,13 @@ uploads default to `private` visibility, and nothing is sent without `--confirm`
 tool prints exactly what it would do and exits 0. Flip the video to public in YouTube Studio
 once you have watched it.
 
-🛑 Secrets never live in this repo — it is public. Both the OAuth client and the stored token
-sit in ~/.config/cricket-scorecard-overlay/ at mode 600, the same place as the analytics
-stats_key. See docs/publishing.md.
+🛑 Secrets never live in this repo — it is public. They go in the macOS Keychain, the same
+place the homelab repo keeps its tokens. See docs/publishing.md.
 """
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import subprocess
@@ -31,9 +31,12 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+
+# Keychain services. The token is the durable secret and is written back on every refresh.
+KC_TOKEN = "cricket-overlay-youtube-token"
+KC_CLIENT = "cricket-overlay-youtube-client"
+# Only used by --import-client, to move the file Google hands you into the Keychain.
 CONFIG_DIR = Path.home() / ".config" / "cricket-scorecard-overlay"
-CLIENT_SECRET = CONFIG_DIR / "youtube_client_secret.json"
-TOKEN = CONFIG_DIR / "youtube_token.json"
 
 # YouTube's own field limits.
 TITLE_MAX = 100
@@ -191,49 +194,123 @@ def video_metadata(match: str, chapters: str | None = None) -> dict:
 
 # ---------------------------------------------------------------- auth + upload
 
+def _user() -> str:
+    u = os.environ.get("USER") or os.environ.get("LOGNAME")
+    if not u:
+        raise SystemExit("cannot determine $USER for the Keychain lookup")
+    return u
+
+
+def keychain_read(service: str) -> str | None:
+    """Read a secret. The value arrives on stdout, which is safe; it is never logged."""
+    r = subprocess.run(
+        ["security", "find-generic-password", "-a", _user(), "-s", service, "-w"],
+        capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
+
+
+def keychain_write(service: str, value: str) -> None:
+    """Store a secret, avoiding both of the ways this silently goes wrong on macOS.
+
+    Adapted from the homelab repo's keychain-add.sh, which exists because:
+      · `security add-generic-password -w` with no value uses an interactive prompt that
+        SILENTLY TRUNCATES AT 128 CHARACTERS. The Keychain stores long values fine — the
+        prompt is the limit — and a short write is invisible until the API returns a clean
+        401. An OAuth token blob is far longer than 128.
+      · Passing `-w <value>` puts the secret in argv, where `ps` can read it, and Jamf
+        agents run as root on this Mac.
+    Feeding the command to `security -i` over stdin avoids both.
+
+    🛑 One difference from that script, and the reason this does not just shell out to it:
+    it wraps the value in "%s", which is fine for a JWT but NOT for JSON — a credentials
+    blob is full of double quotes and would break the quoting. Everything here is base64
+    encoded first, so the stored value is always quote-free.
+    """
+    blob = base64.b64encode(value.encode()).decode()
+    cmd = f'add-generic-password -U -a "{_user()}" -s "{service}" -w "{blob}"\n'
+    subprocess.run(["security", "-i"], input=cmd, text=True, check=True,
+                   capture_output=True)
+    # Read back and compare exactly, not just by length — a truncated write is otherwise
+    # invisible until an upload fails with something that looks like a bad credential.
+    if keychain_read(service) != blob:
+        raise SystemExit(f"Keychain write to '{service}' did not read back intact — "
+                         "do not use it")
+
+
+def keychain_read_json(service: str) -> dict | None:
+    blob = keychain_read(service)
+    if not blob:
+        return None
+    try:
+        return json.loads(base64.b64decode(blob).decode())
+    except Exception as e:
+        raise SystemExit(f"'{service}' in the Keychain is not valid base64 JSON ({e}); "
+                         "re-import it")
+
+
+def client_config() -> dict:
+    """The OAuth client, from the Keychain."""
+    cfg = keychain_read_json(KC_CLIENT)
+    if cfg:
+        return cfg
+    raise SystemExit(
+        f"no OAuth client in the Keychain under '{KC_CLIENT}'.\n"
+        "  1. Google Cloud Console -> APIs & Services -> Credentials\n"
+        "     -> Create OAuth client -> Desktop app -> download the JSON\n"
+        "  2. python publish.py --import-client <downloaded.json>\n"
+        "  3. Set the consent screen to 'In Production', or the token dies every 7 days.")
+
+
 def credentials():
     """Load the stored token, refreshing it, or run the one-time browser consent.
 
-    ⚠ If the OAuth consent screen is left in "Testing", Google expires the refresh token after
-    exactly 7 days and an unattended uploader dies once a week for no visible reason. Set the
-    consent screen to "In Production" in Google Cloud Console; youtube.upload is a *sensitive*
-    scope, not restricted, so a personal app just clicks through an unverified-app warning once.
+    ⚠ If the OAuth consent screen is left in "Testing", Google expires the refresh token
+    after exactly 7 days and an unattended uploader dies once a week for no visible reason.
+    Set the consent screen to "In Production" in Google Cloud Console; youtube.upload is a
+    *sensitive* scope, not restricted, so a personal app just clicks through an
+    unverified-app warning once.
     """
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
     from google_auth_oauthlib.flow import InstalledAppFlow
 
     creds = None
-    if TOKEN.exists():
-        creds = Credentials.from_authorized_user_file(str(TOKEN), SCOPES)
+    info = keychain_read_json(KC_TOKEN)
+    if info:
+        creds = Credentials.from_authorized_user_info(info, SCOPES)
     if creds and creds.valid:
         return creds
     if creds and creds.expired and creds.refresh_token:
         try:
             creds.refresh(Request())
-            _save(creds)
+            keychain_write(KC_TOKEN, creds.to_json())
             return creds
         except Exception as e:
             print(f"  token refresh failed ({e}); re-running consent")
             print("  if this happens weekly, the consent screen is still in Testing mode")
 
-    if not CLIENT_SECRET.exists():
-        raise SystemExit(
-            f"no OAuth client at {CLIENT_SECRET}\n"
-            "  Google Cloud Console -> APIs & Services -> Credentials -> Create OAuth client\n"
-            "  -> Desktop app -> download the JSON to that path (mode 600).\n"
-            "  Also set the consent screen to 'In Production', or the token dies every 7 days.")
-    flow = InstalledAppFlow.from_client_secrets_file(str(CLIENT_SECRET), SCOPES)
+    flow = InstalledAppFlow.from_client_config(client_config(), SCOPES)
     creds = flow.run_local_server(port=0)
-    _save(creds)
+    keychain_write(KC_TOKEN, creds.to_json())
+    print(f"  token stored in the Keychain as '{KC_TOKEN}'")
     return creds
 
 
-def _save(creds) -> None:
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    TOKEN.write_text(creds.to_json())
-    TOKEN.chmod(0o600)          # a refresh token is a credential; this repo is public
-    print(f"  token stored at {TOKEN} (mode 600)")
+def import_client(path: str) -> None:
+    """Move the OAuth client JSON Google hands you into the Keychain, then offer to delete it."""
+    p = Path(path)
+    if not p.exists():
+        raise SystemExit(f"no such file: {path}")
+    cfg = json.loads(p.read_text())
+    if not any(k in cfg for k in ("installed", "web")):
+        raise SystemExit("that does not look like an OAuth client JSON "
+                         "(expected an 'installed' or 'web' key)")
+    if "web" in cfg:
+        print("  ⚠ this is a 'web' client; a Desktop app client is what the local consent "
+              "flow expects")
+    keychain_write(KC_CLIENT, json.dumps(cfg))
+    print(f"  stored in the Keychain as '{KC_CLIENT}' and read back intact")
+    print(f"  🛑 now delete the downloaded file: rm {p}")
 
 
 def upload(path: str, meta: dict, privacy: str) -> str:
@@ -263,8 +340,10 @@ def upload(path: str, meta: dict, privacy: str) -> str:
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("file")
-    ap.add_argument("-t", "--target", choices=["shorts", "video"], required=True)
+    ap.add_argument("file", nargs="?")
+    ap.add_argument("--import-client", metavar="JSON",
+                    help="store the downloaded OAuth client JSON in the Keychain and exit")
+    ap.add_argument("-t", "--target", choices=["shorts", "video"])
     ap.add_argument("--match", help='e.g. "Topguns vs Bazzigarz — 2026 FTP20 Div-A"')
     ap.add_argument("--moments", help="events.json from qrscan.py, for reel captions")
     ap.add_argument("--moment", type=int, default=0, help="which moment this clip is")
@@ -278,8 +357,15 @@ def main():
                     help="upload as a Short even if the file would not qualify")
     a = ap.parse_args()
 
+    if a.import_client:
+        import_client(a.import_client)
+        return
+    if not a.file:
+        ap.error("a video file is required (or use --import-client)")
     if not os.path.exists(a.file):
         raise SystemExit(f"no such file: {a.file}")
+    if not a.target:
+        ap.error("--target shorts|video is required")
     m = probe(a.file)
     size = os.path.getsize(a.file) / 1e6
     print(f"{a.file}\n  {m['w']}x{m['h']}, {m['duration']:.1f}s, {size:.1f} MB")

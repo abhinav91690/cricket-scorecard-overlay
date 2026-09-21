@@ -53,16 +53,47 @@ you click through an "unverified app" warning once and the refresh token stops e
 
 1. **Google Cloud Console** → new project → enable **YouTube Data API v3**.
 2. **APIs & Services → Credentials → Create OAuth client → Desktop app** → download the JSON.
-3. Save it as **`~/.config/cricket-scorecard-overlay/youtube_client_secret.json`**, mode 600.
-4. **OAuth consent screen → publish to "In Production"** (see §3).
-5. First run opens a browser for consent; the refresh token is written to
-   **`~/.config/cricket-scorecard-overlay/youtube_token.json`**, mode 600.
+3. **OAuth consent screen → publish to "In Production"** (see §3 — skip this and it breaks in
+   a week).
+4. Move the downloaded file into the Keychain and delete it:
 
-🛑 **Neither file goes in this repo — it is public.** That directory is the same place the
-analytics `stats_key` lives; see [analytics.md](./analytics.md) §6. The macOS Keychain is the
-alternative, but ⚠ `security`'s interactive `-w` prompt truncates at 128 characters and an OAuth
-token JSON is far longer, so a Keychain write must go over stdin via `security -i`. The file at
-mode 600 avoids that whole class of problem.
+   ```sh
+   .venv/bin/python publish.py --import-client ~/Downloads/client_secret_*.json
+   rm ~/Downloads/client_secret_*.json
+   ```
+
+5. The first upload opens a browser for consent once; the token is stored automatically.
+
+Two Keychain entries, both base64-encoded JSON:
+
+| Service | Holds |
+|---|---|
+| `cricket-overlay-youtube-client` | the OAuth client, written by `--import-client` |
+| `cricket-overlay-youtube-token` | the token, rewritten on every refresh |
+
+## 4a. 🛑 Why the Keychain write is not a one-liner
+
+Secrets go in the macOS Keychain, the same place the homelab repo keeps its tokens — never in
+this repo, which is public. `keychain_write()` is adapted from that repo's `keychain-add.sh`,
+and it exists because there are two separate ways this silently goes wrong:
+
+- ⚠ **`security add-generic-password -w` with no value uses an interactive prompt that
+  truncates at 128 characters, silently.** The Keychain stores long values fine — the prompt is
+  the limit — and a short write is invisible until the API returns a clean 401 that looks like a
+  bad credential rather than a bad paste. An OAuth token blob is around 500 characters.
+- ⚠ **Passing `-w <value>` puts the secret in argv**, where `ps` can read it, and Jamf agents
+  run as root on this Mac.
+
+Feeding the command to `security -i` over **stdin** avoids both.
+
+🛑 **And one difference from `keychain-add.sh`, which is why this does not just shell out to
+it.** That script wraps the value in `"%s"` inside the `security` command, which is fine for a
+JWT but breaks on JSON — a credentials blob contains about two dozen double quotes. Everything
+here is **base64 encoded first**, so the stored value is always quote-free.
+
+Verified live with a 529-character token blob containing 24 double quotes: stored as 708
+characters of base64 and read back byte-identical. `keychain_write()` compares the read-back
+**exactly**, not by length as the shell script does, since it has the original value in hand.
 
 ## 5. 🛑 A Short needs no special endpoint — but it does need validating
 
@@ -139,4 +170,6 @@ An Instagram path was costed and deferred. What was established:
 ```
 
 `test_publish.py` covers the decision logic — the Shorts checks, the caption generation and
-YouTube's field limits — with no network and no Google libraries.
+YouTube's field limits — with no network and no Google libraries. The Keychain path is not unit
+tested, because a test that mutates the login Keychain is worse than no test; it was verified
+live against a throwaway service name that was deleted afterwards.

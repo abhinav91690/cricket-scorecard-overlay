@@ -21,8 +21,12 @@ and paints a fixed-position DOM, driven entirely by URL query params (`matchId`,
 
 - 🛑 **This repository is public.** Never commit a secret, a key, or the real name of a league
   member. `STATS_KEY` lives only as a Worker secret and at
-  `~/.config/cricket-scorecard-overlay/stats_key`; attribution names live only in
-  `~/code/cricket-stats`, which has no remote.
+  `~/.config/cricket-scorecard-overlay/stats_key`; the YouTube OAuth client and token live in
+  the **macOS Keychain** (`cricket-overlay-youtube-client` / `-token`); attribution names live
+  only in `~/code/cricket-stats`, which has no remote.
+- ⚠ **Never write a secret to the Keychain with `security add-generic-password -w`** — the
+  prompt truncates at 128 chars silently, and passing the value inline puts it in argv. →
+  `publishing.md` §4a
 - 🛑 **Player rows in the CricClubs card views carry email addresses.** They must never be
   rendered or stored. `stripPii()` runs first in `renderFrame()`, and the fixtures in
   `mockData.ts` were captured live with emails removed.
