@@ -34,6 +34,9 @@ any file here. See [analytics.md](./analytics.md) §6 and §7.
   and the four harness faults that made earlier measurements lie.
 - [The `?data=1` code](./data-code.md) - The 42-byte wire format, the pinned geometry and why
   every number is what it is, the cross-language contract, and the decoder that must be used.
+- [Publishing](./publishing.md) - Reels to YouTube Shorts and the highlights video to YouTube:
+  the one-time Google setup, the OAuth trap that kills an unattended uploader weekly, and where
+  Instagram stands.
 
 ## Operations
 

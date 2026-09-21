@@ -57,6 +57,7 @@ cd highlights && .venv/bin/python qrscan.py "<video>" -o events.json
 | **`docs/overlay.md`** | anything under `src/` — poll loop, rendering, themes, event cards, Link Live Stream |
 | **`docs/data-code.md`** | `src/dataCode.ts`, `src/dataQr.ts` or `highlights/payload.py`. 🛑 **A wire format with a cross-language contract** |
 | **`docs/highlights.md`** | anything under `highlights/` — the two scanners, event rules, clip windows |
+| **`docs/publishing.md`** | uploading to YouTube — setup, the 7-day OAuth trap, Shorts validation |
 | **`docs/analytics.md`** | anything under `worker/` or `src/analytics.ts` |
 | **`docs/deployment.md`** | deploying, or debugging a TLS failure on this machine |
 | **`docs/feature-ideas.md`** | designing a new overlay feature — the data may already be arriving |
@@ -102,6 +103,13 @@ asking. → `analytics.md` §4
 ⚠ **Stream duration is not measurable**, and ~87% of loads point at matches that already
 finished. Treat raw load counts accordingly. → `analytics.md` §5
 
+🛑 **A Google OAuth consent screen left in "Testing" expires refresh tokens after exactly 7
+days.** An unattended uploader works for a week and then silently stops. Set it to "In
+Production". → `publishing.md` §3
+
+⚠ **A landscape file uploaded as a "Short" produces no error** — it lands as an ordinary video
+and the only way to notice is to look. → `publishing.md` §5
+
 ⚠ **`UNABLE_TO_GET_ISSUER_CERT_LOCALLY` means `NODE_EXTRA_CA_CERTS` is not set in this shell**,
 not that the network is broken. Homebrew is unusable through the same proxy. → `deployment.md` §3
 
@@ -111,7 +119,7 @@ not that the network is broken. Homebrew is unusable through the same proxy. →
 
 ⚠ **Run `sim/` after any change to `views.ts`, `cards.ts`, `events.ts` or `app.ts`** — unit tests
 did not catch the three bugs it found on its first runs. 🛑 It exists only on
-`feature/cricclubs-views`, so it cannot be run from `main`. → `overlay.md` §11
+`feature/cricclubs-views`, so it cannot be run from `main`. → `overlay.md` §13
 
 ⚠ **`vite.config.ts` sets `base: './'` for relative overlay paths. Don't change it.**
 

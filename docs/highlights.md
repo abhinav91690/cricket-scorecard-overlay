@@ -200,7 +200,14 @@ Ankit K, 34 (32)" with the score turning to 88/3; the six at 63:38 sits at 86/2;
 out at exactly 8 s and 2 s, matching `HOLD_MS` in `src/cards.ts` — a useful independent check
 that the classifier reads the real thing.
 
-## 11. Open work
+## 11. Publishing
+
+Uploading a cut file to YouTube is built — `publish.py`, covered in
+[publishing.md](./publishing.md). Reels go up as Shorts, the full video as an ordinary video,
+captioned from the QR payload. Nothing uploads without `--confirm` and uploads default to
+private.
+
+## 12. Open work
 
 - **Per-player vertical reels.** The payload now carries the striker by name on every ball,
   which is what attribution needed and what §8's dead end could not provide. Grouping moments
@@ -212,7 +219,7 @@ that the classifier reads the real thing.
   geometry, encoded at 14.65 Mb/s and decoded byte-exact — demonstrated working in about 9
   seconds for a 5-second clip. Noise is *harsher* than grass, since it is maximally expensive
   to encode, so it errs safe.
-- **Instagram publishing.** A Business account plus a Facebook Page (Creator is not supported),
-  9:16, 5–90 s, H.264 MP4, and a **public URL** because Meta fetches the file. Two-call
-  container model. `instagram_business_content_publish` needs app review, 2–4 weeks, so start
-  early if this is wanted.
+- **Instagram publishing.** Researched and deferred — see [publishing.md](./publishing.md) §7.
+  ✅ App review turns out **not** to be needed for a single-user tool, which removes the 2–4 week
+  blocker previously recorded here. The real cost is that Meta fetches the file, so it needs a
+  publicly reachable URL.

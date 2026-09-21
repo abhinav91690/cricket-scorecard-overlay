@@ -33,14 +33,30 @@ Both scanners emit the same `moments` shape, so `cut.py` never needs to know whi
 `qrscan.py` prints a message and writes nothing if it finds no code, rather than producing an
 empty reel.
 
+## Publish
+
+```sh
+# a reel as a YouTube Short, captioned from the scan output
+.venv/bin/python publish.py reel.mp4 --target shorts \
+    --moments events.json --moment 3 --match "Topguns vs Bazzigarz"
+
+# the full highlights video, with cut.py's chapters in the description
+.venv/bin/python publish.py highlights.mp4 --target video \
+    --match "Topguns vs Bazzigarz" --chapters highlights-chapters.txt
+```
+
+Nothing uploads without `--confirm`, and uploads default to **private**. Setup and the OAuth
+trap are in [`../docs/publishing.md`](../docs/publishing.md).
+
 ## Tests
 
 ```sh
 .venv/bin/python test_payload.py    # the cross-language wire-format contract
 .venv/bin/python test_qrscan.py     # the event rules — pure, no video needed
+.venv/bin/python test_publish.py    # Shorts validation and caption generation
 ```
 
-Both also run under `pytest`.
+All three also run under `pytest`.
 
 ## Files
 
@@ -50,4 +66,5 @@ Both also run under `pytest`.
 | `detect.py` | fallback: finds event cards by accent-stripe colour |
 | `cut.py` | cuts and concatenates clips, writes a chapter list |
 | `payload.py` | the wire format, Python side |
+| `publish.py` | uploads a reel or the full video to YouTube |
 | `requirements.txt` | 🛑 zxing-cpp, **not** OpenCV — the comment explains why |
