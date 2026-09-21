@@ -138,11 +138,4 @@ describe('getQueryParams', () => {
         expect(params.debug).toBe('true');
         expect(params.mode).toBe('replay');
     });
-
-    it('reads the vertical framing guide flag', () => {
-        mockLocationSearch('?matchId=1&safe=vertical');
-        expect(getQueryParams().safe).toBe('vertical');
-        mockLocationSearch('?matchId=1');
-        expect(getQueryParams().safe).toBeNull();
-    });
 });

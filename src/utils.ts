@@ -15,7 +15,6 @@ export function getQueryParams() {
         mode: urlParams.get('mode'),
         quiet: urlParams.has('quiet'),
         card: urlParams.get('card'),
-        safe: urlParams.get('safe'),   // 'vertical' draws the 9:16 crop guide
     };
 }
 

@@ -57,29 +57,6 @@ beforeEach(() => {
 
 afterEach(() => vi.restoreAllMocks());
 
-describe('vertical framing guide', () => {
-    it('draws the 9:16 guide only when ?safe=vertical is set', async () => {
-        setSearch('?debug=1');
-        await updateScore();
-        expect(document.querySelector('.safe-guide')).toBeNull();
-
-        setSearch('?debug=1&safe=vertical');
-        await updateScore();
-        expect(document.querySelector('.safe-guide')).not.toBeNull();
-        expect(document.querySelector('.safe-guide')!.getAttribute('aria-hidden')).toBe('true');
-
-        await updateScore();   // idempotent: never stacks up on a reload-heavy browser source
-        expect(document.querySelectorAll('.safe-guide')).toHaveLength(1);
-        document.querySelector('.safe-guide')!.remove();
-    });
-
-    it('stays off on the home screen', async () => {
-        setSearch('?safe=vertical');
-        await updateScore();
-        expect(document.querySelector('.safe-guide')).toBeNull();
-    });
-});
-
 describe('updateScore mode switch', () => {
     it('shows the home screen and records a home_view when there is no match context', async () => {
         setSearch('');

@@ -34,19 +34,6 @@ export function resetAppStateForTests() {
 }
 
 /** Paint a frame and fire any cards its changes call for. */
-/**
- * Draws the 9:16 crop guide for `?safe=vertical`. A framing aid for whoever is filming,
- * so a reel can be cropped from the recording without losing the action; it is never
- * part of a broadcast, which is why it only exists when the param is set.
- */
-function showVerticalSafeArea(): void {
-    if (document.querySelector('.safe-guide')) return;
-    const guide = document.createElement('div');
-    guide.className = 'safe-guide';
-    guide.setAttribute('aria-hidden', 'true');
-    document.body.appendChild(guide);
-}
-
 function renderFrame(data: CricketAPIData, quiet: boolean) {
     updateScoreboard(data);
     if (!quiet) enqueueCards(detectEvents(lastData, data));
@@ -123,8 +110,6 @@ export async function updateScore() {
 
     if (instructionsEl) instructionsEl.style.display = 'none';
     if (overlayEl) overlayEl.style.display = '';
-
-    if (params.safe === 'vertical') showVerticalSafeArea();
 
     applyTheme(params.theme);
     updateLogo(params.logo);

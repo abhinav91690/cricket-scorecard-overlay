@@ -422,36 +422,3 @@ body {
     .ball-indicator { animation: none; }
     .event-card { transition: none; }
 }
-
-/* ---------------------------------------------------------------------------
-   Framing guide: ?safe=vertical draws the 9:16 crop that survives being cut
-   into an Instagram reel, so the camera can be placed rather than the footage
-   salvaged. A guide, never part of the broadcast: dashed, labelled, and only
-   present when the param is set.
-   --------------------------------------------------------------------------- */
-.safe-guide {
-    position: fixed;
-    inset-block: 0;
-    inset-inline-start: 50%;
-    transform: translateX(-50%);
-    /* 9:16 of the full height, which is what a centre crop keeps */
-    inline-size: calc(100vh * 9 / 16);
-    max-inline-size: 100vw;
-    border-inline: 3px dashed rgba(255, 115, 0, 0.9);
-    pointer-events: none;
-    z-index: 9;
-    display: grid;
-    align-content: start;
-    justify-items: center;
-}
-.safe-guide::before {
-    content: 'VERTICAL SAFE AREA · 9:16';
-    margin-block-start: 18px;
-    padding: 6px 12px;
-    background: rgba(255, 115, 0, 0.92);
-    color: #1a0d00;
-    font-size: 13px;
-    font-weight: 800;
-    letter-spacing: 0.14em;
-    border-radius: 4px;
-}
