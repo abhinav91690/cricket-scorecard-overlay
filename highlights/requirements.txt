@@ -3,3 +3,7 @@
 numpy>=2
 av>=14
 imageio-ffmpeg>=0.5
+
+# zxing-cpp, not OpenCV: cv2.QRCodeDetector returns a str and mangles arbitrary
+# bytes (0 of 60 random payloads recovered byte-exactly, even on perfect images).
+zxing-cpp>=2
