@@ -18,8 +18,30 @@ and never overridden by a theme:
 | Wicket | `#d7263d` |
 | Four | `#1b9e4b` |
 | Six | `#6d3df5` |
+| Milestone | `#ff7300` |
+| Partnership | `#00bcd4` |
 
-So detection is a colour test on a narrow full-height band. No OCR, no model.
+The five are kept at least 150 apart in summed-channel distance, a contract recorded in
+`CLAUDE.md`, which is what makes one nearest-colour test enough to name the event. So
+detection needs no OCR and no model.
+
+## One ball can raise two cards
+
+A four that brings up a fifty shows the boundary card and then the milestone card, and
+`cards.ts` plays them one at a time, so the second begins as the first retires. Cutting
+a clip per card would put the same footage in the reel twice.
+
+`detect.moments()` collapses them. Cards of the same ball are always adjacent — the next
+starts within the previous card's hold plus its exit transition, and consecutive balls
+are thirty seconds or more apart — so grouping on that gap is unambiguous. Each moment
+keeps **every** type (`four+milestone`), and the clip is framed on the highest-priority
+one (`PRIORITY` in `detect.py`: wicket, six, four, milestone, partnership), since a
+milestone or partnership card only ever follows somebody scoring.
+
+Nothing is lost by grouping: `events.json` carries both the raw `events` and the grouped
+`moments`, so a per-player reel can still ask which milestones and partnerships happened
+and when. `cut.py --types` filters on the moment's full type list, so asking for sixes
+still finds the six that also broke a partnership record.
 
 ## Use
 
@@ -77,10 +99,10 @@ Detection being right is not the same as the timestamp being right.
 
 ## Known limits
 
-- **Milestones and partnerships are invisible.** Their stripe uses the theme's brand
-  accent, which in topguns-light is the same turquoise as the team block 30px away.
-  Giving those card types their own palette colour would make them detectable with no
-  change here.
+- **Recordings made before 2026-09-21 have no milestone or partnership stripes.** Those
+  card types shared the theme's brand accent until commit `3f0a282` gave them their own
+  colours. Detection finds them in anything recorded after that; older files, including
+  the reference recording below, only yield wickets and boundaries.
 - **Some wickets are missed.** On the 2026-09-20 Topguns match it found 13 of the 15
   that fell. The golden rule in `app.ts` dismisses a card the moment the score
   changes, so a wicket followed quickly by the next ball can be on screen for under

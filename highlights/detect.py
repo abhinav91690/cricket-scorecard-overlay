@@ -3,7 +3,11 @@
 The overlay draws a 5px accent stripe down the left edge of every event card, and the
 colour is fixed in overlay-base.css and never overridden by a theme:
 
-    wicket  #d7263d    four  #1b9e4b    six  #6d3df5
+    wicket  #d7263d    four  #1b9e4b       six    #6d3df5
+    milestone #ff7300  partnership #00bcd4
+
+The five are held at least 150 apart in summed-channel distance (a contract recorded in
+CLAUDE.md), which is what makes one nearest-colour test enough to name the event.
 
 At any scale that stripe is a narrow, full-bar-height band of one saturated colour,
 which is a far more distinctive signature than a colour blob and rarely occurs in
@@ -18,8 +22,15 @@ import subprocess, json, argparse, os
 from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 
-STRIPES = {'wicket': (0xd7, 0x26, 0x3d), 'four': (0x1b, 0x9e, 0x4b), 'six': (0x6d, 0x3d, 0xf5)}
-HOLD_S  = {'wicket': 8.0, 'four': 2.0, 'six': 2.0}
+STRIPES = {'wicket': (0xd7, 0x26, 0x3d), 'four': (0x1b, 0x9e, 0x4b), 'six': (0x6d, 0x3d, 0xf5),
+           'milestone': (0xff, 0x73, 0x00), 'partnership': (0x00, 0xbc, 0xd4)}
+# Mirrors HOLD_MS in src/cards.ts. Used to tell "this card is still up" from
+# "a second card followed it".
+HOLD_S  = {'wicket': 8.0, 'milestone': 8.0, 'partnership': 6.0, 'four': 2.0, 'six': 2.0}
+# Which event names a clip when one ball produced several cards. A wicket needs the
+# widest lookback, a boundary is the shot worth showing, and milestone/partnership
+# cards only ever follow somebody scoring.
+PRIORITY = ['wicket', 'six', 'four', 'milestone', 'partnership']
 TOL     = 95          # h264 in limited range shifts colours; this is a sum-of-channels distance
 
 
@@ -71,7 +82,7 @@ def find_bar(video: str, samples: int = 24) -> dict:
     step = m['duration'] / (samples + 2)
     frames = []
     for i in range(1, samples + 1):
-        for f in _raw(ff, video, 0, y0, m['w'], H, round(i * step, 2), 0.1):
+        for f in _raw(ff, video, 0, y0, m['w'], H, round(i * step, 2), 3.0):
             frames.append(f.astype(np.float32)); break
     if len(frames) < 4:
         raise SystemExit('could not read enough frames to locate the overlay')
@@ -153,7 +164,40 @@ def scan(video: str, region: dict, duration: float, workers: int = 8,
             last[name] = t; events[-1]['until'] = t; continue
         last[name] = t
         events.append({'t': t, 'type': name, 'until': t})
-    return {'frames': frames, 'bar': region, 'stripe_x': col, 'events': events}
+    return {'frames': frames, 'bar': region, 'stripe_x': col,
+            'events': events, 'moments': moments(events)}
+
+
+def moments(events, slack: float = 5.0):
+    """Collapse the cards of a single ball into one moment.
+
+    One ball can raise several cards: a four that brings up a fifty shows the boundary
+    card and then the milestone card, and cards play one at a time, so the second
+    starts as the first is retiring. Cutting one clip per card would put the same
+    footage in the reel twice.
+
+    Cards from the same ball are therefore always adjacent: the next one begins within
+    the previous card's hold plus the exit transition, and `slack` covers the fact that
+    a keyframe scan can notice each card up to one keyframe late. Consecutive balls are
+    thirty seconds or more apart, so there is no risk of merging two of them.
+
+    The types are kept rather than reduced, so a per-player reel can still ask which
+    milestones and partnerships happened and when.
+    """
+    out = []
+    for e in sorted(events, key=lambda e: e['t']):
+        if out and e['t'] - out[-1]['last'] <= HOLD_S[out[-1]['last_type']] + slack:
+            m = out[-1]
+            if e['type'] not in m['types']: m['types'].append(e['type'])
+            m['last'], m['last_type'] = e['t'], e['type']
+            m['until'] = max(m['until'], e.get('until', e['t']))
+            continue
+        out.append({'t': e['t'], 'types': [e['type']], 'until': e.get('until', e['t']),
+                    'last': e['t'], 'last_type': e['type']})
+    for m in out:
+        m['anchor'] = min(m['types'], key=PRIORITY.index)
+        del m['last'], m['last_type']
+    return out
 
 
 def keyframe_interval(video: str, at: float = 60.0) -> float:
@@ -189,6 +233,10 @@ def main():
     print(f"  card stripe column x={r['stripe_x']}")
     print(f"  decoded {r['frames']} keyframes -> {len(r['events'])} events "
           f"{dict(Counter(e['type'] for e in r['events']))}")
+    multi = [m for m in r['moments'] if len(m['types']) > 1]
+    print(f"  {len(r['moments'])} moments (balls) -> one clip each"
+          + (f"; {len(multi)} raised more than one card: "
+             + ', '.join('+'.join(m['types']) for m in multi[:6]) if multi else ''))
     json.dump(r, open(a.out, 'w'), indent=1)
     print(f"  wrote {a.out}")
 
