@@ -36,8 +36,8 @@ body {
 }
 
 /* The ?data=1 machine-readable code. Flush into the corner and deliberately NOT sized in
-   CSS: one canvas pixel must stay one CSS pixel or the 4px module the format was measured
-   against changes, and with it every number in highlights/README.md. */
+   CSS: one canvas pixel must stay one CSS pixel, or the 2px module the format was measured
+   against changes and with it every number in highlights/README.md. */
 .data-code {
     position: absolute;
     inset-block-start: 0;

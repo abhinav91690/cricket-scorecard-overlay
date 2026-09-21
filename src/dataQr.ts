@@ -7,12 +7,13 @@
  * that is present in every frame turns detection from a sampling problem into a lookup.
  *
  * The geometry is not adjustable by accident. Version 3 and ECC-M are pinned, so a payload
- * that outgrows 42 bytes throws instead of silently becoming a version 4 code — which would
- * grow the block from 148px to 164px and invalidate the measurements it was sized against.
+ * that outgrows 42 bytes throws instead of silently becoming a version 4 code, which would
+ * add four modules a side and invalidate the measurements this was sized against.
  *
- * Measured: v3 ECC-M at 4px modules decoded via stock cv2.QRCodeDetector() on 15 of 15
- * attempts through real h264 at 3840x2160, from 14.65 Mb/s down to 3 Mb/s, read from the
- * frame immediately after the code changes.
+ * Measured on a real IRL Pro recording (3840x2160, 14.96 Mb/s, the match rig): 55 of 55
+ * sampled frames decoded byte-exact with the CRC passing. Read back with zxing-cpp, NOT
+ * OpenCV — cv2.QRCodeDetector returns a str and mangles arbitrary bytes, recovering 0 of
+ * 60 random payloads byte-exactly even from perfect uncompressed images.
  */
 import { OUTCOME, packPayload, type DataFields } from './dataCode';
 import { runsOffBat } from './utils';
@@ -21,9 +22,19 @@ import type { CricketAPIData } from './types';
 /** Pinned. See the note above — these are load-bearing, not preferences. */
 const QR_VERSION = 3;
 const QR_ECC = 'M';
-/** CSS px per module, and the quiet zone the spec requires, in modules. */
-const MODULE_PX = 4;
-const QUIET = 4;
+/**
+ * CSS px per module, and the quiet zone in modules.
+ *
+ * Both are the smallest values measured safe, not the spec defaults. ISO/IEC 18004 asks
+ * for a 4-module quiet zone; 2 decoded 6/6 through real h264 down to 1 Mb/s while 0
+ * failed outright, so 2 is the floor worth trusting. 2px modules likewise decoded 6/6 at
+ * 14.65, 3 and 1 Mb/s — a ~14x bitrate margin — where 1px only worked at full rate.
+ *
+ * Together these put the block at 66x66 CSS px, 0.21% of a 1920x1080 frame, against
+ * 148x148 for the spec-default geometry.
+ */
+const MODULE_PX = 2;
+const QUIET = 2;
 
 const num = (s: string | number | undefined | null): number => {
     const v = parseInt(String(s ?? '0'), 10);

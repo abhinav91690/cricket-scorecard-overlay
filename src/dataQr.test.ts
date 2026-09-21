@@ -163,21 +163,23 @@ describe('buildFields', () => {
 });
 
 describe('renderDataCode', () => {
-    it('draws a 148px code — 29 modules plus a 4-module quiet zone, at 4px each', () => {
+    it('draws a 66px code — 29 modules plus a 2-module quiet zone, at 2px each', () => {
+        // 66px is the measured-safe geometry, not the spec default: quiet 2 and 2px modules
+        // both decoded 6/6 through real h264 down to 1 Mb/s. See the note in dataQr.ts.
         const { canvas, rects } = stubCanvas();
         expect(renderDataCode(canvas, frame())).toBe(true);
-        expect(canvas.width).toBe(148);
-        expect(canvas.height).toBe(148);
+        expect(canvas.width).toBe(66);
+        expect(canvas.height).toBe(66);
         // one white background plus one rect per dark module
-        expect(rects[0]).toEqual([0, 0, 148, 148]);
+        expect(rects[0]).toEqual([0, 0, 66, 66]);
         expect(rects.length).toBeGreaterThan(100);
         for (const [x, y, w, h] of rects.slice(1)) {
-            expect(w).toBe(4);
-            expect(h).toBe(4);
-            expect(x).toBeGreaterThanOrEqual(16);   // clear of the quiet zone
-            expect(y).toBeGreaterThanOrEqual(16);
-            expect(x).toBeLessThan(148 - 16);
-            expect(y).toBeLessThan(148 - 16);
+            expect(w).toBe(2);
+            expect(h).toBe(2);
+            expect(x).toBeGreaterThanOrEqual(4);    // clear of the 2-module quiet zone
+            expect(y).toBeGreaterThanOrEqual(4);
+            expect(x).toBeLessThan(66 - 4);
+            expect(y).toBeLessThan(66 - 4);
         }
     });
 
