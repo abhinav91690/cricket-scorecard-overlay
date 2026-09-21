@@ -15,6 +15,9 @@ export function getQueryParams() {
         mode: urlParams.get('mode'),
         quiet: urlParams.has('quiet'),
         card: urlParams.get('card'),
+        // ?data=1 draws the machine-readable code for highlights/. Off by default, so a
+        // normal browser source never shows it.
+        data: urlParams.has('data') && urlParams.get('data') !== '0',
     };
 }
 

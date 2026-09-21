@@ -16,6 +16,7 @@ import { linkLiveStream, LinkLiveStreamError, extractYouTubeVideoId } from './li
 import { trackOnce, track, LinkOutcome } from './analytics';
 import { showToast } from './toast';
 import { detectEvents } from './events';
+import { ensureDataQr, renderDataCode, resetDataQrForTests } from './dataQr';
 import { enqueueCards, showSampleCard } from './cards';
 
 let replayIndex = 0;
@@ -31,13 +32,24 @@ export function resetAppStateForTests() {
     hasRenderedScore = false;
     lastData = null;
     sampleCardShown = false;
+    resetDataQrForTests();
 }
 
 /** Paint a frame and fire any cards its changes call for. */
-function renderFrame(data: CricketAPIData, quiet: boolean) {
+function renderFrame(data: CricketAPIData, quiet: boolean, showData = false) {
     updateScoreboard(data);
+    // Drawn after the bar so it is never blocked by a slow paint, and only when asked:
+    // the code is scaffolding for highlights/, not part of the graphic.
+    setDataCode(data, showData);
     if (!quiet) enqueueCards(detectEvents(lastData, data));
     lastData = data;
+}
+
+function setDataCode(data: CricketAPIData, showData: boolean) {
+    const canvas = DOM.dataCode;
+    if (!canvas) return;
+    canvas.hidden = !showData;
+    if (showData) renderDataCode(canvas, data);
 }
 
 /**
@@ -113,10 +125,12 @@ export async function updateScore() {
 
     applyTheme(params.theme);
     updateLogo(params.logo);
+    // Pull in the QR encoder only for streams that asked for the data code.
+    if (params.data) await ensureDataQr();
 
     if (params.mode === 'replay') {
         const data = sampleReplayData[replayIndex] as unknown as CricketAPIData;
-        renderFrame(data, params.quiet);
+        renderFrame(data, params.quiet, params.data);
         replayIndex = (replayIndex + 1) % sampleReplayData.length;
         return;
     }
@@ -160,7 +174,7 @@ export async function updateScore() {
         }
 
         await updateTeamLogos(data);
-        renderFrame(data, params.quiet);
+        renderFrame(data, params.quiet, params.data);
         hasRenderedScore = true;
 
     } catch (error) {
