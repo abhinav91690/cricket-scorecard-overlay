@@ -1,159 +1,164 @@
 # Cricket Scorecard Overlay
 
-A professional, lightweight, and responsive cricket scorecard overlay designed for live streaming (OBS, vMix, etc.). It fetches real-time match data from the **CricClubs** API or runs in debug mode with mock data.
+A lightweight cricket scorecard overlay for live streaming (OBS, vMix, Streamlabs, IRL Pro). It
+polls the **CricClubs** API for live scores, or runs on mock data for setup and testing.
 
-## Features
-- **Real-Time Updates**: Polls the API automatically for live scores.
-- **17 Themes**: One clean broadcast layout with a colour palette for every IPL franchise, three core palettes (classic, modern, neon) and the Topguns set. See [Available Themes](#available-themes) below.
-- **Home page with a link builder**: Visit the site with no parameters to build your overlay URL, preview any theme with sample data, and link a YouTube stream to a match.
-- **Link Live Stream**: A home-screen utility to attach a YouTube live stream link to a CricClubs match without leaving the overlay.
-- **Self-Hosted Fonts**: Uses **Montserrat** (bundled) for consistent rendering across all devices without external dependencies.
-- **Performance Optimized**: Zero layout shifts (CLS), minimal network footprint, and bundled CSS.
-- **Developer Experience**: Built with **Vite** and **TypeScript**.
-- **Usage Analytics**: A tiny first-party collector (Cloudflare Worker + D1) records which matches, themes, and streaming apps use the overlay. No cookies, no third parties; see [Usage analytics](#usage-analytics).
+**Live at [score.abhinav.dev](https://score.abhinav.dev)** — open it with no parameters to build
+your overlay URL, preview any theme, and link a YouTube stream to a match.
+
+> **Looking for *why* something works the way it does?** This README is a usage guide. The
+> reasoning, the trade-offs and the traps live in the knowledge bundle at
+> **[`docs/`](docs/index.md)**.
 
 ---
 
-## Quick Start
+## Quick start
 
-### 1. Install & Run Locally
 ```bash
-# Install dependencies
 npm install
-
-# Start development server
-npm run dev
+npm run dev          # http://localhost:5173
 ```
-The server usually starts at `http://localhost:5173`.
 
-Visiting the app with no `matchId` shows the home page: a URL builder that writes the overlay link for you, one-click theme previews, the Link Live Stream form (see below) and a reference table of every parameter.
+### Add it to your streaming app
 
-### 2. Add to OBS
-1.  Add a **Browser Source** in OBS.
-2.  Set the URL to your local server (or deployed GitHub Pages URL).
-3.  Set Width: `1920`, Height: `1080` (or your canvas size).
-4.  Append the necessary query parameters (see below).
+1. Add a **Browser Source**.
+2. Set the URL to `https://score.abhinav.dev/?matchId=<your match id>`.
+3. Set the size to **1920 × 1080**. The page background is transparent.
+
+Visiting the site with no `matchId` shows the home page: a URL builder, one-click theme
+previews, the Link Live Stream form, and a reference table of every parameter.
 
 ---
 
-## Configuration (URL Parameters)
-
-Control the behavior and look of the overlay using URL parameters:
+## URL parameters
 
 | Parameter | Required? | Description | Example |
 | :--- | :--- | :--- | :--- |
-| `matchId` | **Yes** | The unique Match ID from CricClubs. | `?matchId=1939` |
-| `clubId` | No | The Club ID (Default: `1089463`, LPCL). | `?clubId=12345` |
-| `theme` | No | One of the themes listed below (default: `modern-light`; `modern` still works as an alias). | `?theme=kkr` |
-| `debug` | No | Use mock data (1-5) instead of live API. | `?debug=1` |
-| `mode` | No | Special modes like `replay`. | `?mode=replay` |
-| `quiet` | No | Turns off the event cards and shows only the bar. | `?quiet` |
-| `logo` | No | Displays specific sponsor logos. | `?logo=1` |
-| `data` | No | Draws a small machine-readable code in the top-left corner so a recording can be turned into highlights. Off by default. | `?data=1` |
+| `matchId` | **Yes** | The match ID from CricClubs. | `?matchId=1939` |
+| `clubId` | No | The club ID (default `1089463`, LPCL). | `?clubId=12345` |
+| `theme` | No | Any theme below (default `modern-light`). | `?theme=kkr` |
+| `debug` | No | Mock data, `1`–`5`, instead of the live API. | `?debug=1` |
+| `mode` | No | `replay` cycles through sample states. | `?mode=replay` |
+| `quiet` | No | Turns off the event cards; bar only. | `?quiet` |
+| `logo` | No | Shows a sponsor logo. | `?logo=1` |
+| `data` | No | Draws a small machine-readable code for highlights. Off by default. | `?data=1` |
+| `nostats` | No | Opts out of anonymous usage analytics. | `?nostats=1` |
 
-### Machine-readable data code (`?data=1`)
+In debug mode, `&card=wicket` (or `milestone`, `partnership`, `four`, `six`) holds a sample
+event card so you can position it.
 
-Off unless you ask for it. When set, the overlay draws a 66 × 66 px QR code flush into the
-frame's top-left corner carrying the whole bar state — score, both batters, the bowler, the
-partnership, and what the last ball was. `highlights/` reads it back out of a recording to
-cut reels without guessing anything from the picture.
+### Debug modes
 
-It is 0.21% of a 1920 × 1080 frame, and it is meant to be discarded: a 9:16 crop for a
-vertical reel removes it for free, and one `drawbox` covers it for a 16:9 upload. Leave it
-off for a stream you are not going to make highlights from.
+| | |
+|---|---|
+| `?debug=1` | first innings |
+| `?debug=2` | second innings, chasing |
+| `?debug=3` | match ended |
+| `?debug=4` | pre-match / toss |
+| `?debug=5` | no team logos |
+
+### Themes
+
+Every theme shares one layout; a theme is a palette of colour tokens.
+
+- **Core** — `classic`, `modern-light` (default), `modern-dark`, `neon`
+- **IPL franchises** — `kkr`, `rcb`, `mi`, `csk`, `dc`, `rr`, `srh`, `pbks`, `gt`, `lsg`
+- **Topguns** — `topguns-light`, `topguns-dark`
+
+The old `modern`, `tel`, `ted`, `tul` and `tud` names still work as aliases.
 
 ### Event cards
-The bar stays constant; moments earn a card that slides in over the batter and bowler slots, holds, and leaves. Cards are derived by diffing one poll against the previous one, so nothing extra is requested:
+
+Moments earn a card that slides in over the batter and bowler slots, holds, and leaves. They are
+derived by diffing one poll against the previous one, so nothing extra is requested.
 
 | Card | Trigger | Holds |
 | :--- | :--- | :--- |
-| Wicket | batting side's wicket count rises | 8s |
-| Fifty / Hundred | a batter crosses 50 or 100 | 8s |
-| Four / Six | the newest ball is a boundary | 2s |
-| 50 / 100 partnership | the current stand crosses 50 or 100 | 6s |
+| Wicket | the batting side's wicket count rises | 8 s |
+| Fifty / Hundred | a batter crosses 50 or 100 | 8 s |
+| Four / Six | the newest ball is a boundary off the bat | 2 s |
+| 50 / 100 partnership | the current stand crosses 50 or 100 | 6 s |
 
-Cards queue and play one at a time; a wicket suppresses the boundary flash on the same ball. `?quiet` disables them. In debug mode, `&card=wicket` (or `milestone`, `partnership`, `four`, `six`) holds a sample card so you can position it in OBS.
+### Machine-readable data code
 
-### Debug Modes
-Test layouts without a live match:
-- `?debug=1`: 1st Innings (Standard)
-- `?debug=2`: 2nd Innings (Chasing)
-- `?debug=3`: Match Ended
-- `?debug=4`: Pre-match / Toss
-- `?debug=5`: No Team Logos
-
-### Available Themes
-Every theme shares the same layout (`src/css/overlay-base.css`); a theme is a palette of colour tokens.
-- **Core**: `classic` (cream/navy), `modern-light` (default), `modern-dark`, `neon`
-- **IPL Franchises**: `kkr`, `rcb`, `mi`, `csk`, `dc`, `rr`, `srh`, `pbks`, `gt`, `lsg`
-- **Topguns**: `topguns-light`, `topguns-dark` (the old `tel`/`ted`/`tul`/`tud` names still work as aliases)
+`?data=1` draws a 66 × 66 px code in the top-left corner carrying the current bar state, so a
+recording can be turned into highlights without guessing anything from the picture. It is 0.21%
+of the frame and meant to be cropped away. Leave it off unless you are making highlights — see
+[`docs/data-code.md`](docs/data-code.md).
 
 ---
 
 ## Link Live Stream
 
-The home page (shown when no `matchId` is provided) includes a form to attach a YouTube live stream link to a CricClubs match: enter the Club ID (prefilled to the default), Match ID, and the YouTube URL, then submit. The button shows a busy state while the request is sent; success means CricClubs received it, and the public feed can take up to a minute to reflect it.
+The home page has a form to attach a YouTube live stream link to a CricClubs match: club ID
+(prefilled), match ID, and the YouTube URL.
+
+It opens a small CricClubs window briefly, so **allow pop-ups for this site**. Success means
+CricClubs received the request; the public feed can take up to a minute to show it.
 
 ---
 
 ## Usage analytics
 
-The production site reports a few anonymous events to a first-party endpoint (`/api/collect`, a Cloudflare Worker in [`worker/`](worker/)) so we can see which matches, clubs, themes and streaming apps actually use the overlay:
+The production site reports a few anonymous events to a first-party endpoint (`/api/collect`, a
+Cloudflare Worker in [`worker/`](worker/)) so we can see which matches, themes and streaming apps
+use the overlay: `overlay_start`, `home_view` and `link_stream_submit`.
 
-| Event | When | What is recorded |
-| :--- | :--- | :--- |
-| `overlay_start` | Once per page load with a real `matchId` | club ID, match ID, theme, logo, client (OBS / vMix / Streamlabs / Prism / browser) and version, OS, screen size |
-| `home_view` | The home screen is shown | client, OS, screen size |
-| `link_stream_submit` | The Link Live Stream form is submitted | club ID, match ID, YouTube video ID, outcome |
+No cookies, no third parties, no persistent identifiers. Nothing is sent from `localhost`,
+`?debug=` modes or `?mode=replay`. Add **`?nostats=1`** to opt out; Do Not Track is honoured too.
 
-Cloudflare adds country, city and a **daily-rotating** salted hash used only to count distinct viewers within a day. There are no cookies, no persistent identifiers, and nothing is sent from `localhost`, `?debug=` mock modes or `?mode=replay`. Add **`?nostats=1`** to any URL to opt out; the browser's Do Not Track setting is honoured too.
-
-Aggregates are served at `https://score.abhinav.dev/stats` (private, behind Cloudflare Access).
+Details, including what is stored and what deliberately is not, are in
+[`docs/analytics.md`](docs/analytics.md).
 
 ---
 
-## Deployment
+## Highlights
 
-**Site**: [Netlify](https://www.netlify.com/) builds `main` (`npm run build`, publish `dist/`) and serves it as **https://score.abhinav.dev**, proxied through Cloudflare. Nothing to do beyond merging.
-
-**Analytics Worker**: lives in [`worker/`](worker/) and is deployed with Wrangler.
+`highlights/` turns a match recording into reels locally — no cloud, no upload, no API keys. It
+reads the `?data=1` code out of the recording, or falls back to identifying event cards by
+colour for older files.
 
 ```bash
-cd worker
-npm install
-npx wrangler login                     # once
-npx wrangler d1 create overlay-analytics   # once; paste the id into wrangler.toml
-npm run db:migrate                     # apply migrations to the remote D1 database
-npx wrangler secret put STATS_KEY      # fallback key for /stats until Access is configured
-npx wrangler secret put VISITOR_SALT   # any long random string
-npm run deploy
+cd highlights
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python qrscan.py "/path/match.mp4" -o events.json
+.venv/bin/python cut.py   "/path/match.mp4" events.json -o reel.mp4
 ```
 
-Pushes to `main` that touch `worker/**` also deploy automatically via `.github/workflows/deploy-worker.yml` once a `CLOUDFLARE_API_TOKEN` repository secret exists.
-
-To lock `/stats` behind your login, create a Cloudflare Access self-hosted application for `score.abhinav.dev/stats*`, then set `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` in `wrangler.toml` and redeploy.
+See [`docs/highlights.md`](docs/highlights.md).
 
 ---
 
-## Development commands
+## Development
 
 ```bash
-# Run unit tests (watch mode)
-npm run test
+npm run test           # watch mode
+npm run test:run       # single run (used by the build)
+npm run build          # tsc && test:run && vite build -> dist/
+npm run preview        # serve the production build
+npx tsc                # typecheck only
 
-# Run unit tests once (used in the build)
+cd worker              # the analytics Worker
+npm run dev            # local Worker + local D1
 npm run test:run
-
-# Build for production (outputs to /dist)
-npm run build
-
-# Preview the production build locally
-npm run preview
-
-# Analytics Worker (run inside worker/)
-npm run dev              # local Worker + local D1 on http://localhost:8787
-npm run test:run         # Worker unit tests
 npm run typecheck
 ```
 
-See [architecture.md](architecture.md) for a deeper look at the project structure and data flow.
+`npm run build` fails on type errors **and** test failures, so run it before opening a PR.
+
+**Deployment**: Netlify builds `main` and serves it as `score.abhinav.dev`, proxied by
+Cloudflare — nothing to do beyond merging. The analytics Worker is deployed manually and on
+purpose; see [`docs/deployment.md`](docs/deployment.md) and
+[`docs/analytics.md`](docs/analytics.md).
+
+---
+
+## Documentation
+
+| | |
+|---|---|
+| [`docs/index.md`](docs/index.md) | the knowledge bundle — start here for *why* |
+| [`CLAUDE.md`](CLAUDE.md) | ground rules and tripwires for agents working in this repo |
+
+The bundle is an [Open Knowledge Format](docs/index.md) v0.2 base; validate it with
+`okflint validate --manifest okf-base.yaml`.
