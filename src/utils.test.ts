@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { getBallStyleClass, getQueryParams, loadImage } from './utils';
+import { getBallStyleClass, getQueryParams, loadImage, runsOffBat } from './utils';
 
 describe('getBallStyleClass', () => {
     it('should return wicket for "W" or "w"', () => {
@@ -25,6 +25,24 @@ describe('getBallStyleClass', () => {
         expect(getBallStyleClass('1')).toBe('run-1');
         expect(getBallStyleClass('4')).toBe('run-4');
         expect(getBallStyleClass('6')).toBe('run-6');
+    });
+
+    it('colours a boundary off a no-ball as the boundary, not as the extra', () => {
+        // A six off a no-ball reaches us as "7nb" (six off the bat plus the penalty).
+        expect(getBallStyleClass('7nb')).toBe('run-6');
+        expect(getBallStyleClass('5nb')).toBe('run-4');
+        // Scorers who log only the bat runs are handled too.
+        expect(getBallStyleClass('6nb')).toBe('run-6');
+        expect(getBallStyleClass('4nb')).toBe('run-4');
+        // Everything else off a no-ball stays a no-ball.
+        expect(getBallStyleClass('1nb')).toBe('no-ball');
+        expect(getBallStyleClass('3NB')).toBe('no-ball');
+    });
+
+    it('does not treat boundary wides or byes as batting boundaries', () => {
+        expect(getBallStyleClass('5wd')).toBe('wide');
+        expect(getBallStyleClass('4b')).toBe('bye');
+        expect(getBallStyleClass('4lb')).toBe('leg-bye');
     });
 
     it('should return default for unknown input', () => {
@@ -137,5 +155,31 @@ describe('getQueryParams', () => {
         expect(params.clubId).toBe('200');
         expect(params.debug).toBe('true');
         expect(params.mode).toBe('replay');
+    });
+});
+
+describe('runsOffBat', () => {
+    it('reads runs off the bat from a legal delivery', () => {
+        expect(runsOffBat('.')).toBe(0);
+        expect(runsOffBat('1')).toBe(1);
+        expect(runsOffBat('4')).toBe(4);
+        expect(runsOffBat('6')).toBe(6);
+    });
+
+    it('subtracts the penalty from a no-ball, accepting either scoring convention', () => {
+        expect(runsOffBat('7nb')).toBe(6);
+        expect(runsOffBat('6nb')).toBe(6);
+        expect(runsOffBat('5nb')).toBe(4);
+        expect(runsOffBat('4nb')).toBe(4);
+    });
+
+    it('scores nothing off the bat for a wicket, a wide, a bye or a leg-bye', () => {
+        expect(runsOffBat('W')).toBe(0);
+        expect(runsOffBat('5wd')).toBe(0);
+        expect(runsOffBat('4b')).toBe(0);
+        expect(runsOffBat('4lb')).toBe(0);
+        expect(runsOffBat('nb')).toBe(0);
+        expect(runsOffBat('')).toBe(0);
+        expect(runsOffBat('xyz')).toBe(0);
     });
 });

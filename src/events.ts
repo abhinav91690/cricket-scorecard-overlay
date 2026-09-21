@@ -1,4 +1,5 @@
 import { CricketAPIData, CricketAPIValues } from './types';
+import { runsOffBat } from './utils';
 
 /**
  * Match events derived by diffing one poll against the previous one. Pure functions; the
@@ -101,7 +102,8 @@ export function detectEvents(prev: CricketAPIData | null, next: CricketAPIData):
 
     if (!wicket) {
         const last = newBalls(prev.balls, next.balls).at(-1);
-        if (last === '4' || last === '6') events.push({ type: 'boundary', runs: last === '6' ? 6 : 4 });
+        const bat = runsOffBat(last ?? '');
+        if (bat === 4 || bat === 6) events.push({ type: 'boundary', runs: bat });
     }
 
     return events;
