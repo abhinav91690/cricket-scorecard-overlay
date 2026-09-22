@@ -144,6 +144,12 @@ not that the network is broken. Homebrew is unusable through the same proxy. →
 ⚠ **Run `sim/` after any change to `views.ts`, `cards.ts`, `events.ts` or `app.ts`** — unit tests
 did not catch the three bugs it found on its first runs. → `overlay.md` §13
 
+🛑 **A live super over looks exactly like an innings break.** The scorebar swaps to the
+super-over sides and totals, so `matchPhase()` must return `play` while `isSuperOver` is set, or
+the main match's first innings goes on air mid-super-over. Match 2079 — every fixture's source —
+is a super-over tie captured *after* it ended, so no fixture contains the broken window.
+→ `overlay.md` §14b
+
 🛑 **A CricClubs data view drops the live score fields**, so the overlay only *peeks* at one
 between balls and `isFullFrame()` keeps a peek off the bar — and out of the `?data=1` code, which
 would otherwise carry a CRC-valid frame of nonsense. → `overlay.md` §14

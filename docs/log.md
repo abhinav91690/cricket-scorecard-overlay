@@ -2,6 +2,50 @@
 
 ## 2026-09-22
 
+### 🛑 A live super over was being shown as an innings break
+
+`matchPhase()` read the scorebar's overs and balls, and the scorebar **swaps to the super-over
+sides and totals**, so the gap between the two super-over innings was indistinguishable from an
+innings break. The overlay put the **main match's** first innings on air, labelled "1st innings",
+while a super over was being bowled. It now returns `play` while `isSuperOver` is set, below the
+`isMatchEnded` check so a finished super over still gets its match summary.
+[overlay.md](./overlay.md) §14b.
+
+⚠ **`isSuperOver` and `isSuperOverSecondInningsStarted` were typed in `types.ts` and read
+nowhere.** The flag that disambiguates this existed in the payload the whole time.
+
+⚠ **No fixture could have caught it.** Match 2079 — the source of every fixture in
+`mockData.ts` — *is* a super-over tie, but it was captured after the match ended, so
+`isMatchEnded` is `'1'` and the real frame short-circuits to `ended`. The test winds that capture
+back to mid-super-over, and was checked by running it before the fix: `expected 'break' to be
+'play'`.
+
+### 🛑 The simulator was claiming a super over on every frame of a normal match
+
+Fixing the above immediately broke **6 of the simulator's 17 checks** — no line-up panel, no
+innings summary, no pre-match or break peeks. The cause was in `sim/match.ts`, not in the fix:
+`const base = v(mock_view_1)` inherits the real 2079 capture, which carries
+`isSuperOver: "true"` for the whole match, and the overrides never reset it. Every simulated
+frame was asserting a live super over.
+
+The intent had always been otherwise — `isSuperOver: false` was being set on the returned data
+object, but **not inside `values`**, which is where the overlay reads it. One line, in the right
+place, and all 17 checks pass again.
+
+🛑 **A fixture built from a real match inherits that match's quirks.** This one sat inert because
+nothing read the flag; the moment something did, it silently disabled two whole phases of the
+harness. Worth remembering for any fixture derived from a live capture.
+
+### `stripPii()` walks the payload instead of trusting a key list
+
+It deleted `email` from six hardcoded keys — correct for every view in
+[cricclubs-api.md](./cricclubs-api.md) §3, but a new CricClubs view with a new row-bearing key
+would have leaked emails **silently onto a public broadcast**, and nobody would notice until
+someone paused the stream. It now walks the whole object, with a `WeakSet` so a cyclic payload
+cannot hang the poll loop. Verified the leak test fails first.
+
+## 2026-09-22
+
 ### Merged `main` into the views branch (PR 13)
 
 `main` had moved 26 commits ahead while this branch sat open, including the OKF conversion that

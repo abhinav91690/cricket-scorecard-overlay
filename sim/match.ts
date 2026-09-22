@@ -230,6 +230,12 @@ export function fullFrame(s: Snapshot, cfg: SimConfig = DEFAULT_CONFIG): Cricket
         t2Total: String(s.inn2?.total ?? 0), t2Wickets: String(s.inn2?.wickets ?? 0), t2Overs: overs(s.inn2?.legalBalls ?? 0), t2RR: rate(s.inn2?.total ?? 0, s.inn2?.legalBalls ?? 0),
         RRR: chase && s.inn2 && s.phase !== 'ended' ? rate(target - s.inn2.total, cfg.totalOvers * 6 - s.inn2.legalBalls) : '--.--',
         isSecondInningsStarted: chase ? 'true' : 'false', isMatchEnded: s.phase === 'ended' ? '1' : '0', result: s.result,
+        // 🛑 `base` is the real match 2079 capture, which went to a super over, so it carries
+        // isSuperOver "true" for the whole match. Left inherited, every simulated frame claims
+        // a live super over — and matchPhase() reads this to refuse to call one an innings
+        // break, so the pre-match and break phases vanish. The intent was always false; it was
+        // only being set on the data object, not inside `values` where the overlay reads it.
+        isSuperOver: 'false', isSuperOverSecondInningsStarted: 'false',
         totalOvers: cfg.totalOvers, toss: base.toss, seriesName: base.seriesName, groundName: base.groundName,
         batsman1Name: name(striker.row), batsman1Runs: String(striker.runs), batsman1Balls: String(striker.balls), batsman1Fours: String(striker.fours), batsman1Sixers: String(striker.sixes), batsman1ID: striker.row.playerID,
         batsman2Name: name(non.row), batsman2Runs: String(non.runs), batsman2Balls: String(non.balls), batsman2Fours: String(non.fours), batsman2Sixers: String(non.sixes), batsman2ID: non.row.playerID,

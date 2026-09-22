@@ -333,6 +333,25 @@ view while the ball is live and only *peeks* at another view when nothing can be
 `matchOverlayConfig.do?viewId=` — write, CORS-allowed, unauthenticated — and the next poll
 returns that view. Full endpoint reference in [cricclubs-api.md](./cricclubs-api.md).
 
+### 14b. 🛑 A live super over is not an innings break
+
+The scorebar **swaps to the super-over sides and totals** ([cricclubs-api.md](./cricclubs-api.md)
+§3), so the gap between the two super-over innings is indistinguishable from an innings break by
+overs and balls alone: the chase has started, the "second" side has no overs, nothing is in hand.
+
+Read as `break`, that puts the **main match's** first innings on air — stale, and labelled
+"1st innings" — while a super over is actually being bowled. `matchPhase()` therefore returns
+`play` whenever `isSuperOver` is set, checked *after* `isMatchEnded`, so a **finished** super over
+is still `ended` and still gets its match summary.
+
+⚠ **Match 2079, the source of every fixture in `mockData.ts`, is a super-over tie** — but it was
+captured *after* the match ended, so `isMatchEnded` is `'1'` and the real frame short-circuits to
+`ended`. The broken window never appeared in any fixture, which is why nothing caught it. The
+test winds that capture back to mid-super-over.
+
+⚠ **`isSuperOver` stays true for the rest of the match once a super over happens**, so it is not
+a "right now" flag on its own — it only means "live super over" *below* the `isMatchEnded` check.
+
 🛑 **`isFullFrame()` keeps a peek off the bar.** A peek frame has no live fields, so rendering
 it would blank the score, and counting it as a score change would dismiss a card that had only
 just appeared. It also must not reach the `?data=1` code: encoding a peek would hand
@@ -353,6 +372,12 @@ Player rows in the CricClubs card views carry **email addresses**. `stripPii()` 
 moment a frame arrives, before anything renders, caches or logs it — so no email can reach the
 DOM, the view cache, a screenshot or a committed fixture. The fixtures in `mockData.ts` were
 captured live with the emails removed.
+
+🛑 **It walks the whole payload rather than a list of known keys.** The list version was correct
+for every view in [cricclubs-api.md](./cricclubs-api.md) §3, but a new CricClubs view with a new
+row-bearing key would have leaked emails **silently onto a public broadcast**, and nobody would
+notice until someone paused the stream. A walk cannot be outrun by a payload shape we have not
+seen. It carries a `WeakSet` so a cyclic payload cannot hang the poll loop.
 
 This is a ground rule, not a nicety: the overlay is composited into a public broadcast and this
 repository is public.

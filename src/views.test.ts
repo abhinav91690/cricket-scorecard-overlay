@@ -14,6 +14,35 @@ describe('matchPhase', () => {
         expect(matchPhase(frame({ isSecondInningsStarted: 'true', t2Overs: '3.2' }, ['1']))).toBe('play');
         expect(matchPhase(frame({ isMatchEnded: '1', isSecondInningsStarted: 'true', t2Overs: '18.4' }))).toBe('ended');
     });
+
+    it('does not call a live super over an innings break', () => {
+        // 🛑 The scorebar swaps to the super-over sides and totals (cricclubs-api.md §3),
+        // so between the two super-over innings it looks exactly like an innings break:
+        // the chase has started, the "second" side has no overs and no balls are in hand.
+        // Reading it as 'break' puts the MAIN match's first innings on air, stale and
+        // labelled "1st innings", while a super over is actually being bowled.
+        //
+        // Shape taken from the real match 2079 capture, wound back to mid-super-over:
+        // that fixture has isMatchEnded '1', so the real frame short-circuits to 'ended'
+        // and never exposed this.
+        const midSuperOver = {
+            isSuperOver: 'true', isSuperOverSecondInningsStarted: 'false',
+            isMatchEnded: '0', isSecondInningsStarted: 'true',
+            t1Name: 'Lions', t1Total: '10', t1Wickets: '0', t1Overs: '6',
+            t2Name: 'TOPGUNS UNITED', t2Total: '0', t2Wickets: '0', t2Overs: '0',
+        };
+        expect(matchPhase(frame(midSuperOver))).toBe('play');
+        // Mid-innings of the super over, with a ball in hand, is play either way.
+        expect(matchPhase(frame({ ...midSuperOver, t2Overs: '3' }, ['4']))).toBe('play');
+        // A finished super over is still 'ended' — the real 2079 frame, unchanged.
+        expect(matchPhase(mock_view_1 as CricketAPIData)).toBe('ended');
+        // And the boolean form of the flag, which types.ts also allows.
+        expect(matchPhase(frame({ ...midSuperOver, isSuperOver: true }))).toBe('play');
+    });
+
+    it('still reports a normal innings break when no super over is involved', () => {
+        expect(matchPhase(frame({ isSuperOver: 'false', isSecondInningsStarted: 'true', t2Overs: '0.0' }))).toBe('break');
+    });
 });
 
 describe('isFullFrame', () => {
@@ -61,6 +90,32 @@ describe('stripPii', () => {
         stripPii(data);
         expect(JSON.stringify(data)).not.toContain('email');
         expect((data.values as any).t1Batting[0]).toEqual({ firstName: 'A', runsScored: 1 });
+    });
+
+    it('removes email from anywhere in the payload, not just the known keys', () => {
+        // 🛑 The key list was correct for every documented view, but a new CricClubs view
+        // with a new row-bearing key would have leaked emails silently onto a public
+        // broadcast — nobody would notice until someone paused the stream. So the strip
+        // walks the payload instead of trusting a list.
+        const data = frame({
+            someNewCardView: [{ firstName: 'B', email: 'leak@example.com' }],   // unknown key
+            nested: { deeper: { players: [{ email: 'deep@example.com' }] } },   // nested
+            t1Batting: [{ firstName: 'A', email: 'a@b.c', runsScored: 1 }],     // known key
+        });
+        (data as any).overlayConfig = { contact: { email: 'club@example.com' } };  // outside values
+        stripPii(data);
+        expect(JSON.stringify(data)).not.toContain('email');
+        expect(JSON.stringify(data)).not.toContain('example.com');
+        // everything that is not PII survives untouched
+        expect((data.values as any).someNewCardView[0]).toEqual({ firstName: 'B' });
+        expect((data.values as any).t1Batting[0]).toEqual({ firstName: 'A', runsScored: 1 });
+    });
+
+    it('does not loop forever on a cyclic payload', () => {
+        const data = frame({ t1Batting: [{ email: 'a@b.c' }] });
+        (data.values as any).self = data;      // defensive: JSON should never do this
+        stripPii(data);
+        expect(JSON.stringify((data.values as any).t1Batting)).not.toContain('email');
     });
 });
 

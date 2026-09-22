@@ -22,6 +22,12 @@ const noOvers = (v: string | undefined) => !v || v === '0' || v === '0.0';
 export function matchPhase(data: CricketAPIData): MatchPhase {
     const v = data.values;
     if (String(v.isMatchEnded) === '1') return 'ended';
+    // 🛑 A super over swaps the scorebar's sides and totals (cricclubs-api.md §3), so the
+    // gap between its two innings is indistinguishable from an innings break by overs and
+    // balls alone: the chase has started, the second side has no overs, nothing is in hand.
+    // Calling it 'break' puts the MAIN match's first innings on air labelled "1st innings",
+    // stale, while a super over is being bowled. It is live cricket — never a break.
+    if (isTrue(v.isSuperOver)) return 'play';
     const chase = isTrue(v.isSecondInningsStarted);
     const balls = data.balls ?? [];
     if (!chase && noOvers(v.t1Overs) && balls.length === 0) return 'pre';
@@ -67,13 +73,37 @@ export function desiredView(data: CricketAPIData, phase: MatchPhase, cache: View
     return null;
 }
 
-/** Player rows carry email addresses. Remove them before the data goes anywhere else. */
+/** Field names deleted from anywhere in a payload. Player rows carry `email`. */
+const PII_KEYS = ['email'] as const;
+
+/**
+ * Delete PII from anywhere in the payload, before it can reach the DOM, the view cache, a
+ * log line, a screenshot or a committed fixture.
+ *
+ * Called as the **first** statement in `renderFrame()`, above the `isFullFrame()` guard,
+ * because peek frames are precisely the ones carrying player rows.
+ *
+ * 🛑 This walks the whole object rather than a list of known keys. The list version was
+ * correct for every view in cricclubs-api.md §3, but a new CricClubs view with a new
+ * row-bearing key would have leaked emails **silently onto a public broadcast** — and
+ * nobody would notice until someone paused the stream. The walk cannot be outrun by a
+ * payload shape we have not seen.
+ */
 export function stripPii(data: CricketAPIData): CricketAPIData {
-    const v = data.values as unknown as Record<string, unknown>;
-    for (const key of ['t1Batting', 't2Batting', 't1Bowling', 't2Bowling', 't1PlayersList', 't2PlayersList']) {
-        const rows = v[key];
-        if (Array.isArray(rows)) rows.forEach(r => { if (r && typeof r === 'object') delete (r as Record<string, unknown>).email; });
-    }
+    const seen = new WeakSet<object>();
+    const walk = (node: unknown): void => {
+        if (!node || typeof node !== 'object') return;
+        if (seen.has(node)) return;           // defensive: never loop on a cyclic payload
+        seen.add(node);
+        if (Array.isArray(node)) {
+            node.forEach(walk);
+            return;
+        }
+        const obj = node as Record<string, unknown>;
+        for (const key of PII_KEYS) delete obj[key];
+        for (const value of Object.values(obj)) walk(value);
+    };
+    walk(data);
     return data;
 }
 
