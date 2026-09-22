@@ -265,6 +265,53 @@ with the title, description and tags, and `publish.py --meta <json>` uses it ver
 Reels and their sidecars are **gitignored** (`highlights/reels*/`) — generated per match and
 uploaded, never source.
 
+### 13c. Captions come from the scorecard, not from a template
+
+A per-player caption reads like a scorecard line, because every number in it is in the payload:
+
+```
+V. Kohli 46 (28), 3 fours, 2 sixes
+Topguns vs Bazzigarz — 2026 FTP20 Div-A
+
+In this reel: 2 sixes, 1 four
+00:00  SIX off J. Bumrah — 2.3 ov, 31/0
+00:19  FOUR off M. Shami — 5.1 ov, 52/1
+```
+
+- `figures()` takes the player's **highest** figures across every state, not the ones on
+  their last boundary. ⚠ Without that, a batter whose final four came at 20 but who finished
+  on 60 gets captioned "20".
+- 🛑 **The headline is the whole innings; "In this reel" is only what was captured.** Those
+  differ legitimately whenever the stream started mid-innings, so the description names both
+  rather than leaving a reader to decide which is wrong.
+- Bowling reads as figures — `3/24 (4.0 ov)` — and the wicket count is dropped from the title
+  only when it equals the innings figure, since a smaller number is real information.
+- ⚠ Zero counts are omitted. `1x4, 0x6` reads like a bug.
+- ⚠ **No figures, no invention.** `detect.py` output carries no `states`, so captions fall back
+  to the detected tally instead of guessing numbers.
+
+## 14. 🛑 Before the next match
+
+The pipeline is built and tested end to end, but four things have to be true on the day and
+only the first is under the code's control:
+
+1. 🛑 **The stream must be opened with `?data=1`.** Without the code in the pixels there are no
+   names, so `detect.py`'s colour stripes are all that is left and **per-player reels are
+   impossible** — there is no way to recover attribution afterwards. This is the single point
+   where a whole match's reels are lost, and it is one query parameter.
+2. 🛑 **Keep the top-left corner of the frame clear.** That is where the code is drawn. A
+   station logo or a camera overlay on top of it blinds the scanner.
+3. ⚠ **The OAuth consent screen must be "In Production", not "Testing".** In Testing, Google
+   expires the refresh token after exactly 7 days and an upload that worked last week fails
+   with nothing useful in the log — see [publishing.md](./publishing.md) §3.
+4. **`--batting-innings` has to come off the scorecard.** Which innings the team batted is not
+   in the payload and cannot be guessed; the wrong value inverts every attribution (§13).
+
+⚠ **Not yet exercised on a real match.** Everything above is verified against a 26-second
+fixture recording with two moments, one innings and replay names. What a real match will
+exercise for the first time: several players, both innings, real names, and `qrscan.py` on a
+4-hour 4K file — whose runtime has never been measured, unlike `detect.py`'s 40 seconds (§1).
+
 ## 12. Open work
 
 - ~~Per-player vertical reels~~ — **built**, see §13.

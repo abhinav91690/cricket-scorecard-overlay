@@ -85,33 +85,156 @@ def titlecase(name: str) -> str:
     return " ".join(w[:1] + w[1:].lower() if w else w for w in name.split(" "))
 
 
-def metadata(player: str, moments: list[dict], segs: list, match: str, team: str) -> dict:
-    """Title, description and tags for one player's reel."""
+def over(balls: int) -> str:
+    """13 legal balls -> '2.1'. Cricket's over.ball notation, not a decimal."""
+    return f"{balls // 6}.{balls % 6}"
+
+
+def figures(states: list[dict], player: str, role: str) -> dict | None:
+    """The player's batting or bowling figures, read off the richest state we saw.
+
+    The moment for a given ball only knows the score *at* that ball, so a batter whose
+    last boundary came at 20 would be captioned "20" even if they went on to 60. Scanning
+    every state for the highest count that player reached gives their real figures for as
+    much of the innings as the recording covers.
+
+    ⚠ Returns None when there are no states — `detect.py` output has none, so captions
+    must degrade to the tally rather than inventing numbers.
+    """
+    best = None
+    for s in states or []:
+        f = s.get("fields", {})
+        if role == "bat":
+            if f.get("strikerName") != player:
+                continue
+            cur = {"runs": f.get("strikerRuns", 0), "balls": f.get("strikerBalls", 0),
+                   "fours": f.get("strikerFours", 0), "sixes": f.get("strikerSixes", 0)}
+            key = (cur["runs"], cur["balls"])
+        else:
+            if f.get("bowlerName") != player:
+                continue
+            cur = {"wickets": f.get("bowlerWickets", 0), "runs": f.get("bowlerRuns", 0),
+                   "balls": f.get("bowlerBalls", 0), "maidens": f.get("bowlerMaidens", 0)}
+            key = (cur["balls"], cur["wickets"])
+        if best is None or key > best[0]:
+            best = (key, cur)
+    return best[1] if best else None
+
+
+def breakdown(fig: dict | None, role: str) -> str:
+    """'3 fours, 2 sixes' from the player's innings figures. Zero counts are omitted —
+    a caption reading '1x4, 0x6' looks like a bug."""
+    if not fig:
+        return ""
+    bits = []
+    if role == "bat":
+        for n, one, many in ((fig["fours"], "four", "fours"), (fig["sixes"], "six", "sixes")):
+            if n:
+                bits.append(f"{n} {one if n == 1 else many}")
+    elif fig.get("maidens"):
+        n = fig["maidens"]
+        bits.append(f"{n} maiden{'' if n == 1 else 's'}")
+    return ", ".join(bits)
+
+
+def headline(player: str, moments: list[dict], fig: dict | None) -> str:
+    """'V. Kohli 46 (28)' or 'J. Bumrah 3/24 (4.0 ov)' — how a scorecard would say it."""
     who = titlecase(player)
-    what = tally(moments)
-    title = f"{who} — {what}" + (f" | {match}" if match else "")
+    role = moments[0]["_role"]
+    if not fig:
+        return f"{who} — {tally(moments)}"
+    if role == "bat":
+        return f"{who} {fig['runs']} ({fig['balls']})"
+    return f"{who} {fig['wickets']}/{fig['runs']} ({over(fig['balls'])} ov)"
+
+
+def build_title(player: str, moments: list[dict], fig: dict | None, match: str,
+                limit: int = 100) -> str:
+    """Add detail while it fits, dropping the least important part first.
+
+    The scorecard line matters most, then what is actually in the reel, then the fixture.
+    A long team name must not push the player's own figures out of the title.
+    """
+    head = headline(player, moments, fig)
+    # Without figures, headline() already ends in the tally — appending it again would
+    # read "Venu S — 1 six — 1 six".
+    what = tally(moments) if fig else ""
+    # "3/24 (4.0 ov) — 3 wickets" says it twice. But when the reel holds fewer wickets
+    # than the innings figure (the stream started late), the count is real information,
+    # so only drop it when the two agree.
+    if fig and moments[0]["_role"] == "bowl":
+        in_reel = sum(1 for m in moments if "wicket" in m["_kinds"])
+        if in_reel == fig.get("wickets"):
+            what = ""
+    for candidate in (
+        f"{head} — {what}" + (f" | {match}" if match else "") if what else "",
+        f"{head} — {what}" if what else "",
+        f"{head}" + (f" | {match}" if match else ""),
+        head,
+    ):
+        if not candidate:
+            continue
+        if len(candidate) <= limit:
+            return candidate
+    return head[:limit]
+
+
+def ball_line(m: dict, t: float) -> str:
+    """One stamped line per ball, in the language of a commentary log."""
+    stamp = f"{int(t) // 60:02d}:{int(t) % 60:02d}"
+    where = f"{over(m['ball'])} ov, {m.get('score', '')}".strip(", ")
+    if m["_role"] == "bat":
+        shot = "SIX" if "six" in m["_kinds"] else "FOUR"
+        detail = f"{shot} off {titlecase(m['bowler'])}"
+        if str(m.get("outcome", "")).endswith("nb"):
+            detail += " (off a no-ball)"
+    else:
+        out = titlecase(m.get("striker", ""))
+        detail = f"WICKET — {out} {m.get('strikerScore', '')}".rstrip()
+    return f"{stamp}  {detail} — {where}"
+
+
+def metadata(player: str, moments: list[dict], segs: list, match: str, team: str,
+             states: list[dict] | None = None) -> dict:
+    """Title, description and tags for one player's reel."""
+    role = moments[0]["_role"]
+    fig = figures(states, player, role)
+    who = titlecase(player)
+    title = build_title(player, moments, fig, match)
 
     lines, t = [], 0.0
     for (a, b, _), m in zip(segs, moments):
-        stamp = f"{int(t) // 60:02d}:{int(t) % 60:02d}"
-        if m["_role"] == "bat":
-            detail = f"{'six' if 'six' in m['_kinds'] else 'four'} off {titlecase(m['bowler'])}"
-            if m.get("outcome", "").endswith("nb"):
-                detail += " (off a no-ball)"
-        else:
-            detail = f"wicket — {titlecase(m['striker'])}"
-        lines.append(f"{stamp} {detail} · {m.get('score', '')}")
+        lines.append(ball_line(m, t))
         t += b - a
 
-    body = [f"{who} — {what}."]
+    head = headline(player, moments, fig)
+    extra = breakdown(fig, role)
+    if extra:
+        head += f", {extra}"
+
+    body = [head]
     if match:
         body.append(match)
-    body += ["", *lines, "", "Scorecard overlay: https://score.abhinav.dev"]
+    # 🛑 The headline is the player's figures for the whole innings; the reel only holds
+    # what the recording caught. Those differ whenever the stream started mid-innings, so
+    # say which is which rather than leaving a reader to think one of them is wrong.
+    body += ["", f"In this reel: {tally(moments)}", *lines, ""]
+    body.append("Every " + ("boundary" if role == "bat" else "wicket")
+                + " here was found automatically from the scorecard overlay burnt into "
+                  "the broadcast — no manual logging.")
+    body += ["", "Scorecard overlay: https://score.abhinav.dev", ""]
 
-    tags = ["cricket", "highlights", team.lower() if team else "cricket"]
-    tags += sorted({k for m in moments for k in m["_kinds"]})
+    tag_words = ["cricket", "highlights"]
+    if team:
+        tag_words.append(team.lower())
+    tag_words += sorted({k for m in moments for k in m["_kinds"]})
+    tag_words.append("shorts")
+    # #Shorts in the description is what YouTube reads for Shorts discovery.
+    body.append(" ".join(f"#{w.replace(' ', '')}" for w in
+                         ["Shorts", "Cricket"] + ([team.replace(" ", "")] if team else [])))
+
     return {"title": title[:100], "description": "\n".join(body)[:5000],
-            "tags": list(dict.fromkeys(tags))}
+            "tags": list(dict.fromkeys(tag_words))}
 
 
 def main():
@@ -133,6 +256,8 @@ def main():
 
     doc = json.load(open(a.events))
     moments = doc.get("moments") or doc.get("events") or []
+    # Present for qrscan output, absent for detect.py — captions degrade, not break.
+    states = doc.get("states") or []
     if not moments:
         raise SystemExit(f"{a.events} has no moments — run qrscan.py or detect.py first.")
 
@@ -159,7 +284,7 @@ def main():
         print(f"{titlecase(player)}  ({tally(ms)})")
         cut(a.video, segs, base + ".mp4", a.height,
             vf=VERTICAL if a.vertical else None)
-        meta = metadata(player, ms, segs, a.match, a.team)
+        meta = metadata(player, ms, segs, a.match, a.team, states)
         with open(base + ".json", "w") as fh:
             json.dump(meta, fh, indent=1)
         size = os.path.getsize(base + ".mp4") / 1e6

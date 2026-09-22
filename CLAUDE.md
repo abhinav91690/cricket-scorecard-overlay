@@ -96,6 +96,10 @@ success every time. Use zxing-cpp. → `data-code.md` §6
 ⚠ **Never generate a test QR with the Python `qrcode` library** — it inflated 42 random bytes to
 a v14 code, 73 modules instead of 29. Use the npm encoder the overlay ships. → `data-code.md` §6
 
+🛑 **A match streamed without `?data=1` can never have per-player reels.** No code in the
+pixels means no names, and attribution cannot be recovered afterwards — one query parameter
+loses a whole match's reels. → `highlights.md` §14
+
 🛑 **The `?data=1` geometry is a measured floor, not a preference.** 2 px modules and a 2-module
 quiet zone; 1 px cannot work and no amount of ECC changes that. Do not shave it without
 re-measuring. → `data-code.md` §1

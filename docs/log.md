@@ -2,6 +2,38 @@
 
 ## 2026-09-21
 
+### Captions read like a scorecard line
+
+`reels.py` captions were `V. Kohli — 1 six`, which used almost nothing the payload carries.
+They now read as cricket: `V. Kohli 46 (28) — 2 sixes, 1 four`, or `J. Bumrah 3/24 (4.0 ov)`
+for a bowling reel, with a stamped commentary line per ball giving the over and the score.
+[highlights.md](./highlights.md) §13c.
+
+Four decisions in there worth keeping:
+
+- `figures()` reads the player's **highest** figures across every state, not the ones on their
+  last boundary. ⚠ Otherwise a batter whose final four came at 20 but who finished on 60 is
+  captioned "20".
+- 🛑 **The headline is the innings; "In this reel" is what was captured.** They differ whenever
+  the stream started late, so both are named rather than leaving one looking wrong.
+- ⚠ Zero counts are omitted — the first real run produced `1x4, 0x6`, which reads like a bug.
+- ⚠ A bowling title drops its wicket count only when it equals the innings figure; a smaller
+  number means the reel holds part of the spell, which is worth saying.
+
+Two of those were only visible by running it on the real recording rather than on the unit
+tests, which is why the fixture output is checked by eye as well as asserted.
+
+### Pre-match checklist
+
+[highlights.md](./highlights.md) §14. The pipeline is ready, but 🛑 **a match streamed without
+`?data=1` can never have per-player reels** — no code in the pixels means no names, and nothing
+recovers attribution after the fact. That is now a CLAUDE.md tripwire, because it is one query
+parameter standing between a match and all of its reels.
+
+⚠ Still unexercised on real footage: several players, both innings, real names, and
+`qrscan.py`'s runtime on a 4-hour 4K file.
+
+
 ### Per-player reels (`reels.py`)
 
 One vertical reel per player for a single team: their boundaries when the team bats, their

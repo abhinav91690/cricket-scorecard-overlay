@@ -16,15 +16,16 @@ decide whose reel a ball belongs to are pinned here:
 from __future__ import annotations
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from reels import attribute, metadata, slug, tally, titlecase
+from reels import (attribute, breakdown, build_title, figures, metadata, over, slug,
+                   tally, titlecase)
 
 
-def mo(t, types, innings, striker="VENU S", bowler="ANKIT K", **over):
+def mo(t, types, innings, striker="VENU S", bowler="ANKIT K", **rest):
     m = {"t": float(t), "until": float(t) + 5.0, "types": list(types),
          "anchor": types[0], "ball": 30, "innings": innings, "outcome": "4",
          "striker": striker, "bowler": bowler, "score": "50/1",
          "strikerScore": "20(15)", "bowlerWicket": True}
-    m.update(over)
+    m.update(rest)
     return m
 
 
@@ -124,22 +125,127 @@ def test_slug_is_filesystem_safe():
     assert slug("???") == "unknown"
 
 
-def test_metadata_names_the_player_and_the_tally():
+def stt(**over_):
+    """A state for figures(): only the fields figures() reads."""
+    f = dict(strikerName="VENU S", strikerRuns=0, strikerBalls=0, strikerFours=0,
+             strikerSixes=0, bowlerName="ANKIT K", bowlerBalls=0, bowlerRuns=0,
+             bowlerWickets=0, bowlerMaidens=0)
+    f.update(over_)
+    return {"fields": f}
+
+
+def test_over_uses_cricket_notation_not_decimals():
+    assert over(13) == "2.1" and over(12) == "2.0" and over(0) == "0.0"
+
+
+def test_figures_take_the_batters_highest_score_not_the_last_boundary():
+    """A batter whose last four came at 20 but finished on 60 must read 60."""
+    states = [stt(strikerRuns=20, strikerBalls=15, strikerFours=2),
+              stt(strikerRuns=60, strikerBalls=40, strikerFours=5, strikerSixes=2)]
+    fig = figures(states, "VENU S", "bat")
+    assert (fig["runs"], fig["balls"], fig["sixes"]) == (60, 40, 2), fig
+
+
+def test_figures_ignore_other_players_states():
+    states = [stt(strikerName="OTHER", strikerRuns=99), stt(strikerRuns=12)]
+    assert figures(states, "VENU S", "bat")["runs"] == 12
+
+
+def test_figures_read_bowling_as_wickets_for_runs():
+    states = [stt(bowlerBalls=6, bowlerRuns=8, bowlerWickets=1),
+              stt(bowlerBalls=24, bowlerRuns=24, bowlerWickets=3)]
+    fig = figures(states, "ANKIT K", "bowl")
+    assert (fig["wickets"], fig["runs"], fig["balls"]) == (3, 24, 24), fig
+
+
+def test_figures_are_none_without_states():
+    """detect.py output has no states; captions must degrade, not invent numbers."""
+    assert figures([], "VENU S", "bat") is None
+
+
+def test_title_reads_like_a_scorecard_line():
+    ms = attribute([mo(10, ["six"], 1), mo(20, ["four"], 1)], batting_innings=1)["VENU S"]
+    fig = {"runs": 46, "balls": 28, "fours": 1, "sixes": 1}
+    t = build_title("VENU S", ms, fig, "Topguns vs Bazzigarz")
+    assert t == "Venu S 46 (28) — 1 six, 1 four | Topguns vs Bazzigarz", t
+
+
+def test_bowling_title_reads_as_figures_over_an_over_count():
+    """3 in the innings but only 1 captured, so the reel count is real information."""
+    ms = attribute([mo(10, ["wicket"], 2)], batting_innings=1)["ANKIT K"]
+    fig = {"wickets": 3, "runs": 24, "balls": 24, "maidens": 0}
+    t = build_title("ANKIT K", ms, fig, "Topguns vs Bazzigarz")
+    assert t == "Ankit K 3/24 (4.0 ov) — 1 wicket | Topguns vs Bazzigarz", t
+
+
+def test_bowling_title_does_not_say_the_wicket_count_twice():
+    """'1/21 (1.4 ov) — 1 wicket' is redundant when the reel holds the whole spell."""
+    ms = attribute([mo(10, ["wicket"], 2)], batting_innings=1)["ANKIT K"]
+    fig = {"wickets": 1, "runs": 21, "balls": 10, "maidens": 0}
+    t = build_title("ANKIT K", ms, fig, "Topguns vs Bazzigarz")
+    assert t == "Ankit K 1/21 (1.4 ov) | Topguns vs Bazzigarz", t
+
+
+def test_title_does_not_repeat_the_tally_when_there_are_no_figures():
     ms = attribute([mo(10, ["six"], 1)], batting_innings=1)["VENU S"]
-    segs = [[0.0, 10.0, "six"]]
-    meta = metadata("VENU S", ms, segs, "Topguns vs Bazzigarz", "Topguns")
-    assert meta["title"].startswith("Venu S — 1 six"), meta["title"]
-    assert "Topguns vs Bazzigarz" in meta["title"]
+    t = build_title("VENU S", ms, None, "Topguns vs Bazzigarz")
+    assert t == "Venu S — 1 six | Topguns vs Bazzigarz", t
+
+
+def test_title_drops_the_fixture_before_the_players_own_figures():
+    """A long team name must not push the scorecard line out of the title."""
+    ms = attribute([mo(10, ["six"], 1)], batting_innings=1)["VENU S"]
+    fig = {"runs": 46, "balls": 28, "fours": 0, "sixes": 1}
+    t = build_title("VENU S", ms, fig, "M" * 120)
+    assert t.startswith("Venu S 46 (28)"), t
+    assert len(t) <= 100 and "MMM" not in t, t
+
+
+def test_metadata_names_the_player_and_tags_the_team():
+    ms = attribute([mo(10, ["six"], 1)], batting_innings=1)["VENU S"]
+    meta = metadata("VENU S", ms, [[0.0, 10.0, "six"]], "Topguns vs Bazzigarz", "Topguns")
+    assert "Venu S" in meta["title"] and "Topguns vs Bazzigarz" in meta["title"]
     assert "six" in meta["tags"] and "topguns" in meta["tags"]
+    assert "shorts" in meta["tags"]
 
 
-def test_metadata_description_keeps_one_stamped_line_per_ball():
-    ms = attribute([mo(10, ["four"], 1), mo(40, ["six"], 1)], batting_innings=1)["VENU S"]
+def test_description_stamps_each_ball_with_the_over_and_score():
+    ms = attribute([mo(10, ["four"], 1, ball=13), mo(40, ["six"], 1, ball=20)],
+                   batting_innings=1)["VENU S"]
     segs = [[0.0, 20.0, "four"], [30.0, 50.0, "six"]]
-    meta = metadata("VENU S", ms, segs, "", "Topguns")
-    body = meta["description"]
-    assert "00:00 four off Ankit K" in body, body
-    assert "00:20 six off Ankit K" in body, body
+    body = metadata("VENU S", ms, segs, "", "Topguns")["description"]
+    assert "00:00  FOUR off Ankit K — 2.1 ov, 50/1" in body, body
+    assert "00:20  SIX off Ankit K — 3.2 ov, 50/1" in body, body
+
+
+def test_description_carries_the_batting_boundary_breakdown():
+    ms = attribute([mo(10, ["six"], 1)], batting_innings=1)["VENU S"]
+    states = [stt(strikerRuns=46, strikerBalls=28, strikerFours=3, strikerSixes=2)]
+    body = metadata("VENU S", ms, [[0.0, 10.0, "six"]], "", "T", states)["description"]
+    assert "Venu S 46 (28), 3 fours, 2 sixes" in body, body
+
+
+def test_breakdown_omits_zero_counts():
+    """'1x4, 0x6' reads like a bug."""
+    assert breakdown({"fours": 1, "sixes": 0}, "bat") == "1 four"
+    assert breakdown({"fours": 0, "sixes": 2}, "bat") == "2 sixes"
+    assert breakdown({"fours": 0, "sixes": 0}, "bat") == ""
+    assert breakdown(None, "bat") == ""
+
+
+def test_description_separates_the_innings_from_what_the_reel_holds():
+    """🛑 If the stream started mid-innings the two legitimately differ; say which is which."""
+    ms = attribute([mo(10, ["six"], 1)], batting_innings=1)["VENU S"]
+    states = [stt(strikerRuns=46, strikerBalls=28, strikerFours=3, strikerSixes=2)]
+    body = metadata("VENU S", ms, [[0.0, 10.0, "six"]], "", "T", states)["description"]
+    assert "Venu S 46 (28), 3 fours, 2 sixes" in body   # the full innings
+    assert "In this reel: 1 six" in body, body          # only what was captured
+
+
+def test_description_has_a_shorts_hashtag_for_discovery():
+    ms = attribute([mo(10, ["six"], 1)], batting_innings=1)["VENU S"]
+    body = metadata("VENU S", ms, [[0.0, 10.0, "six"]], "", "Topguns")["description"]
+    assert "#Shorts" in body and "#Topguns" in body, body
 
 
 def test_metadata_says_when_a_boundary_came_off_a_no_ball():
@@ -157,10 +263,11 @@ def test_metadata_respects_youtube_field_limits():
     assert len(meta["description"]) <= 5000
 
 
-def test_a_fielding_wicket_names_the_dismissed_batter():
-    ms = attribute([mo(10, ["wicket"], 2, striker="R. SHARMA")], batting_innings=1)["ANKIT K"]
-    meta = metadata("ANKIT K", ms, [[0.0, 10.0, "wicket"]], "", "Topguns")
-    assert "wicket — R. Sharma" in meta["description"], meta["description"]
+def test_a_fielding_wicket_names_the_dismissed_batter_and_their_score():
+    ms = attribute([mo(10, ["wicket"], 2, striker="R. SHARMA", strikerScore="34(32)")],
+                   batting_innings=1)["ANKIT K"]
+    body = metadata("ANKIT K", ms, [[0.0, 10.0, "wicket"]], "", "Topguns")["description"]
+    assert "WICKET — R. Sharma 34(32)" in body, body
 
 
 if __name__ == "__main__":
