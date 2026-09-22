@@ -16,6 +16,7 @@ import { linkLiveStream, LinkLiveStreamError, extractYouTubeVideoId } from './li
 import { trackOnce, track, LinkOutcome } from './analytics';
 import { showToast } from './toast';
 import { detectEvents } from './events';
+import { ensureDataQr, renderDataCode, resetDataQrForTests } from './dataQr';
 import { enqueueCards, showSampleCard, dismissAll, isIdle, PanelEvent } from './cards';
 import { apiBase, refreshMs, e2eLog } from './e2e';
 import { ViewCache, desiredView, isFullFrame, matchPhase, mergeCache, phasePanels, scoreChanged, stripPii, lineupPanel, inningsSummaryPanel, matchSummaryPanel } from './views';
@@ -40,19 +41,25 @@ export function resetAppStateForTests() {
     sampleCardShown = false;
     viewCache = {};
     peekAttempts = {};
+    resetDataQrForTests();
 }
 
 /**
  * Paint a frame and fire any cards its changes call for. Frames from a view peek (no live
  * fields) only feed the cache; they never touch the bar or count as a score change.
  */
-function renderFrame(data: CricketAPIData, quiet: boolean) {
+function renderFrame(data: CricketAPIData, quiet: boolean, showData = false) {
     stripPii(data);
     viewCache = mergeCache(viewCache, data);
     e2eLog('frame', { view: data.view ?? 1, full: isFullFrame(data), phase: isFullFrame(data) ? matchPhase(data) : null, score: `${data.values.t1Total ?? ''}/${data.values.t1Wickets ?? ''}|${data.values.t2Total ?? ''}/${data.values.t2Wickets ?? ''}`, balls: data.balls?.length ?? 0 });
     if (!isFullFrame(data)) return;
 
     updateScoreboard(data);
+    // Drawn after the bar so it is never blocked by a slow paint, and only when asked:
+    // the code is scaffolding for highlights/, not part of the graphic.
+    // 🛑 This sits below the isFullFrame guard on purpose — a view peek has no live
+    // fields, and encoding one would hand highlights/ a CRC-valid frame of nonsense.
+    setDataCode(data, showData);
     if (!quiet) {
         // Golden rule: a new ball dismisses whatever is showing before this frame's own cards play.
         if (scoreChanged(lastData, data)) dismissAll();
@@ -64,6 +71,13 @@ function renderFrame(data: CricketAPIData, quiet: boolean) {
         if (phase !== 'play' && dataReady && isIdle('panel')) enqueueCards(phasePanels(phase, data.values, viewCache));
     }
     lastData = data;
+}
+
+function setDataCode(data: CricketAPIData, showData: boolean) {
+    const canvas = DOM.dataCode;
+    if (!canvas) return;
+    canvas.hidden = !showData;
+    if (showData) renderDataCode(canvas, data);
 }
 
 /**
@@ -169,10 +183,12 @@ export async function updateScore() {
 
     applyTheme(params.theme);
     updateLogo(params.logo);
+    // Pull in the QR encoder only for streams that asked for the data code.
+    if (params.data) await ensureDataQr();
 
     if (params.mode === 'replay') {
         const data = sampleReplayData[replayIndex] as unknown as CricketAPIData;
-        renderFrame(data, params.quiet);
+        renderFrame(data, params.quiet, params.data);
         replayIndex = (replayIndex + 1) % sampleReplayData.length;
         return;
     }
@@ -220,7 +236,7 @@ export async function updateScore() {
         }
 
         if (isFullFrame(data)) await updateTeamLogos(data);
-        renderFrame(data, params.quiet);
+        renderFrame(data, params.quiet, params.data);
         if (!params.debug) steerView(data, params.clubId, params.matchId!);
         hasRenderedScore = true;
 

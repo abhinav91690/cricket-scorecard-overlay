@@ -65,6 +65,18 @@ describe('detectEvents', () => {
         expect(detectEvents(first({}, ['1']), first({}, ['1', '2']))).toEqual([]);
     });
 
+    it('flashes a boundary hit off a no-ball', () => {
+        // "7nb" is a six off the bat plus the one-run penalty; an exact match on '6' missed it.
+        expect(detectEvents(first({}, ['1', '.']), first({}, ['1', '.', '7nb']))).toEqual([{ type: 'boundary', runs: 6 }]);
+        expect(detectEvents(first({}, ['1', '.']), first({}, ['1', '.', '5nb']))).toEqual([{ type: 'boundary', runs: 4 }]);
+    });
+
+    it('does not flash a boundary for runs that were not off the bat', () => {
+        expect(detectEvents(first({}, ['1']), first({}, ['1', '5wd']))).toEqual([]);
+        expect(detectEvents(first({}, ['1']), first({}, ['1', '4lb']))).toEqual([]);
+        expect(detectEvents(first({}, ['1']), first({}, ['1', '1nb']))).toEqual([]);
+    });
+
     it('does not flash a boundary when a wicket fell in the same poll', () => {
         const next = first({ t1Wickets: '2', lastOutName: 'Raja K' }, ['4', 'W']);
         expect(detectEvents(first({}, ['4']), next).map(e => e.type)).toEqual(['wicket']);

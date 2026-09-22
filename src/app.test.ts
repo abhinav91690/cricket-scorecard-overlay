@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-vi.mock('./dom', () => ({ DOM: { teamName: document.createElement('div') } }));
+vi.mock('./dom', () => ({ DOM: { teamName: document.createElement('div'),
+    dataCode: document.createElement('canvas') } }));
+vi.mock('./dataQr', () => ({ ensureDataQr: vi.fn(async () => {}),
+    renderDataCode: vi.fn(), resetDataQrForTests: vi.fn() }));
 vi.mock('./api', () => ({ fetchScoreData: vi.fn(), switchView: vi.fn() }));
 vi.mock('./ui', () => ({ updateScoreboard: vi.fn(), updateTeamLogos: vi.fn(async () => {}) }));
 vi.mock('./theme', () => ({ applyTheme: vi.fn(), updateLogo: vi.fn() }));
@@ -16,6 +19,7 @@ vi.mock('./liveStream', async (importOriginal) => {
 import { updateScore, setupLinkStreamForm, pollLoop, resetAppStateForTests } from './app';
 import { DOM } from './dom';
 import { fetchScoreData, switchView } from './api';
+import { renderDataCode } from './dataQr';
 import { updateScoreboard, updateTeamLogos } from './ui';
 import { applyTheme, updateLogo } from './theme';
 import { track, trackOnce } from './analytics';
@@ -180,6 +184,18 @@ describe('views: peeks, dismissal and panels', () => {
         // the peek frame never reached the bar or the event detector
         expect(updateScoreboard).toHaveBeenCalledTimes(1);
         expect(detectEvents).toHaveBeenCalledTimes(1);
+    });
+
+    it('never encodes a view peek into the ?data=1 code', async () => {
+        // 🛑 A peek frame has no live fields. Encoding one would produce a CRC-VALID
+        // payload of nonsense, which highlights/ would then trust and cut clips from —
+        // the CRC cannot catch it, because the bytes are honestly what we encoded.
+        setSearch('?matchId=2079&clubId=1089463&data=1');
+        vi.mocked(fetchScoreData).mockResolvedValueOnce(pre).mockResolvedValueOnce(mock_view_48 as any);
+        await updateScore();                                  // live frame
+        expect(renderDataCode).toHaveBeenCalledTimes(1);
+        await updateScore();                                  // peek frame lands
+        expect(renderDataCode).toHaveBeenCalledTimes(1);      // still 1, not 2
     });
 
     it('never switches views during play or in debug mode', async () => {

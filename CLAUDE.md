@@ -1,98 +1,158 @@
-# CLAUDE.md
+# CLAUDE.md — Cricket Scorecard Overlay
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Context for every session in this folder. **Read before acting.**
+
+This file is deliberately short: it holds the **ground rules**, an **address index** and
+**one-line tripwires**. The domain documents live in **`docs/`** as an **Open Knowledge Format
+v0.2 bundle** (`okf-base.yaml` at the root, index at `docs/index.md`) — validate with
+`okflint validate --manifest okf-base.yaml`. The reasoning, the as-built detail and the full
+traps live in the concepts. **Load the relevant concept before working in that area** — the
+tripwires here tell you the mistake exists, not how to fix it.
 
 ## What this is
 
-A client-side cricket scorecard overlay for OBS/vMix browser sources. Vite + TypeScript, no framework, no backend. It polls the public CricClubs `liveScoreOverlayData.do` endpoint every 5s and paints a fixed-position DOM. Everything is driven by URL query params (`matchId`, `clubId`, `theme`, `debug`, `mode`, `logo`); see README.md for the full table and `architecture.md` for the data-flow diagram.
+A client-side cricket scorecard overlay for OBS/vMix browser sources. Vite + TypeScript, no
+framework, no backend. It polls the public CricClubs `liveScoreOverlayData.do` endpoint every 5 s
+and paints a fixed-position DOM, driven entirely by URL query params (`matchId`, `clubId`,
+`theme`, `debug`, `mode`, `logo`, `data`). `README.md` is the user-facing guide;
+`highlights/` turns a recording into reels.
 
-**CricClubs API**: everything known about the endpoints, the `view` mechanism (`matchOverlayConfig.do?viewId=`), per-view payload shapes and probing recipes is in `docs/cricclubs-api.md`. Read it before touching `api.ts`, `types.ts` or anything that fetches; player rows in the card views contain email addresses that must never be rendered or stored.
+## Ground rules
+
+- 🛑 **This repository is public.** Never commit a secret, a key, or the real name of a league
+  member. `STATS_KEY` lives only as a Worker secret and at
+  `~/.config/cricket-scorecard-overlay/stats_key`; the YouTube OAuth client and token live in
+  the **macOS Keychain** (`cricket-overlay-youtube-client` / `-token`); attribution names live
+  only in `~/code/cricket-stats`, which has no remote.
+- ⚠ **Never write a secret to the Keychain with `security add-generic-password -w`** — the
+  prompt truncates at 128 chars silently, and passing the value inline puts it in argv. →
+  `publishing.md` §4a
+- 🛑 **Player rows in the CricClubs card views carry email addresses.** They must never be
+  rendered or stored. `stripPii()` runs first in `renderFrame()`, and the fixtures in
+  `mockData.ts` were captured live with emails removed.
+- ⚠ **`npm run build` is the gate** — it fails on type errors *and* test failures. There is no
+  linter. Run it before opening a PR.
+- **Ask before anything outward-facing**: deploying the Worker, merging to `main`, adding a repo
+  secret, or pushing to a branch someone else has open.
+- Branches are `feature/…`, `fix/…`, `docs/…`, `design/…`, `test/…`; commit subjects use
+  conventional prefixes (`feat:`, `fix:`, `docs:`, `ci:`, `test:`, `perf:`, `build:`).
+- Recordings and reels are **gitignored and must stay that way**. 🛑 That rule is not yet on
+  `main` — it must ride along with whichever PR lands first.
 
 ## Commands
 
 ```bash
 npm run dev            # Vite dev server on http://localhost:5173
-npm run test           # vitest watch mode
-npm run test:run       # single run (this is what build and CI use)
-npm run test:coverage  # v8 coverage table (also available in worker/)
-npx vitest run src/utils.test.ts            # one test file
-npx vitest run -t "should return wicket"    # one test by name
-npx tsc                # typecheck only (noEmit; strict + noUnusedLocals + noImplicitReturns)
-npm run build          # tsc && test:run && vite build -> dist/ (dist is gitignored)
-npm run preview        # serve the production build
+npm run test           # vitest watch
+npm run test:run       # single run — what build and CI use
+npm run build          # tsc && test:run && vite build -> dist/
+npx tsc                # typecheck only
+npx vitest run src/utils.test.ts            # one file
+npx vitest run -t "should return wicket"    # one test
+
+npm run sim            # fake CricClubs serving a simulated match (view switching included)
+npm run sim:run        # headless end-to-end run of a whole match; report in sim/out/
+
+cd worker && npm run dev | test:run | typecheck | db:migrate | deploy
+cd highlights && .venv/bin/python qrscan.py "<video>" -o events.json
 ```
 
-```bash
-npm run sim            # fake CricClubs serving a simulated match on :8788 (--speed 60)
-npm run sim:run        # full end-to-end run: sim server + dev server + headless Chrome; report in sim/out/
-```
+## Where things live
 
-```bash
-cd worker                # Cloudflare Worker: analytics collector + /stats page
-npm run dev              # local Worker with a local D1 (needs worker/.dev.vars with STATS_KEY for /stats)
-npm run test:run         # Worker unit tests
-npm run typecheck
-npm run db:migrate       # apply D1 migrations remotely (wrangler login first)
-npm run deploy
-```
+| File | Load it before… |
+|---|---|
+| **`docs/overlay.md`** | anything under `src/` — poll loop, rendering, themes, event cards, Link Live Stream |
+| **`docs/data-code.md`** | `src/dataCode.ts`, `src/dataQr.ts` or `highlights/payload.py`. 🛑 **A wire format with a cross-language contract** |
+| **`docs/highlights.md`** | anything under `highlights/` — the two scanners, event rules, clip windows |
+| **`docs/publishing.md`** | uploading to YouTube — setup, the 7-day OAuth trap, Shorts validation |
+| **`docs/analytics.md`** | anything under `worker/` or `src/analytics.ts` |
+| **`docs/deployment.md`** | deploying, or debugging a TLS failure on this machine |
+| **`docs/feature-ideas.md`** | designing a new overlay feature — the data may already be arriving |
+| **`docs/cricclubs-api.md`** | anything that fetches — endpoints, the `view` mechanism, per-view payload shapes |
+| **`docs/log.md`** | what changed and when |
 
-There is no linter. `npm run build` fails on type errors *and* test failures, so run it before opening a PR. CI (`.github/workflows/ci.yml`) runs the site build and the Worker typecheck/tests on every PR.
+## Tripwires
 
-Deployment: Netlify builds `main` and serves it as `score.abhinav.dev`, proxied by Cloudflare. There is nothing to deploy for the site beyond merging. `vite.config.ts` sets `base: './'`; don't change it.
+Each says only that a mistake exists. The fix is in the concept.
 
-The analytics Worker is deployed **manually**, on purpose: after changing anything under `worker/`, run `npm run deploy` there (and `npm run db:migrate` first if you added a migration). `.github/workflows/deploy-worker.yml` exists but skips itself until a `CLOUDFLARE_API_TOKEN` repo secret is added; that is deliberate until the data proves useful, so don't add the secret without asking. The D1 database id in `wrangler.toml` is the real one. Wrangler needs a logged-in session (`npx wrangler login`); on the dev machine Node also needs the corporate root CA, which `~/.zshrc` provides via `NODE_EXTRA_CA_CERTS` (if wrangler fails with `UNABLE_TO_GET_ISSUER_CERT_LOCALLY`, that variable isn't set in the current shell).
+🛑 **The event-card accent palette is a contract, not decoration.** Five fixed colours, never
+theme-overridden; `highlights/` identifies events from that 5 px stripe alone. Changing one
+silently breaks detection on every future match. → `overlay.md` §6a
 
-The stats page is `https://score.abhinav.dev/stats?key=<STATS_KEY>`. The key is a Worker secret, not in the repo, and Cloudflare cannot read it back. The local copy lives at `~/.config/cricket-scorecard-overlay/stats_key` (mode 600). Rotating it means `npx wrangler secret put STATS_KEY` in `worker/` and updating that file. Never paste the key into the repo or docs; the repository is public.
+🛑 **`dom.ts` runs `getElementById` at import time.** Never import it directly in a test; a new
+element must be added in three places. → `overlay.md` §4
 
-## Architecture
+🛑 **Link Live Stream must stay a `window.open` popup.** `fetch`, `<img>` and `<iframe>` are all
+blocked by CORP + WAF; commits `25ceb63` and `f7459e3` document the failed attempts. →
+`overlay.md` §8
 
-Entry is `src/script.ts`, loaded directly from `index.html` as a module. It only imports the Montserrat font CSS and `css/instructions.css` (theme CSS is imported by `theme.ts`) and then calls into `src/app.ts`, which holds all orchestration and is where the tests point. `app.ts`:
-1. Wires the Link Live Stream form once (`setupLinkStreamForm`).
-2. Runs `pollLoop()`, which awaits `updateScore()` and then re-arms a `setTimeout(CONFIG.REFRESH_RATE)`. It is a timeout chain, not `setInterval`, so a slow CricClubs response can't overlap the next poll. A failed fetch keeps the last rendered frame once one has painted, and shows "Error" only before the first successful render.
+⚠ **API booleans are strings** — `isSecondInningsStarted` is `"true"`, `isMatchEnded` is `"1"`.
+→ `overlay.md` §3
 
-`updateScore()` is the mode switch. In order: no `matchId`/`debug`/`mode=replay` → show `#instructions` and hide `.overlay`; `mode=replay` → cycle `replayData.ts`; `debug=1..5` → static state from `mockData.ts`; otherwise fetch live. Mock/replay data is cast `as unknown as CricketAPIData` because those fixtures don't fill every field of the (large) type in `types.ts`.
+⚠ **A boundary off a no-ball arrives fused with the penalty**: a six reads `7nb`, not `6`. It was
+invisible to both the cards and the highlights until `c455921`. → `overlay.md` §6b
 
-Rendering is in `src/ui.ts`. `updateScoreboard()` picks team 1 vs team 2 fields based on `values.isSecondInningsStarted === "true"` (API booleans are strings, `isMatchEnded` is `"1"`), then writes through `setText`/`setDisplay` helpers that only touch the DOM when a value changed. `statusText()` supplies the CRR / Target tail on the score row and the Need / RRR third row in a chase, computed from the totals; there is no separate second-innings strip any more.
+🛑 **Never decode the data code with OpenCV.** `cv2.QRCodeDetector` returns a str and mangles
+arbitrary bytes — 0 of 60 random payloads recovered from *perfect* images, while reporting
+success every time. Use zxing-cpp. → `data-code.md` §6
 
-Event cards: `app.ts` keeps the previous frame and calls `detectEvents(prev, next)` (`src/events.ts`, pure, tested) after every render, then `enqueueCards()` (`src/cards.ts`) plays them one at a time over the batter/bowler slots. Hold times live in `HOLD_MS`; the exit transition length is duplicated between `cards.ts` (`TRANSITION_MS`) and the `.event-card` CSS, keep them equal. Adding a card type means a new `OverlayEvent` variant, a detection rule, `cardCopy()` text, a `HOLD_MS` entry, a `SAMPLE_EVENTS` entry (for `?debug=1&card=<type>`), and usually a `[data-type]` CSS rule. Cards are the only thing that may cover the bar; the team block must always stay visible.
+⚠ **Never generate a test QR with the Python `qrcode` library** — it inflated 42 random bytes to
+a v14 code, 73 modules instead of 29. Use the npm encoder the overlay ships. → `data-code.md` §6
 
-Two rules are enforced in `renderFrame()` and must survive any refactor: every card/panel is timed (`HOLD_MS`), and `scoreChanged()` → `dismissAll()` runs before a frame's cards are queued. Panels (line-up, innings/match summary) live in `views.ts` and play on the `panel` surface only while `matchPhase()` is not `play`.
+🛑 **A match streamed without `?data=1` can never have per-player reels.** No code in the
+pixels means no names, and attribution cannot be recovered afterwards — one query parameter
+loses a whole match's reels. → `highlights.md` §14
 
-### Simulated matches (`sim/`)
+🛑 **The `?data=1` geometry is a measured floor, not a preference.** 2 px modules and a 2-module
+quiet zone; 1 px cannot work and no amount of ECC changes that. Do not shave it without
+re-measuring. → `data-code.md` §1
 
-`sim/match.ts` turns the recorded cards of match 2079 into a full ball-by-ball game (pre-match, first innings, break, chase, result; wickets, boundaries, fifties, wides), deterministic per seed. `sim/server.ts` serves it through the real endpoint shapes, including view switching that drops the live fields exactly like CricClubs, with a controllable clock (`/sim/control?speed=&seek=&pause=`). `sim/run.ts` drives the real overlay in headless Chrome over the DevTools protocol through the whole match, screenshots every phase and card, and grades the rules (peeks only while idle and never repeated, panels wait for their peeks, every card timed, every dismissal explained by a score change). **Run it after any change to `views.ts`, `cards.ts`, `events.ts` or `app.ts`**; unit tests did not catch the three bugs it found on its first runs. Node runs the `.ts` directly (no build); the overlay hooks it relies on (`?api=`, `?refresh=`, `?e2e`, in `src/e2e.ts`) only work on localhost.
+🛑 **The Worker deploy is manual on purpose.** `deploy-worker.yml` skips itself until a
+`CLOUDFLARE_API_TOKEN` secret exists, and not adding it is a decision. Don't add it without
+asking. → `analytics.md` §4
 
-### CricClubs views (`src/views.ts`, `docs/cricclubs-api.md`)
+⚠ **Stream duration is not measurable**, and ~87% of loads point at matches that already
+finished. Treat raw load counts accordingly. → `analytics.md` §5
 
-The overlay drives CricClubs' server-side view with `switchView()` but **never during play**: data views drop the batter/bowler/ball fields, so `desiredView()` only peeks for one poll (squads pre-match, team 1's cards at the break, team 2's at the end) and immediately asks for view 1 again. Panels for a phase are held until its peeks have landed (`PEEK_ATTEMPTS` tries, then shown anyway), and empty card lists in a view mean "not yet", not "present". `isFullFrame()` gates the bar; peek frames only feed `ViewCache`. Debug and replay never switch views. Player rows carry `email`; `stripPii()` runs first in `renderFrame()`, and the fixtures in `mockData.ts` were captured live with emails removed. Switching a view also switches CricClubs' own overlay for that match, which the owner has accepted.
+🛑 **Never record an untested platform restriction as a tripwire.** This slot used to say an
+unverified API project cannot publish publicly to YouTube. Google documents that, but it was
+never tested here — and when it finally was, the upload landed public. The false certainty cost
+a Make.com detour and an R2 plan, to route around a wall nobody had pushed on. →
+`publishing.md` §0
 
-### `dom.ts` runs `getElementById` at import time
+⚠ **httplib2 ignores the system trust store, `SSL_CERT_FILE` *and* `REQUESTS_CA_BUNDLE`**, so
+every Google API call fails on the corporate proxy while `requests` in the same process
+succeeds. Hand it `ca_certs` explicitly. → `publishing.md` §4b
 
-`DOM` is a plain object of element references resolved when the module first loads. Consequences:
-- Anything importing `dom.ts` (`ui.ts`, `theme.ts`, `script.ts`) needs the real `index.html` structure present at import.
-- In tests, `ui.test.ts` does `vi.mock('./dom', ...)` with a Proxy that maps property names to element IDs and looks them up lazily, after `beforeEach` has built the elements. Follow that pattern for any new test that touches `ui.ts`; don't import `dom.ts` directly in tests. `app.test.ts` instead mocks every collaborator (`./api`, `./ui`, `./theme`, `./analytics`, `./toast`, `./liveStream`) and asserts on calls.
-- Modules with state expose `reset*ForTests()` hooks (`app.ts`, `ui.ts`, `analytics.ts`); call them in `beforeEach` rather than reaching into module internals.
-- The Worker has its own `worker/vitest.config.ts` (node environment). Without it Vitest walks up and uses the site's jsdom config. The root config restricts `include` to `src/**` so the two suites never mix.
-- Adding a new element means adding it to `index.html`, `dom.ts`, and the `idMap` in `ui.test.ts`.
-- The home page (`#instructions`) is plain HTML in `index.html` styled by `css/instructions.css` (light/dark tokens prefixed `--h-`). Its URL builder lives in `urlBuilder.ts`; keep element ids stable, `app.test.ts` and `urlBuilder.test.ts` mount minimal copies of that markup.
+⚠ **"Testing" mode also blocks non-tester accounts outright** with a 403, which looks nothing
+like the clickable unverified-app warning. → `publishing.md` §3a
 
-### Theming
+🛑 **A Google OAuth consent screen left in "Testing" expires refresh tokens after exactly 7
+days.** An unattended uploader works for a week and then silently stops. Set it to "In
+Production". → `publishing.md` §3
 
-`applyTheme()` puts a `theme-<name>` class on `<body>`; unknown names fall back to `modern-light`, and `modern` is kept as an alias in `THEME_ALIASES`. All 17 themes share one layout, `src/css/overlay-base.css`, and each `theme-*.css` is only a block of colour tokens on `.theme-<name>` (the token list is documented at the top of the base file). Never put layout in a theme file; change the base. The base uses px deliberately (fixed 1920x1080 broadcast canvas) and respects `prefers-reduced-motion`. The striker is marked with the static `on-strike` class on the first batter row in `index.html`, not with text.
+⚠ **A landscape file uploaded as a "Short" produces no error** — it lands as an ordinary video
+and the only way to notice is to look. → `publishing.md` §6
 
-Adding a theme: copy any `theme-*.css` and change the tokens, `import` it in `theme.ts`, add the name to `AVAILABLE_THEMES`, add a `theme-tag tag-<name>` link in the `index.html` theme grid plus its `.tag-<name>` colours in `instructions.css`, and update the theme lists in README.md/architecture.md.
+⚠ **`UNABLE_TO_GET_ISSUER_CERT_LOCALLY` means `NODE_EXTRA_CA_CERTS` is not set in this shell**,
+not that the network is broken. Homebrew is unusable through the same proxy. → `deployment.md` §3
 
-### Link Live Stream (`src/liveStream.ts`)
+⚠ **A phone cannot load `localhost` or anything behind a login.** Use a Netlify deploy preview
+(`deploy-preview-<N>--score-overlay.netlify.app`) or `npm run dev -- --host 0.0.0.0`. →
+`deployment.md` §2
 
-Attaches a YouTube URL to a CricClubs match via `updateLiveStreamURLFromCP.do`. CricClubs blocks this endpoint as a cross-origin subresource (CORP + WAF), so `fetch` (even `no-cors`), `<img>`, and `<iframe>` all fail. The working approach is a real top-level navigation: `window.open` in a small popup, synchronously inside the submit handler, closed after ~2s. Do not "simplify" this back to `fetch`; commits `25ceb63` and `f7459e3` document the failed attempts. There is also no client-side way to verify the update landed (the feed lags by up to a minute), so success copy says "submitted", not "linked".
+⚠ **Run `sim/` after any change to `views.ts`, `cards.ts`, `events.ts` or `app.ts`** — unit tests
+did not catch the three bugs it found on its first runs. → `overlay.md` §13
 
-### Analytics (`src/analytics.ts`, `worker/`)
+🛑 **A CricClubs data view drops the live score fields**, so the overlay only *peeks* at one
+between balls and `isFullFrame()` keeps a peek off the bar — and out of the `?data=1` code, which
+would otherwise carry a CRC-valid frame of nonsense. → `overlay.md` §14
 
-`track()` sends to the same-origin `/api/collect` (handled by the Cloudflare Worker in `worker/`, stored in D1) via `navigator.sendBeacon` from an idle callback, so it never touches the first paint or a poll; it falls back to a keepalive `fetch`. Use `trackOnce()` for anything called from the poll loop; there is deliberately no heartbeat and no per-poll event. `isTrackingEnabled()` disables everything on localhost, `?debug=`, `?mode=replay`, `?nostats`, and Do Not Track, so nothing you do locally is recorded. Adding a new event means adding it to `EVENTS` in `worker/src/collect.ts` (the Worker rejects unknown names) and, if it needs new columns, a new file in `worker/migrations/`. The Worker's `wrangler.toml` routes claim only `/api/collect` and `/stats*`; everything else on the domain passes through to Netlify.
+🛑 **Switching a view also switches CricClubs' own overlay for that match.** The club owner has
+accepted this; do not widen the peeks without asking. → `cricclubs-api.md` §3
 
-## Notes
+⚠ **`vite.config.ts` sets `base: './'` for relative overlay paths. Don't change it.**
 
-- `CONFIG` (`src/config.ts`) holds the refresh rate, the default club ID (LPCL, `1089463`), the `?logo=` → sponsor image map (images imported from `src/assets/images/` so Vite bundles them), and the analytics endpoint.
-- Team logo URLs from the API may be relative; `updateTeamLogos()` prefixes `https://cricclubs.com` and caches by URL so polling doesn't refetch images.
-- `feature-ideas.md` lists unused API fields (run rates, partnership, last wicket, MOM, etc.) that are already typed in `types.ts` if you're asked to add overlay features.
-- Branch naming in history is `feature/…`, `fix/…`, `docs/…`; commit subjects use conventional prefixes (`feat:`, `fix:`, `docs:`, `ci:`, `test:`).
+🛑 **A test that cannot fail is not testing anything.** Four harness faults in `highlights/` each
+made results look better or worse than reality, and every one was found by pushing until
+something broke rather than by reading a green result. → `highlights.md` §7b

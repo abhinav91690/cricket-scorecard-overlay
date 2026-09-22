@@ -287,12 +287,18 @@ function pump(surface: Surface) {
     }, hold);
 }
 
-/** Sample cards for `?debug=…&card=<type>` / `&panel=<type>` so they can be positioned in OBS. */
+/** Sample cards for `?debug=…&card=<type>` / `&panel=<type>` so they can be positioned
+ *  in OBS without waiting for a real one. `four`/`six` are aliases so every card and
+ *  panel type is individually addressable. */
 export const SAMPLE_EVENTS: Record<string, AnyCard> = {
     wicket: { type: 'wicket', name: 'Vikas B', runs: '11', balls: '8', dismissal: 'c Ravi T b Siva Krishna V', fow: '3rd wkt · 84/3' },
     milestone: { type: 'milestone', mark: 50, name: 'Abhinav V', runs: '52', balls: '31', fours: '6', sixes: '2' },
     partnership: { type: 'partnership', mark: 50, names: 'Abhinav & Raja', runs: '54', balls: '38' },
     boundary: { type: 'boundary', runs: 6 },
+    // Each boundary is also addressable on its own, so every card type can be
+    // positioned in OBS and screenshotted without editing code.
+    four: { type: 'boundary', runs: 4 },
+    six: { type: 'boundary', runs: 6 },
     lineup: { type: 'lineup', toss: 'Topguns United elected to bat', series: '2024 Fall Champions', ground: 'LPCL-G1', matchOvers: '20 overs', teams: [
         { name: 'Lions', role: 'Fielding', players: ['Sumeer G','Qasim A','Ravi T','Aamir K','Nayan G','Vijaykumar V','Mahesh P','Ranjeet P','Goutham R','Vijay D','Manideep M'].map(n => ({ name: n, value: '', initials: n.split(' ').map(w => w[0]).join('') })).sort((a, b) => a.name.localeCompare(b.name)) },
         { name: 'Topguns United', role: 'Batting', players: ['Pavan V','Gautham R','Rakesh K','Abhinav V','Raja K','Chandu B','Vikas B','Siva Krishna V','Abhinandan K','Kiran R','Sandeep M'].map(n => ({ name: n, value: '', initials: n.split(' ').map(w => w[0]).join('') })).sort((a, b) => a.name.localeCompare(b.name)) },

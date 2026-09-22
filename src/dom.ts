@@ -30,4 +30,5 @@ export const DOM = {
     ballContainer: document.getElementById('ball-by-ball') as HTMLDivElement,
     batsmanInfo: document.getElementById('batsman-info') as HTMLDivElement,
     bowlerInfo: document.getElementById('bowler-info') as HTMLDivElement,
+    dataCode: document.getElementById('data-code') as HTMLCanvasElement,
 };

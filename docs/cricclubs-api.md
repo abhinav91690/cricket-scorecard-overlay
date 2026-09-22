@@ -1,3 +1,12 @@
+---
+type: API Reference
+title: CricClubs overlay API — endpoints, views and payload shapes
+description: "Everything known about the CricClubs endpoints the overlay uses, learned by probing rather than from documentation: the polling endpoint, the view switch that trades live fields for extra data, per-view payload shapes, club branding, and the curl recipes to re-verify it all."
+tags: [cricclubs, api, views, probing, endpoints]
+status: stable
+generated: { by: claude/opus-5, at: 2026-09-22T03:10:00Z }
+---
+
 # CricClubs overlay API
 
 Everything we know about the CricClubs endpoints the overlay uses, learned by probing. None of it is

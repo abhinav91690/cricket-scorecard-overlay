@@ -1,0 +1,34 @@
+# okflint manifest for the docs/ knowledge bundle.
+#   okflint validate --manifest okf-base.yaml
+#   okflint validate --manifest okf-base.yaml --json   (for CI)
+#
+# Roots resolve relative to this file, so this works from any CWD.
+base:
+  name: Cricket Scorecard Overlay — Knowledge Bundle
+  roots:
+    - path: docs
+  reserved_files:
+    index: index.md
+    log: log.md
+  link_resolution:
+    external_refs:
+      - http
+      - https
+
+okf_version: "0.2"
+
+hygiene:
+  # OKF permits broken links — they represent knowledge not yet written.
+  # docs/cricclubs-api.md is the live example: it exists only on the
+  # feature/cricclubs-views branch and arrives with PR 13.
+  broken_links: warn
+  okf_v02_shapes: error
+  reserved_files: error
+  stale_content: warn
+  unknown_fields: warn
+  legacy_forms: warn
+  # OFF deliberately. The concepts are meant to be read whole: overlay.md §6a is the
+  # only statement of the card-colour contract and data-code.md is a wire format that
+  # loses its meaning in pieces. CLAUDE.md's tripwires point at sections, not files,
+  # so splitting them would break navigation and invite duplicate work.
+  split_candidates: off

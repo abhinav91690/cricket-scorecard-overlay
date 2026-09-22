@@ -57,6 +57,7 @@ vi.mock('./dom', () => {
                 // Let's just return document.getElementById based on a known map or strict ID.
 
                 const idMap: Record<string, string> = {
+                    dataCode: 'data-code',
                     batsman1Name: 'batsman1-name',
                     batsman1RunsBalls: 'batsman1-runs-balls',
                     batsman2Name: 'batsman2-name',
