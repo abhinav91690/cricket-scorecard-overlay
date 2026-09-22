@@ -36,23 +36,24 @@ empty reel.
 ## Per-player reels
 
 ```sh
-# 1. pick this match's crop by eye — the camera framing changes every match
+# 1. narrow this match's crop on a still — the camera framing changes every match
 .venv/bin/python crop.py "/path/match.mp4" -t 3800 -o crops.png
 
-# 2. cut one reel per player per role: boundaries when batting, wickets when bowling
+# 2. cut one reel per player per role. Pass a LIST to get one file per shape and
+#    pick after watching them; omit a flag to leave that role at full frame.
 .venv/bin/python reels.py "/path/match.mp4" events.json -o reels/ \
-    --batting-innings 1 --team Topguns --match "Topguns vs Bazzigarz" --vertical \
-    --aspect-bat 4:5 --crop-x-bat 0.50 \
-    --aspect-bowl 1:1 --crop-x-bowl 0.50
+    --batting-innings 1 --team Topguns --match "Topguns vs Bazzigarz" \
+    --aspect-bat 4:5,1:1 --aspect-bowl 1:1
 ```
 
 🛑 Pass the wrong `--batting-innings` and every attribution inverts — it cannot be guessed.
 
-🛑 **The crop is a per-match input, and the two roles differ.** A batting reel must contain
-**both** sets of stumps, because the batter's end alternates every over and on every odd run;
-a bowling reel needs the run-up too, so it wants a wider box. `crop.py` draws the candidates on
-a real frame so you can read the values off the picture. Every crop still removes the `?data=1`
-block for free. Measurements in [`../docs/highlights.md`](../docs/highlights.md) §13a.
+🛑 **There is no default crop.** The framing changes per match and the two roles want different
+boxes: a batting reel must hold **both** sets of stumps (the batter's end alternates every over
+and on every odd run), while a bowling reel needs the run-up too. Omitting a flag gives full
+frame, which `publish.py` then refuses as a Short rather than quietly uploading a landscape
+video. Every crop still removes the `?data=1` block for free. Measurements in
+[`../docs/highlights.md`](../docs/highlights.md) §13a.
 
 One player can get two reels — `v-kohli-batting.mp4` and `v-kohli-bowling.mp4`.
 

@@ -2,6 +2,23 @@
 
 ## 2026-09-21
 
+### The reel crop is left open — no default shape at all
+
+`--aspect-bat` and `--aspect-bowl` now have **no defaults**. Omit a role's flag and that role is
+cut at full frame, which `publish.py` correctly refuses as a Short instead of letting a
+landscape file land as an ordinary video. Pass a comma list and one file per shape is cut, each
+with its own caption sidecar, so several can be compared on screen and `--meta` still pairs with
+whichever survives review. [highlights.md](./highlights.md) §13a.
+
+Two reasons the shape cannot be a constant, and picking one would have been a false economy:
+the camera framing changes every match and nothing in the file reveals where the pitch sits,
+and the two roles need different boxes anyway — a batting crop must hold **both** sets of stumps
+because the batter's end alternates, while a bowling crop needs the run-up behind them.
+
+The measured spans for the reference camera stay in the docs, but as a measurement of *that*
+camera rather than as a recommendation; `crop.py` re-derives them per match.
+
+
 ### The reel crop is a per-match input, and the two roles crop differently
 
 The camera framing changes every match, so the crop cannot be a constant — and batting and

@@ -18,8 +18,11 @@ Usage:
     .venv/bin/python crop.py "/path/match.mp4" -t 3800 --aspect 4:5     # just one shape
 
 Then pass what you picked:
-    reels.py … --vertical --aspect-bat 4:5 --crop-x-bat 0.42 \\
-                          --aspect-bowl 1:1 --crop-x-bowl 0.50
+    reels.py … --aspect-bat 4:5 --crop-x-bat 0.42 \\
+               --aspect-bowl 1:1 --crop-x-bowl 0.50
+
+Omit a role's --aspect to leave it at full frame; pass a list (4:5,1:1) to cut one file
+per shape and compare them before choosing.
 """
 from __future__ import annotations
 import argparse

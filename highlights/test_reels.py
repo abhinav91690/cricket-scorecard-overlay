@@ -17,8 +17,8 @@ from __future__ import annotations
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from cut import crop_filter
-from reels import (attribute, breakdown, build_title, figures, metadata, over, slug,
-                   tally, titlecase)
+from reels import (attribute, breakdown, build_title, figures, metadata, over,
+                   parse_aspects, slug, tally, titlecase)
 
 
 def mo(t, types, innings, striker="VENU S", bowler="ANKIT K", **rest):
@@ -343,15 +343,34 @@ def test_crop_dimensions_are_even():
         assert cw % 2 == 0 and x % 2 == 0, (aspect, cw, x)
 
 
-def test_the_batting_default_holds_both_batting_ends():
-    """A batter's end alternates, so a batting crop must contain both sets of stumps
-    (~36% and ~73% on the reference camera). It need not contain the run-up."""
+def test_no_aspect_means_no_crop():
+    """🛑 There is no default shape. Omitting the flag leaves the reel at full frame
+    rather than silently picking one."""
+    assert parse_aspects("") == [None]
+    assert parse_aspects("   ") == [None]
+
+
+def test_a_list_of_aspects_cuts_one_file_each_for_review():
+    assert parse_aspects("4:5,1:1") == ["4:5", "1:1"]
+    assert parse_aspects(" 4:5 , 1:1 ") == ["4:5", "1:1"]
+
+
+def test_a_landscape_aspect_is_refused_at_the_cli():
+    try:
+        parse_aspects("16:9")
+    except SystemExit:
+        return
+    raise AssertionError("expected SystemExit for a landscape aspect")
+
+
+def test_4_5_holds_both_batting_ends_on_the_reference_camera():
+    """Recorded as a measurement, not a default: a batter's end alternates, so a batting
+    crop has to contain both sets of stumps (~36% and ~73% there)."""
     a, b = _span(crop_filter(3840, 2160, "4:5"))
     assert a <= 0.36 and b >= 0.725, (a, b)
 
 
-def test_the_bowling_default_is_wider_than_the_batting_one():
-    """Bowling needs the run-up, which starts behind the stumps."""
+def test_1_1_is_wider_than_4_5_so_it_can_hold_the_run_up():
     bat = _span(crop_filter(3840, 2160, "4:5"))
     bowl = _span(crop_filter(3840, 2160, "1:1"))
     assert (bowl[1] - bowl[0]) > (bat[1] - bat[0]), (bat, bowl)

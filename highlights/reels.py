@@ -17,9 +17,15 @@ the team wicket count while `bowlerWickets` stays put, and crediting that to the
 would put another fielder's dismissal in their reel. `qrscan.moments()` carries the
 `bowlerWicket` flag for exactly this.
 
+🛑 There is no default crop. The camera framing changes every match and the two roles want
+different boxes, so the shape is reviewed per match rather than baked in. Omit a role's
+flag to leave it at full frame; pass a list to cut one file per shape and choose after
+watching them. `crop.py` draws the candidates on a real frame first.
+
 Usage:
     .venv/bin/python reels.py "<video>" events.json -o reels/ \\
-        --batting-innings 1 --team "Topguns" --match "Topguns vs Bazzigarz" --vertical
+        --batting-innings 1 --team "Topguns" --match "Topguns vs Bazzigarz" \\
+        --aspect-bat 4:5,1:1 --aspect-bowl 1:1
 """
 from __future__ import annotations
 import argparse
@@ -34,6 +40,19 @@ from detect import probe
 BATTING_TYPES = ('four', 'six')
 FIELDING_TYPES = ('wicket',)
 ROLE_NAME = {'bat': 'batting', 'bowl': 'bowling'}
+
+
+def parse_aspects(spec: str) -> list:
+    """"4:5,1:1" -> ['4:5', '1:1']; "" -> [None], meaning leave it uncropped.
+
+    A list cuts one file per shape so they can be compared on screen before anything is
+    uploaded. Nothing here has a default shape — see the note in main().
+    """
+    items = [x.strip() for x in (spec or "").split(",") if x.strip()]
+    for x in items:
+        if x not in ASPECTS:
+            raise SystemExit(f"unknown aspect {x!r}; choose from {', '.join(sorted(ASPECTS))}")
+    return items or [None]
 
 
 def slug(name: str) -> str:
@@ -255,19 +274,19 @@ def main():
                          "wrong credits every event to the opposition")
     ap.add_argument("--team", default="", help='e.g. "Topguns" — used in the tags')
     ap.add_argument("--match", default="", help='e.g. "Topguns vs Bazzigarz"')
-    ap.add_argument("--vertical", action="store_true",
-                    help="crop for a Short. Batting and bowling crop differently — "
-                         "see --aspect-bat / --aspect-bowl")
-    # 🛑 Per-role, and per-match. The camera moves between matches, so these are inputs,
-    # not constants. `crop.py` draws the candidates on a real frame so a match's values
-    # can be picked in about a minute. Defaults are what the reference match measured:
-    # batting needs both batting ends but not the run-up, bowling needs the run-up too.
-    ap.add_argument("--aspect-bat", default="4:5", choices=sorted(ASPECTS),
-                    help="crop shape for BATTING reels (default 4:5 — covers both "
-                         "batting ends; the bowler's end is not needed)")
-    ap.add_argument("--aspect-bowl", default="1:1", choices=sorted(ASPECTS),
-                    help="crop shape for BOWLING reels (default 1:1 — the run-up and "
-                         "the bowler's end have to be in frame)")
+    # 🛑 No default crop, on purpose. The camera framing changes every match, and the two
+    # roles want different boxes, so the shape is an INPUT that gets reviewed per match —
+    # never a constant baked in here. Omit a role's flag and that role is left at full
+    # frame. Pass a list to get one file per shape and pick after watching them.
+    # `crop.py` draws the candidates on a real frame to narrow the choice first.
+    ap.add_argument("--aspect-bat", default="", metavar="LIST",
+                    help="crop shape(s) for BATTING reels, comma-separated "
+                         f"({', '.join(sorted(ASPECTS))}). Omit to leave them uncropped. "
+                         "A batting crop wants BOTH sets of stumps — the end alternates")
+    ap.add_argument("--aspect-bowl", default="", metavar="LIST",
+                    help="crop shape(s) for BOWLING reels, comma-separated. Omit to "
+                         "leave them uncropped. A bowling crop wants the run-up too, "
+                         "so it needs a wider box than batting")
     ap.add_argument("--crop-x-bat", type=float, default=0.5, metavar="F",
                     help="batting crop centre, as a fraction of frame width")
     ap.add_argument("--crop-x-bowl", type=float, default=0.5, metavar="F",
@@ -293,15 +312,18 @@ def main():
             f"{sorted({m.get('innings') for m in moments})}.")
 
     os.makedirs(a.out, exist_ok=True)
-    vfs = {"bat": None, "bowl": None}
-    if a.vertical:
-        m = probe(a.video)
-        for role, aspect, cx in (("bat", a.aspect_bat, a.crop_x_bat),
-                                 ("bowl", a.aspect_bowl, a.crop_x_bowl)):
-            vfs[role] = crop_filter(m["w"], m["h"], aspect, cx)
-            print(f"  {ROLE_NAME[role]:8} crop {aspect:4} at x={cx:.0%}  ->  "
-                  f"{vfs[role].split(',')[0]}")
-    print(f"{len(moments)} moments -> {len(by_player)} reel(s), "
+    plan = {"bat": parse_aspects(a.aspect_bat), "bowl": parse_aspects(a.aspect_bowl)}
+    m = probe(a.video)
+    for role in ("bat", "bowl"):
+        cx = a.crop_x_bat if role == "bat" else a.crop_x_bowl
+        for aspect in plan[role]:
+            if aspect is None:
+                print(f"  {ROLE_NAME[role]:8} full frame (uncropped — not a Short)")
+            else:
+                f = crop_filter(m["w"], m["h"], aspect, cx)
+                print(f"  {ROLE_NAME[role]:8} {aspect:4} at x={cx:.0%}  ->  "
+                      f"{f.split(',')[0]}")
+    print(f"\n{len(moments)} moments -> {len(by_player)} reel(s), "
           f"innings {a.batting_innings} batting\n")
 
     written = []
@@ -311,18 +333,25 @@ def main():
         segs = segments(ms, types=kinds, windows=WINDOWS)
         if not segs:
             continue
-        # The role is in the filename because one player can have both reels.
-        base = os.path.join(a.out, f"{slug(player)}-{ROLE_NAME[role]}")
-        print(f"{titlecase(player)} — {ROLE_NAME[role]}  ({tally(ms)})")
-        cut(a.video, segs, base + ".mp4", a.height, vf=vfs[role])
         meta = metadata(player, ms, segs, a.match, a.team, states)
-        with open(base + ".json", "w") as fh:
-            json.dump(meta, fh, indent=1)
-        size = os.path.getsize(base + ".mp4") / 1e6
-        print(f"  -> {base}.mp4  ({size:.1f} MB)\n     {meta['title']}\n")
-        written.append(base)
+        print(f"{titlecase(player)} — {ROLE_NAME[role]}  ({tally(ms)})")
+        cx = a.crop_x_bat if role == "bat" else a.crop_x_bowl
+        for aspect in plan[role]:
+            # The role is in the name because one player can have both reels; the aspect
+            # is in it because several shapes can be cut for review side by side.
+            base = os.path.join(a.out, f"{slug(player)}-{ROLE_NAME[role]}"
+                                       + (f"-{aspect.replace(':', 'x')}" if aspect else ""))
+            vf = crop_filter(m["w"], m["h"], aspect, cx) if aspect else None
+            cut(a.video, segs, base + ".mp4", a.height, vf=vf)
+            # One sidecar per file, so --meta pairs with whichever variant is chosen.
+            with open(base + ".json", "w") as fh:
+                json.dump(meta, fh, indent=1)
+            size = os.path.getsize(base + ".mp4") / 1e6
+            print(f"  -> {base}.mp4  ({size:.1f} MB)")
+            written.append(base)
+        print(f"     {meta['title']}\n")
 
-    print(f"wrote {len(written)} reel(s) to {a.out}/")
+    print(f"wrote {len(written)} file(s) to {a.out}/")
     if written:
         print("\nupload one with:")
         print(f"  .venv/bin/python publish.py {written[0]}.mp4 --target shorts \\\n"
