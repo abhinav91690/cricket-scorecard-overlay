@@ -212,11 +212,62 @@ own unverified client landed Public with no lock. The documented restriction tha
 had never been tested here — see [publishing.md](./publishing.md) §0, and §0b for what to
 re-check before trusting it with anything that matters.
 
+## 13. Per-player reels (`reels.py`)
+
+One reel per player, for **one team only**, because a personal highlight should contain just
+that player's own work. Which player a ball belongs to depends on which side of it the team was
+on:
+
+| Our team is | Kept | Belongs to |
+|---|---|---|
+| **batting** | `four`, `six` | the **striker** |
+| **fielding** | `wicket` | the **bowler** |
+
+Everything else is dropped: our batter's dismissal is not their highlight, and the opposition's
+six is nobody's.
+
+🛑 **`--batting-innings` is required and cannot be inferred.** The payload carries no team
+identity — only an innings number, because team names would have cost more bits than the rest of
+the record ([data-code.md](./data-code.md) §2). Pass the wrong one and every attribution
+inverts: our batters' boundaries get credited to the opposition and their wickets to our bowlers.
+`test_reels.py` pins that inversion so the failure is visible rather than plausible.
+
+⚠ **A run-out belongs to no bowler.** `wickets` rises while `bowlerWickets` stays put, so
+crediting it to the bowler would drop another fielder's dismissal into their reel.
+`qrscan.moments()` now carries a `bowlerWicket` flag for exactly this, and it defaults to true
+for scans made before the flag existed rather than silently dropping their wickets.
+
+🛑 **Attribution fails silently.** A bad clip window is obvious — the clip misses the shot. A
+bad attribution produces a perfectly good clip filed under the wrong person, and nothing about
+the output looks wrong. That is why the rules are unit-tested rather than eyeballed.
+
+### 13a. `--vertical` removes the data code for free
+
+`cut.VERTICAL` is `crop=floor(ih*9/16/2)*2:ih,scale=1080:1920`. At 16:9 that keeps a centre
+column about 32% of the frame width, so the top-left `?data=1` block is simply not in the
+output — no `drawbox`, no need to locate it. ✅ Verified by re-scanning a finished reel:
+`qrscan.py` decoded **0 of 80** keyframes, against 13 of 13 on the source.
+
+### 13b. Captions travel in a sidecar
+
+A per-player reel spans several balls, so no single moment describes it and
+`publish.py --moment N` does not fit. `reels.py` writes `<player>.json` next to `<player>.mp4`
+with the title, description and tags, and `publish.py --meta <json>` uses it verbatim:
+
+```sh
+.venv/bin/python reels.py "<video>" events.json -o reels/ \
+    --batting-innings 1 --team Topguns --match "Topguns vs Bazzigarz" --vertical
+
+.venv/bin/python publish.py reels/v-kohli.mp4 --target shorts \
+    --meta reels/v-kohli.json --privacy public --confirm
+```
+
+Reels and their sidecars are **gitignored** (`highlights/reels*/`) — generated per match and
+uploaded, never source.
+
 ## 12. Open work
 
-- **Per-player vertical reels.** The payload now carries the striker by name on every ball,
-  which is what attribution needed and what §8's dead end could not provide. Grouping moments
-  by striker and cutting 9:16 reels is the next step, and the crop removes the code for free.
+- ~~Per-player vertical reels~~ — **built**, see §13.
 - **A committed regression fixture.** The geometry in [data-code.md](./data-code.md) §1 sits
   deliberately at the edge of what the pipeline supports, which is exactly the kind of constant
   someone shaves without re-measuring. A fixture can run without any committed video: ffmpeg

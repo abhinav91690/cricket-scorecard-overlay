@@ -33,10 +33,27 @@ Both scanners emit the same `moments` shape, so `cut.py` never needs to know whi
 `qrscan.py` prints a message and writes nothing if it finds no code, rather than producing an
 empty reel.
 
+## Per-player reels
+
+```sh
+# one vertical reel per Topguns player: their boundaries when batting,
+# their wickets when bowling. --batting-innings is REQUIRED and cannot be guessed.
+.venv/bin/python reels.py "/path/match.mp4" events.json -o reels/ \
+    --batting-innings 1 --team Topguns --match "Topguns vs Bazzigarz" --vertical
+```
+
+🛑 Pass the wrong `--batting-innings` and every attribution inverts. `--vertical` crops a 9:16
+centre column, which also removes the `?data=1` block for free. Reasoning and rules in
+[`../docs/highlights.md`](../docs/highlights.md) §13.
+
 ## Publish
 
 ```sh
-# a reel as a YouTube Short, captioned from the scan output
+# a per-player reel, captioned from the sidecar reels.py wrote
+.venv/bin/python publish.py reels/v-kohli.mp4 --target shorts \
+    --meta reels/v-kohli.json --privacy public --confirm
+
+# a single-moment reel, captioned from the scan output
 .venv/bin/python publish.py reel.mp4 --target shorts \
     --moments events.json --moment 3 --match "Topguns vs Bazzigarz"
 
@@ -72,9 +89,10 @@ itself. Setup, the OAuth trap and the full reasoning are in
 .venv/bin/python test_payload.py    # the cross-language wire-format contract
 .venv/bin/python test_qrscan.py     # the event rules — pure, no video needed
 .venv/bin/python test_publish.py    # Shorts validation and caption generation
+.venv/bin/python test_reels.py      # 🛑 per-player attribution — fails silently if wrong
 ```
 
-All three also run under `pytest`.
+All four also run under `pytest`.
 
 ## Files
 
@@ -84,5 +102,6 @@ All three also run under `pytest`.
 | `detect.py` | fallback: finds event cards by accent-stripe colour |
 | `cut.py` | cuts and concatenates clips, writes a chapter list |
 | `payload.py` | the wire format, Python side |
+| `reels.py` | per-player reels for one team, vertical for Shorts |
 | `publish.py` | uploads a reel or the full video to YouTube |
 | `requirements.txt` | 🛑 zxing-cpp, **not** OpenCV — the comment explains why |

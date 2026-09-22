@@ -49,7 +49,8 @@ def segments(events, types=None, windows=WINDOWS):
     return merged
 
 
-def cut(video, segs, out, height=1080, bitrate='10M', keep_clips=False):
+def cut(video, segs, out, height=1080, bitrate='10M', keep_clips=False, vf=None):
+    """`vf` overrides the scale filter — reels.py passes VERTICAL for a 9:16 Short."""
     ff = ffmpeg()
     work = os.path.join(os.path.dirname(os.path.abspath(out)), 'clips')
     os.makedirs(work, exist_ok=True)
@@ -58,7 +59,7 @@ def cut(video, segs, out, height=1080, bitrate='10M', keep_clips=False):
         p = os.path.join(work, f'{i:03d}.mp4')
         subprocess.run([ff, '-hide_banner', '-loglevel', 'error', '-y',
                         '-ss', f'{a:.2f}', '-t', f'{b - a:.2f}', '-i', video,
-                        '-vf', f'scale=-2:{height}',
+                        '-vf', vf or f'scale=-2:{height}',
                         '-c:v', 'h264_videotoolbox', '-b:v', bitrate,   # hardware encoder on Apple silicon
                         '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', p], check=True)
         paths.append(p)
@@ -71,6 +72,11 @@ def cut(video, segs, out, height=1080, bitrate='10M', keep_clips=False):
         for p in paths: os.remove(p)
         os.remove(lst); os.rmdir(work)
     return out
+
+
+# A 9:16 centre column. At 16:9 that keeps ~32% of the frame width, which also removes
+# the top-left ?data=1 block for free — no need to find and cover it.
+VERTICAL = 'crop=floor(ih*9/16/2)*2:ih,scale=1080:1920,setsar=1'
 
 
 def chapters(segs, events):

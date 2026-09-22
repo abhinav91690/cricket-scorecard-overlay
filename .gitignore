@@ -146,3 +146,8 @@ highlights/__pycache__/
 # publish.py --metadata-only output
 highlights/*-youtube.txt
 highlights/testclip.mp4
+
+# reels.py output: cut reels plus their caption sidecars. Generated per match and
+# uploaded, never source. The *.mp4 rule already covers the video; this catches the
+# .json captions written next to it.
+highlights/reels*/

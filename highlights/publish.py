@@ -304,7 +304,21 @@ def authorized_http(creds):
     from google_auth_httplib2 import AuthorizedHttp
 
     bundle = ca_bundle()
-    http = httplib2.Http(ca_certs=bundle) if bundle else httplib2.Http()
+    kw = {"ca_certs": bundle} if bundle else {}
+    # 🛑 follow_redirects=False is REQUIRED for a resumable upload, not a preference.
+    # Google answers each accepted chunk with 308 "Resume Incomplete", and
+    # googleapiclient's _process_response is written to expect that 308. httplib2 0.32
+    # lists 308 in REDIRECT_CODES and, for a PUT, tries to follow it — then dies with
+    # "Redirected but the response is missing a Location: header", because a Resume
+    # Incomplete has no Location.
+    #
+    # ⚠ This only bites on a MULTI-chunk upload. A file smaller than `chunksize` goes up
+    # in one request, never sees a 308, and works fine — so the bug stays hidden until
+    # the first real reel. It was found on a 20.7 MB file after a 0.7 MB test passed.
+    # googleapis endpoints do not redirect, so nothing legitimate is lost.
+    # follow_redirects is an attribute, not a constructor argument.
+    http = httplib2.Http(**kw)
+    http.follow_redirects = False
     return AuthorizedHttp(creds, http=http)
 
 
@@ -508,6 +522,9 @@ def main():
                     help="scan output for reel captions (default: events.json if present)")
     ap.add_argument("--moment", type=int, default=0, help="which moment this clip is")
     ap.add_argument("--chapters", help="the chapter file cut.py wrote, for a full video")
+    ap.add_argument("--meta", metavar="JSON",
+                    help="a title/description/tags file written by reels.py, used "
+                         "verbatim instead of deriving captions from a single moment")
     ap.add_argument("--title", help="override the generated title")
     ap.add_argument("--privacy", choices=["private", "unlisted", "public"], default="private",
                     help="default private — review it on the channel before making it public")
@@ -549,7 +566,16 @@ def main():
         else:
             print(f"  ✓ vertical and under {SHORTS_MAX_SECONDS:.0f}s — will be a Short")
 
-    if a.target == "shorts":
+    if a.meta:
+        # A per-player reel spans several balls, so no single moment describes it.
+        # reels.py has already written the captions; use them rather than re-deriving.
+        meta = json.load(open(a.meta))
+        missing = [k for k in ("title", "description", "tags") if k not in meta]
+        if missing:
+            raise SystemExit(f"{a.meta} is missing {', '.join(missing)}")
+        meta["title"] = clip(meta["title"], TITLE_MAX)
+        meta["description"] = clip_body(meta["description"], DESC_MAX)
+    elif a.target == "shorts":
         moment = {}
         if a.moments and os.path.exists(a.moments):
             doc = json.load(open(a.moments))
@@ -607,8 +633,6 @@ def main():
 
     if not a.confirm:
         print("\n  DRY RUN — nothing uploaded. Re-run with --confirm to publish.")
-        print("  ⚠ an unverified API project can only upload LOCKED-private videos; "
-              "--metadata-only is the useful mode until the audit clears.")
         return
 
     print()

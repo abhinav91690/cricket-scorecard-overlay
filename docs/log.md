@@ -2,6 +2,49 @@
 
 ## 2026-09-21
 
+### Per-player reels (`reels.py`)
+
+One vertical reel per player for a single team: their boundaries when the team bats, their
+wickets when it fields. This was the original goal of the whole highlights pipeline and the
+thing §8's abandoned ball-strip reader could not support. [highlights.md](./highlights.md) §13.
+
+Three decisions worth keeping:
+
+- 🛑 **`--batting-innings` is required, not inferred.** The payload has no team identity, only
+  an innings number. Guessing it inverts every attribution, so it is a required argument and
+  `test_reels.py` pins the inversion.
+- ⚠ **A run-out belongs to no bowler.** `qrscan.moments()` now emits `bowlerWicket`, true only
+  when the bowler's own figure moved, so another fielder's dismissal cannot land in a bowler's
+  reel. It defaults true for older scans rather than dropping their wickets.
+- 🛑 **Attribution fails silently**, unlike a clip window. A wrong window visibly misses the
+  shot; a wrong attribution yields a good clip filed under the wrong person. Hence 19 unit
+  tests on the rules and none on the ffmpeg call.
+
+✅ `--vertical` removes the `?data=1` block for free — verified by re-scanning a finished reel:
+**0 of 80** keyframes decoded, against 13 of 13 on the source.
+
+Captions travel in a sidecar (`--meta`), because a reel spanning several balls has no single
+moment to caption it from.
+
+### 🛑 httplib2 breaks multi-chunk resumable uploads, and a small fixture hides it
+
+The first real reel, 20.7 MB, failed instantly with
+`RedirectMissingLocation: Redirected but the response is missing a Location: header`. Google
+answers each accepted chunk with **308 Resume Incomplete**; httplib2 0.32 counts 308 as a
+redirect and tries to follow it, but a Resume Incomplete carries no `Location`.
+`http.follow_redirects = False` fixes it — [publishing.md](./publishing.md) §4c.
+
+⚠ **The lesson is the fixture, not the flag.** The earlier lock test used a 0.7 MB clip, under
+the 8 MB chunk size, so it went up in one request and never touched the chunked path. It passed
+clean and proved less than it appeared to. A fixture smaller than the chunk size does not
+exercise a chunked upload at all — the same shape as the four harness faults in
+[highlights.md](./highlights.md) §7b, and the third time this session that a green result came
+from an instrument that could not fail.
+
+Also removed a stale dry-run warning still telling the operator their uploads would be locked
+private.
+
+
 ### 🛑 The upload lock was never real here, and I never tested it
 
 `publish.py --privacy public --confirm` uploaded through this project's **own unverified** OAuth

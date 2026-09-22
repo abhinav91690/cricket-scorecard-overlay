@@ -158,6 +158,11 @@ def moments(states: list[dict]) -> list[dict]:
             'ball': f['ballsBowled'], 'innings': f['innings'] + 1,
             'outcome': OUTCOME[f['outcome']] if f['outcome'] < len(OUTCOME) else '?',
             'striker': f['strikerName'], 'bowler': f['bowlerName'],
+            # 🛑 A wicket is only the BOWLER'S if their own figure moved. A run-out or a
+            # stumping off nobody's bowling raises `wickets` while `bowlerWickets` stays
+            # put, and crediting that to the bowler would drop another fielder's dismissal
+            # into their personal reel. reels.py relies on this.
+            'bowlerWicket': 'wicket' in types and f['bowlerWickets'] > p['bowlerWickets'],
             'score': f"{f['teamRuns']}/{f['wickets']}",
             'strikerScore': f"{f['strikerRuns']}({f['strikerBalls']})",
         })

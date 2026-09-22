@@ -195,6 +195,35 @@ credentials. And note this is a *different* failure from the `VERIFY_X509_STRICT
 flag cleared, this one says "unable to get local issuer certificate" and needs a bundle. Same
 proxy, two unrelated fixes. See [deployment.md](./deployment.md) §3.
 
+## 4c. 🛑 httplib2 breaks resumable uploads unless redirects are off
+
+A second httplib2 fault, independent of the CA one in §4b and hidden behind it. Google answers
+every accepted chunk of a resumable upload with **308 "Resume Incomplete"**, and
+`googleapiclient._process_response` is written to expect that 308. httplib2 0.32 lists 308 in
+`REDIRECT_CODES` and, for a `PUT`, tries to follow it — then fails with:
+
+```
+httplib2.error.RedirectMissingLocation: Redirected but the response is missing a Location: header.
+```
+
+A Resume Incomplete has no `Location`, so it cannot be followed. `authorized_http()` sets
+`http.follow_redirects = False`; googleapis endpoints do not redirect, so nothing is lost.
+
+⚠ **This only bites a MULTI-chunk upload, which is why it stayed hidden.** A file smaller than
+`chunksize` (8 MB) goes up in a single request and never sees a 308. The 0.7 MB lock test passed
+clean; the first real reel, 20.7 MB, failed immediately. **A test fixture smaller than the
+chunk size does not exercise the upload path at all** — the same shape as the harness faults in
+[highlights.md](./highlights.md) §7b.
+
+⚠ And `follow_redirects` is an **attribute, not a constructor argument** —
+`httplib2.Http(follow_redirects=False)` raises `TypeError`.
+
+## 4d. Per-player reels use `--meta`, not `--moment`
+
+A per-player reel spans several balls, so no single moment describes it. `reels.py` writes a
+`{title, description, tags}` sidecar and `--meta <json>` uses it verbatim, bypassing
+`reel_metadata()`. See [highlights.md](./highlights.md) §13b.
+
 ## 5. The Make.com route — works, but no longer needed
 
 ⚠ **Read §0 first: the direct API uploads public videos fine, so this route solves a problem
