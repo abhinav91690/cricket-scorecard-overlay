@@ -12,9 +12,34 @@ generated: { by: claude/opus-5, at: 2026-09-21T22:32:46Z }
 **Load before touching `highlights/publish.py` or setting up the API credentials.**
 
 `publish.py` uploads a cut file to YouTube. Two targets: a vertical reel as a **Short**, and the
-full highlights video as an ordinary video. Instagram is **not built** — see §7.
+full highlights video as an ordinary video. Instagram is **not built** — see §8.
 
 ---
+
+## 0. 🛑 Read this first: an unverified project cannot publish publicly
+
+Every video uploaded through `videos.insert` from an **unverified API project created after
+28 July 2020** is **locked as private by YouTube**, and
+[that lock cannot be appealed](https://support.google.com/youtube/answer/7300965?hl=en):
+
+> "For videos that have been locked as private due to upload via an unverified API service, you
+> will not be able to appeal."
+
+The only remedies are to **re-upload through a verified client or by hand**, or to get the
+project through a **compliance audit** — the *YouTube API Services - Audit and Quota Extension
+Form*, linked from
+[Quota and Compliance Audits](https://developers.google.com/youtube/v3/guides/quota_and_compliance_audits).
+
+⚠ **This is not the same thing as our `private` default.** A video we mark private can be made
+public in Studio whenever you like. A video *locked* private by YouTube cannot — not by us, not
+in Studio, not on appeal.
+
+So until the audit clears, the useful mode is **`--metadata-only`**: it writes a paste-ready
+title and description next to the file for a manual upload. The captions were always the part
+worth automating; the file transfer is a drag-and-drop either way.
+
+⚠ **I found this after building the uploader, not before.** It should have been the first thing
+checked about an upload API, and it changes what the tool is for.
 
 ## 1. Two safety defaults, both deliberate
 
@@ -48,6 +73,28 @@ you click through an "unverified app" warning once and the refresh token stops e
 
 `credentials()` prints a hint pointing at this whenever a refresh fails, because the symptom
 (works, then doesn't, a week later) gives no clue on its own.
+
+### 3a. ⚠ Testing mode also blocks accounts outright, which looks nothing like the above
+
+In **Testing**, only accounts on the **Test users** list can authorise at all. Any other account
+gets a hard failure at the consent screen, not a warning you can click through:
+
+```
+Error 403: access_denied
+<app> has not completed the Google verification process.
+The app is currently being tested, and can only be accessed by developer-approved testers.
+```
+
+This bites when the Cloud project and the **channel's** Google account are different logins,
+which is the normal case for a club channel. Two fixes:
+
+| Fix | Effect |
+|---|---|
+| Add the channel account under **Test users** | unblocks immediately, but the 7-day token expiry in §3 applies |
+| **Publish the app to "In production"** | no 7-day expiry; an unverified sensitive scope then shows a clickable "Google hasn't verified this app" warning instead, and the project is capped at 100 users — irrelevant for one |
+
+Publishing to production is the right answer here. Neither fix lifts the upload lock in §0;
+they are separate gates.
 
 ## 4. One-time setup
 
@@ -95,7 +142,7 @@ Verified live with a 529-character token blob containing 24 double quotes: store
 characters of base64 and read back byte-identical. `keychain_write()` compares the read-back
 **exactly**, not by length as the shell script does, since it has the original value in hand.
 
-## 5. 🛑 A Short needs no special endpoint — but it does need validating
+## 6. 🛑 A Short needs no special endpoint — but it does need validating
 
 There is no Shorts API. `videos.insert` is the only upload call, and **YouTube decides a video
 is a Short from the file itself**: vertical (or square) and short.
@@ -113,7 +160,7 @@ checks before uploading and refuses unless `--force`:
 whether the cap is 60 s or 3 minutes. 60 satisfies every version of the rule *and* Instagram's
 5–90 s window, so one encode serves both targets and there is nothing to decide later.
 
-## 6. Captions come from the QR payload
+## 7. Captions come from the QR payload
 
 `reel_metadata()` builds the title, description and tags from a moment in `events.json`. Each
 moment already carries striker, bowler, score, the striker's own score, the ball number and the
@@ -136,7 +183,7 @@ turned a chaptered video into one with none. Caught by
 first so that holds for a real match, but a short test reel produces too few and the tool says
 so rather than pretending.
 
-## 7. Instagram: researched, not built
+## 8. Instagram: researched, not built
 
 An Instagram path was costed and deferred. What was established:
 
@@ -155,7 +202,7 @@ An Instagram path was costed and deferred. What was established:
   local file is the zero-storage alternative, but the tunnel has to stay up until Meta's
   container reports `FINISHED`.
 
-## 8. Use
+## 9. Use
 
 ```sh
 # a reel, captioned from the scan output

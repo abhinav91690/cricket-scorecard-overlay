@@ -142,3 +142,7 @@ highlights/.venv/
 highlights/events.json
 highlights/clips/
 highlights/__pycache__/
+
+# publish.py --metadata-only output
+highlights/*-youtube.txt
+highlights/testclip.mp4

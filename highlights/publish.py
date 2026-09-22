@@ -10,10 +10,16 @@ Quota is not a constraint. `videos.insert` has its own bucket with a 100-call da
 separate from the 10,000-unit project pool, so a match's worth of reels plus the full video is
 nowhere near it.
 
-SAFETY. This publishes to a public channel under someone's name, so two things are deliberate:
-uploads default to `private` visibility, and nothing is sent without `--confirm`. Without it the
-tool prints exactly what it would do and exits 0. Flip the video to public in YouTube Studio
-once you have watched it.
+🛑 AN UNVERIFIED API PROJECT CANNOT PUBLISH PUBLICLY. Every video uploaded through
+videos.insert from an unverified project created after 28 July 2020 is LOCKED as private by
+YouTube, and that lock cannot be appealed — the only remedy is to re-upload through a verified
+client or by hand. So until the project passes a compliance audit, --confirm gets the file onto
+the channel but it can never be made public. Use --metadata-only in the meantime: it writes the
+generated title and description for a manual upload, which is the part worth automating anyway.
+
+SAFETY. This publishes to a channel under someone's name, so two things are deliberate: uploads
+default to `private` visibility, and nothing is sent without `--confirm`. Without it the tool
+prints exactly what it would do and exits 0.
 
 🛑 Secrets never live in this repo — it is public. They go in the macOS Keychain, the same
 place the homelab repo keeps its tokens. See docs/publishing.md.
@@ -345,7 +351,8 @@ def main():
                     help="store the downloaded OAuth client JSON in the Keychain and exit")
     ap.add_argument("-t", "--target", choices=["shorts", "video"])
     ap.add_argument("--match", help='e.g. "Topguns vs Bazzigarz — 2026 FTP20 Div-A"')
-    ap.add_argument("--moments", help="events.json from qrscan.py, for reel captions")
+    ap.add_argument("--moments", default="events.json",
+                    help="scan output for reel captions (default: events.json if present)")
     ap.add_argument("--moment", type=int, default=0, help="which moment this clip is")
     ap.add_argument("--chapters", help="the chapter file cut.py wrote, for a full video")
     ap.add_argument("--title", help="override the generated title")
@@ -353,6 +360,9 @@ def main():
                     help="default private — review it on the channel before making it public")
     ap.add_argument("--confirm", action="store_true",
                     help="actually upload; without this the tool only prints the plan")
+    ap.add_argument("--metadata-only", action="store_true",
+                    help="write a paste-ready title/description file for a manual upload "
+                         "and do not touch the API")
     ap.add_argument("--force", action="store_true",
                     help="upload as a Short even if the file would not qualify")
     a = ap.parse_args()
@@ -384,7 +394,7 @@ def main():
 
     if a.target == "shorts":
         moment = {}
-        if a.moments:
+        if a.moments and os.path.exists(a.moments):
             doc = json.load(open(a.moments))
             ms = doc.get("moments") or doc.get("events") or []
             if not ms:
@@ -409,8 +419,19 @@ def main():
     for line in meta["description"].splitlines():
         print(f"    | {line}")
 
+    if a.metadata_only:
+        out = Path(a.file).with_suffix("").as_posix() + "-youtube.txt"
+        Path(out).write_text(
+            f"TITLE\n{meta['title']}\n\nDESCRIPTION\n{meta['description']}\n\n"
+            f"TAGS\n{', '.join(meta['tags'])}\n")
+        print(f"\n  wrote {out} — paste these into the YouTube upload page.")
+        print("  Uploading by hand avoids the unverified-project lock; see docs/publishing.md.")
+        return
+
     if not a.confirm:
         print("\n  DRY RUN — nothing uploaded. Re-run with --confirm to publish.")
+        print("  ⚠ an unverified API project can only upload LOCKED-private videos; "
+              "--metadata-only is the useful mode until the audit clears.")
         return
 
     print()
@@ -418,8 +439,9 @@ def main():
     kind = "shorts" if a.target == "shorts" else "watch?v="
     print(f"\n  uploaded: https://youtube.com/{kind}{vid}" if a.target == "shorts"
           else f"\n  uploaded: https://youtube.com/watch?v={vid}")
-    if a.privacy == "private":
-        print("  it is PRIVATE — watch it, then make it public in YouTube Studio.")
+    print("  🛑 If this project is unverified, YouTube has LOCKED this video private and it")
+    print("     cannot be appealed or made public — re-upload by hand, or get the project")
+    print("     audited. See docs/publishing.md.")
 
 
 if __name__ == "__main__":

@@ -107,12 +107,20 @@ asking. → `analytics.md` §4
 ⚠ **Stream duration is not measurable**, and ~87% of loads point at matches that already
 finished. Treat raw load counts accordingly. → `analytics.md` §5
 
+🛑 **An unverified API project cannot publish publicly to YouTube.** Uploads from a project
+created after 28 July 2020 are LOCKED private by YouTube and cannot be appealed or made public;
+only a compliance audit lifts it. Use `--metadata-only` and upload by hand until then. →
+`publishing.md` §0
+
+⚠ **"Testing" mode also blocks non-tester accounts outright** with a 403, which looks nothing
+like the clickable unverified-app warning. → `publishing.md` §3a
+
 🛑 **A Google OAuth consent screen left in "Testing" expires refresh tokens after exactly 7
 days.** An unattended uploader works for a week and then silently stops. Set it to "In
 Production". → `publishing.md` §3
 
 ⚠ **A landscape file uploaded as a "Short" produces no error** — it lands as an ordinary video
-and the only way to notice is to look. → `publishing.md` §5
+and the only way to notice is to look. → `publishing.md` §6
 
 ⚠ **`UNABLE_TO_GET_ISSUER_CERT_LOCALLY` means `NODE_EXTRA_CA_CERTS` is not set in this shell**,
 not that the network is broken. Homebrew is unusable through the same proxy. → `deployment.md` §3
