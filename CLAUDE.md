@@ -107,10 +107,15 @@ asking. → `analytics.md` §4
 ⚠ **Stream duration is not measurable**, and ~87% of loads point at matches that already
 finished. Treat raw load counts accordingly. → `analytics.md` §5
 
-🛑 **An unverified API project cannot publish publicly to YouTube.** Uploads from a project
-created after 28 July 2020 are LOCKED private by YouTube and cannot be appealed or made public;
-only a compliance audit lifts it. Use `--metadata-only` and upload by hand until then. →
+🛑 **Never record an untested platform restriction as a tripwire.** This slot used to say an
+unverified API project cannot publish publicly to YouTube. Google documents that, but it was
+never tested here — and when it finally was, the upload landed public. The false certainty cost
+a Make.com detour and an R2 plan, to route around a wall nobody had pushed on. →
 `publishing.md` §0
+
+⚠ **httplib2 ignores the system trust store, `SSL_CERT_FILE` *and* `REQUESTS_CA_BUNDLE`**, so
+every Google API call fails on the corporate proxy while `requests` in the same process
+succeeds. Hand it `ca_certs` explicitly. → `publishing.md` §4b
 
 ⚠ **"Testing" mode also blocks non-tester accounts outright** with a 403, which looks nothing
 like the clickable unverified-app warning. → `publishing.md` §3a

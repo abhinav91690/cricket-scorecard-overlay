@@ -2,6 +2,50 @@
 
 ## 2026-09-21
 
+### 🛑 The upload lock was never real here, and I never tested it
+
+`publish.py --privacy public --confirm` uploaded through this project's **own unverified** OAuth
+client. The video landed **Public**, played in a signed-out incognito window, and its visibility
+could still be changed. A locked video fails all three. Recorded in
+[publishing.md](./publishing.md) §0.
+
+**The premise most of this session was built on was an untested assumption.** Google does
+document that unverified projects get their uploads locked private — that part is real — but the
+earlier attempt died at the OAuth consent wall (§3a) before any upload completed, and I wrote the
+restriction up as a settled 🛑 tripwire anyway. Everything downstream followed from it:
+
+- a Make.com account, a scenario, a webhook and a Keychain entry pair
+- a costed Cloudflare R2 hosting plan, to get past a 5 MB limit
+- a recommendation to apply for Google's compliance audit
+- two wrong claims about that 5 MB limit, corrected separately the same evening
+
+None of it was needed. The measurement was ten minutes and one throwaway clip, and it should have
+come before the tripwire, not after the workaround. `--metadata-only` stays as the fallback, but
+it is no longer the useful mode.
+
+⚠ **The Make result is weaker than I presented it.** It was framed as proof that an audited
+project escapes the lock. With the direct API behaving identically, that experiment had no
+control: the outcome is equally consistent with "the lock does not bite here at all". §5 now says
+so, and the route is demoted to a fallback.
+
+### 🛑 httplib2 ignores the system trust store and both CA environment variables
+
+The test was blocked first by TLS, not by YouTube. `googleapiclient` talks through **httplib2**,
+which uses the bundle inside `certifi` and reads neither `SSL_CERT_FILE` nor
+`REQUESTS_CA_BUNDLE` — so behind Zscaler every API call failed with "unable to get local issuer
+certificate" **after** the OAuth consent had succeeded and written a token, because that leg goes
+through `requests`, which does honour `REQUESTS_CA_BUNDLE`.
+
+A valid credential plus a failing transport reads exactly like a bad credential. `ca_bundle()`
+and `authorized_http()` now hand the bundle to httplib2 explicitly. This is a *different* fault
+from the `VERIFY_X509_STRICT` one already recorded — same proxy, unrelated fixes, distinguishable
+only by the error text. [publishing.md](./publishing.md) §4b.
+
+Also fixed while there: the success line printed
+`https://youtube.com/shortsMO3YZtBHz1c` — a missing slash — and followed it with a 🛑 warning
+that the video was probably locked, which was both wrong and alarming.
+
+
 ### The locked-private blocker is solved: upload through Make's audited project
 
 `publish.py --post-to` posts a clip and its captions to a Make.com custom webhook, which feeds

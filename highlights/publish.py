@@ -269,17 +269,43 @@ def ssl_context():
     with verify_mode = CERT_NONE.
     """
     import ssl
-    bundle = next((p for p in (
+    bundle = ca_bundle()
+    ctx = ssl.create_default_context(cafile=bundle) if bundle else ssl.create_default_context()
+    if bundle:
+        ctx.verify_flags &= ~ssl.VERIFY_X509_STRICT
+    return ctx
+
+
+def ca_bundle() -> str | None:
+    """Path to a CA bundle that contains the corporate root, or None if none is findable."""
+    return next((p for p in (
         os.environ.get("SSL_CERT_FILE"),
         os.environ.get("REQUESTS_CA_BUNDLE"),
         os.environ.get("NODE_EXTRA_CA_CERTS"),
         os.path.expanduser("~/.config/certs/corp-roots.pem"),
     ) if p and os.path.exists(p)), None)
 
-    ctx = ssl.create_default_context(cafile=bundle) if bundle else ssl.create_default_context()
-    if bundle:
-        ctx.verify_flags &= ~ssl.VERIFY_X509_STRICT
-    return ctx
+
+def authorized_http(creds):
+    """An httplib2 transport that trusts the corporate root.
+
+    🛑 httplib2 does NOT use the system trust store and ignores both SSL_CERT_FILE and
+    REQUESTS_CA_BUNDLE. It defaults to the bundle shipped inside `certifi`, which has no
+    corporate root in it, so every googleapis.com call fails with "unable to get local
+    issuer certificate" — while `requests` in the very same process succeeds, because
+    requests *does* honour REQUESTS_CA_BUNDLE.
+
+    ⚠ That asymmetry is the confusing part: the OAuth token exchange (requests) completes and
+    stores a token, then the upload (httplib2) dies on TLS. It reads like the credential is
+    bad. It is not — only the transport's trust store is. The bundle has to be handed to
+    httplib2 explicitly, which is what this does.
+    """
+    import httplib2
+    from google_auth_httplib2 import AuthorizedHttp
+
+    bundle = ca_bundle()
+    http = httplib2.Http(ca_certs=bundle) if bundle else httplib2.Http()
+    return AuthorizedHttp(creds, http=http)
 
 
 def keychain_read_text(service: str) -> str | None:
@@ -449,7 +475,8 @@ def upload(path: str, meta: dict, privacy: str) -> str:
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaFileUpload
 
-    yt = build("youtube", "v3", credentials=credentials(), cache_discovery=False)
+    # http= and credentials= are mutually exclusive; the transport carries the creds.
+    yt = build("youtube", "v3", http=authorized_http(credentials()), cache_discovery=False)
     body = {
         "snippet": {"title": meta["title"], "description": meta["description"],
                     "tags": meta["tags"], "categoryId": "17"},   # 17 = Sports
@@ -586,12 +613,14 @@ def main():
 
     print()
     vid = upload(a.file, meta, a.privacy)
-    kind = "shorts" if a.target == "shorts" else "watch?v="
-    print(f"\n  uploaded: https://youtube.com/{kind}{vid}" if a.target == "shorts"
-          else f"\n  uploaded: https://youtube.com/watch?v={vid}")
-    print("  🛑 If this project is unverified, YouTube has LOCKED this video private and it")
-    print("     cannot be appealed or made public — re-upload by hand, or get the project")
-    print("     audited. See docs/publishing.md.")
+    url = (f"https://youtube.com/shorts/{vid}" if a.target == "shorts"
+           else f"https://youtube.com/watch?v={vid}")
+    print(f"\n  uploaded: {url}")
+    if a.privacy == "public":
+        # Measured 21 Sep 2026: this project is unverified and the upload landed public
+        # anyway, so the documented lock did not bite. Verify rather than assume either way.
+        print("  ⚠ Confirm it really is public by opening it SIGNED OUT. Studio's Notices")
+        print("    panel is where YouTube declares a locked video. See docs/publishing.md §0.")
 
 
 if __name__ == "__main__":

@@ -47,9 +47,12 @@ empty reel.
 
 Nothing uploads without `--confirm`, and uploads default to **private**.
 
-🛑 **The direct API path cannot produce a publishable video.** Our Google project is unverified,
-so YouTube locks everything it uploads private, unappealably. Post to the Make webhook instead —
-it uploads through an audited project and lands publicly:
+The direct API path publishes fine — measured, despite docs to the contrary
+([`../docs/publishing.md`](../docs/publishing.md) §0). Add `--privacy public` to publish
+immediately, and check it signed out.
+
+A Make.com webhook route also exists as a fallback. It works, but it is **not** the first
+choice: a third party holds a token for the channel, and files over 5 MB need a paid tier.
 
 ```sh
 # --post-to with no argument reads the webhook URL from the Keychain

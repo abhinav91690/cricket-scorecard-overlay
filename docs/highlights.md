@@ -207,10 +207,10 @@ Uploading a cut file to YouTube is built — `publish.py`, covered in
 captioned from the QR payload. Nothing uploads without `--confirm` and uploads default to
 private.
 
-🛑 **Do not use the direct API path expecting a publishable video.** Our own Google project is
-unverified, so everything it uploads is locked private and cannot be appealed. Posting to the
-Make webhook (`--post-to`) uploads through an audited project instead and lands publicly — see
-[publishing.md](./publishing.md) §5, and §5a for the two things that route cannot do.
+✅ **The direct API path publishes fine.** Measured 21 Sep 2026: an upload from this project's
+own unverified client landed Public with no lock. The documented restriction that said otherwise
+had never been tested here — see [publishing.md](./publishing.md) §0, and §0b for what to
+re-check before trusting it with anything that matters.
 
 ## 12. Open work
 

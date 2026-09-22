@@ -16,33 +16,52 @@ full highlights video as an ordinary video. Instagram is **not built** — see �
 
 ---
 
-## 0. 🛑 Read this first: an unverified project cannot publish publicly
+## 0. ✅ Measured: this project uploads public videos fine
 
-Every video uploaded through `videos.insert` from an **unverified API project created after
-28 July 2020** is **locked as private by YouTube**, and
-[that lock cannot be appealed](https://support.google.com/youtube/answer/7300965?hl=en):
+**The direct API route works.** On 21 Sep 2026 `publish.py --privacy public --confirm` uploaded
+through this project's own unverified OAuth client, and it passed all three checks a locked video
+fails:
+
+| Check | Result |
+|---|---|
+| Studio | **Visibility Public**, and the **Notices panel empty** |
+| Signed-out load | played in an incognito window |
+| Visibility change | **Public → Private succeeded** |
+
+No lock. It also landed on a `youtube.com/shorts/…` URL, so Shorts classification works on this
+route too.
+
+That matters because the opposite was written here as settled fact for most of a day, and a
+lot of work was done around it.
+
+### 0a. 🛑 What the docs say, and why it was believed
+
+Google's [support page](https://support.google.com/youtube/answer/7300965?hl=en) states that a
+video uploaded through `videos.insert` from an **unverified API project created after 28 July
+2020** is **locked private**, unappealably:
 
 > "For videos that have been locked as private due to upload via an unverified API service, you
 > will not be able to appeal."
 
-The only remedies are to **re-upload through a verified client or by hand**, or to get the
-project through a **compliance audit** — the *YouTube API Services - Audit and Quota Extension
-Form*, linked from
-[Quota and Compliance Audits](https://developers.google.com/youtube/v3/guides/quota_and_compliance_audits).
+That is real, documented, and it is why `--metadata-only` exists. What was wrong was treating it
+as **certain to apply here without ever testing it** — the OAuth consent wall (§3a) came first,
+the upload never completed, and the untested assumption was written up as a 🛑 tripwire.
 
-⚠ **This is not the same thing as our `private` default.** A video we mark private can be made
-public in Studio whenever you like. A video *locked* private by YouTube cannot — not by us, not
-in Studio, not on appeal.
+🛑 **Never record an untested platform restriction as a tripwire.** It sent the whole publishing
+design down a detour: a Make.com account, a scenario, a webhook, a Keychain entry pair and an
+R2 hosting plan, all to route around a wall that was never measured. The measurement was ten
+minutes and one throwaway clip.
 
-So until the audit clears, the useful mode is **`--metadata-only`**: it writes a paste-ready
-title and description next to the file for a manual upload. The captions were always the part
-worth automating; the file transfer is a drag-and-drop either way.
+### 0b. ⚠ It may still apply — what to watch
 
-⚠ **I found this after building the uploader, not before.** It should have been the first thing
-checked about an upload API, and it changes what the tool is for.
+One public upload does not prove the policy is inert. Enforcement could be asynchronous, or
+scoped to patterns this has not hit. So:
 
-✅ **There is now a way round it that does not need the audit** — uploading through a hosted
-service whose own project is already audited. Measured and working: see §5.
+- **Re-check a public upload the next day** before trusting the route for anything that matters.
+  A lock that arrives late looks exactly like this did at first.
+- ⚠ **`oembed` is not the check** — see §5c. A signed-out browser load is.
+- Keep `--metadata-only` working. It is the fallback if a lock ever does arrive, and it costs
+  nothing to retain.
 
 ## 1. Two safety defaults, both deliberate
 
@@ -145,11 +164,46 @@ Verified live with a 529-character token blob containing 24 double quotes: store
 characters of base64 and read back byte-identical. `keychain_write()` compares the read-back
 **exactly**, not by length as the shell script does, since it has the original value in hand.
 
-## 5. ✅ The Make.com route bypasses the lock — measured, not assumed
+## 4b. 🛑 httplib2 does not use the system trust store, and ignores both CA env vars
 
-The lock in §0 attaches to **the API project that makes the call**, not to the channel. So a
-hosted automation service uploading through *its own* audited project is not subject to it. That
-was a hypothesis until it was tested end to end on 21 Sep 2026, and it holds:
+Behind the corporate proxy the upload died on
+`CERTIFICATE_VERIFY_FAILED: unable to get local issuer certificate` — **after** the OAuth
+consent had completed and the token had been written to the Keychain.
+
+That split is the confusing part and it points the wrong way:
+
+| Transport | Trust store | Behind Zscaler |
+|---|---|---|
+| `requests` (the OAuth token exchange) | honours `REQUESTS_CA_BUNDLE` | ✅ works |
+| `httplib2` (every `googleapiclient` call) | **its own `certifi` bundle** | ❌ fails |
+
+So the credential is fine and the token is valid; only the upload transport distrusts the
+proxy's root. It reads like a broken credential or a revoked consent, and neither is true.
+
+⚠ **Setting `SSL_CERT_FILE` does not fix it.** httplib2 reads neither that nor
+`REQUESTS_CA_BUNDLE`; it defaults to whatever `certifi` ships. The bundle has to be handed over
+explicitly, which is what `authorized_http()` does:
+
+```python
+http = httplib2.Http(ca_certs=ca_bundle())          # ca_bundle() finds the corp root
+yt = build("youtube", "v3", http=authorized_http(credentials()))
+```
+
+🛑 `http=` and `credentials=` are **mutually exclusive** in `build()` — the transport carries the
+credentials. And note this is a *different* failure from the `VERIFY_X509_STRICT` one in
+`ssl_context()`: that one says "Basic Constraints of CA cert not marked critical" and needs a
+flag cleared, this one says "unable to get local issuer certificate" and needs a bundle. Same
+proxy, two unrelated fixes. See [deployment.md](./deployment.md) §3.
+
+## 5. The Make.com route — works, but no longer needed
+
+⚠ **Read §0 first: the direct API uploads public videos fine, so this route solves a problem
+this project does not have.** It is kept because it is built, tested and harmless as a fallback,
+and because §5a/§5c hold lessons worth not relearning. It should not be anyone's first choice —
+it adds a third party holding an OAuth token for the channel, a monthly fee above 5 MB, and a
+file-size ceiling the direct API does not have.
+
+Tested end to end on 21 Sep 2026, and it does work:
 
 | Signal | Result |
 |---|---|
@@ -160,11 +214,15 @@ was a hypothesis until it was tested end to end on 21 Sep 2026, and it holds:
 | Signed-out load | played in an incognito window, so genuinely public |
 | Visibility change | **Public → Private succeeded** afterwards |
 
-🛑 **The conclusive evidence is that visibility could still be changed.** A video locked under
-§0 is stuck: Studio shows it Private, with a notice saying so, and the setting cannot be moved.
-This one went Public → Private on request. Reaching "Public" proves the upload was not locked at
-insert time; *being able to leave it* proves no lock arrived later either. The empty Notices
-panel agrees, and the word "Public" on its own would have proved neither.
+🛑 **The evidence that matters is that visibility could still be changed.** A video locked
+under §0 is stuck: Studio shows it Private, with a notice saying so, and the setting cannot be
+moved. This one went Public → Private on request. The empty Notices panel agrees, and the word
+"Public" on its own would have proved neither.
+
+⚠ **What this test did *not* establish** is that the audited-project theory is why it worked.
+The direct API — an *unverified* project — behaves identically (§0). So this result is
+consistent with "Make's project is audited" and equally with "the lock simply does not bite
+here". The experiment had no control, and I presented it as though it did.
 
 ### 5c. 🛑 `oembed` is not a visibility test for a Short
 
