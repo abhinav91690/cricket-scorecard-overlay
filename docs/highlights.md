@@ -175,10 +175,10 @@ assumption was what failed. The QR code solved the underlying problem properly.
 
 - **Recordings without `?data=1` fall back to the stripes**, with the missed-card problem in §2.
   There is no way to recover those events after the fact.
-- **The block is visible** in anything uploaded whole. A 9:16 crop keeps a centre column about
-  32% of the frame width so it is gone for free in every reel, and one `drawbox` in `cut.py`
-  covers it for a 16:9 upload at no cost since every clip is re-encoded anyway. At inset 0 a
-  plain `crop` removes it without having to find it first.
+- **The block is visible** in anything uploaded whole. Every reel crop starts past ~4% of the
+  frame width, so it is gone for free there (§13a), and one `drawbox` in `cut.py` covers it for
+  a 16:9 upload at no cost since every clip is re-encoded anyway. At inset 0 a plain `crop`
+  removes it without having to find it first.
 - **The recording profile matters.** These numbers assume the browser source rendered
   full-frame at 1920 and upscaled ~2× into 4K.
 
@@ -241,12 +241,47 @@ for scans made before the flag existed rather than silently dropping their wicke
 bad attribution produces a perfectly good clip filed under the wrong person, and nothing about
 the output looks wrong. That is why the rules are unit-tested rather than eyeballed.
 
-### 13a. `--vertical` removes the data code for free
+### 13a. 🛑 The crop is square, and that is measured
 
-`cut.VERTICAL` is `crop=floor(ih*9/16/2)*2:ih,scale=1080:1920`. At 16:9 that keeps a centre
-column about 32% of the frame width, so the top-left `?data=1` block is simply not in the
-output — no `drawbox`, no need to locate it. ✅ Verified by re-scanning a finished reel:
-`qrscan.py` decoded **0 of 80** keyframes, against 13 of 13 on the source.
+`--vertical` crops **1:1**, not 9:16. Shorts only require height ≥ width, so the shape is a
+free choice — and 9:16 is the wrong one for this camera.
+
+**The camera is side-on**, so the pitch runs *across* the frame. Measured on three real events
+in the reference match, the pitch occupies roughly **36%–73% of the frame width**, about 37%.
+
+| Aspect | Crop width at 16:9 | Spans | Contains the pitch? |
+|---|---|---|---|
+| `9:16` | **31.6%** | 34.2%–65.8% | ❌ **cannot** — narrower than the pitch |
+| `4:5` | 45.0% | 27.5%–72.5% | ~ marginal at the far end |
+| **`1:1`** (default) | **56.2%** | 21.9%–78.1% | ✅ whole pitch, both ends |
+
+🛑 **A 9:16 window is narrower than the pitch, so no placement works.** On the three events it
+cut off the bowler's end every time — the batter at the far stumps sat outside the frame on the
+wicket, and on both boundaries the bowler's end was gone. The old default was never chosen: it
+was ffmpeg's `crop` centring default, justified in these docs by the fact that it removed the
+data code, which is a side effect and not a framing decision.
+
+⚠ **There is no fixed "action side" to aim a narrow crop at.** Which end the striker occupies
+alternates every over, *and* again whenever the batters cross on an odd run. Two frames minutes
+apart in the same match show the striker at 38% and at 68%.
+
+❌ **Motion-based auto-crop was tried and does not work.** A per-column temporal
+standard-deviation map over each clip — the same technique `find_bar()` uses to locate the
+overlay (§3) — put the peak at 81.6%, 39.2% and 75.8% for the three events. Those are not the
+batter: over a 20-second window the bowler's run-up and fielders chasing the ball move far more
+than a shot lasting a fraction of a second. It picked the bowler's end on one clip and the
+striker's on another, so it is not even consistently wrong. A square crop needs no such guess.
+
+Deriving the striker's end from cricket logic is possible in principle — over parity plus every
+odd-run crossing — but one missed ball desynchronises it silently, which is the exact failure
+class this pipeline keeps getting caught by.
+
+`--aspect` and `--crop-x` exist for a different camera setup: `--crop-x` moves the window as a
+fraction of frame width, clamped inside the frame.
+
+✅ **Any crop starting past ~4% of the width still excludes the `?data=1` block**, so it stays
+removed for free at every aspect. Verified by re-scanning a finished reel: `qrscan.py` decoded
+**0 of 80** keyframes, against 13 of 13 on the source.
 
 ### 13b. Captions travel in a sidecar
 

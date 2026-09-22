@@ -16,6 +16,7 @@ decide whose reel a ball belongs to are pinned here:
 from __future__ import annotations
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from cut import crop_filter
 from reels import (attribute, breakdown, build_title, figures, metadata, over, slug,
                    tally, titlecase)
 
@@ -268,6 +269,70 @@ def test_a_fielding_wicket_names_the_dismissed_batter_and_their_score():
                    batting_innings=1)["ANKIT K"]
     body = metadata("ANKIT K", ms, [[0.0, 10.0, "wicket"]], "", "Topguns")["description"]
     assert "WICKET — R. Sharma 34(32)" in body, body
+
+
+# ---------------------------------------------------------------- the crop
+
+def _span(f):
+    """-> (start, end) of the crop as fractions of a 3840-wide frame."""
+    cw = int(f.split("crop=")[1].split(":")[0])
+    x = int(f.split(":")[2].split(",")[0])
+    return x / 3840, (x + cw) / 3840
+
+
+def test_a_9_16_crop_cannot_contain_a_side_on_pitch():
+    """🛑 The measured reason square is the default. The pitch spans ~36%-73% of the
+    width; a 9:16 window is 31.6% wide, so it cannot hold the pitch anywhere."""
+    a, b = _span(crop_filter(3840, 2160, "9:16"))
+    assert b - a < 0.73 - 0.36, (a, b)
+
+
+def test_a_square_crop_contains_the_whole_pitch():
+    a, b = _span(crop_filter(3840, 2160, "1:1"))
+    assert a <= 0.36 and b >= 0.73, (a, b)
+
+
+def test_every_aspect_stays_portrait_or_square_so_it_is_a_short():
+    """publish.shorts_problems() rejects anything wider than it is tall."""
+    for aspect in ("1:1", "4:5", "9:16"):
+        f = crop_filter(3840, 2160, aspect)
+        w, h = (int(v) for v in f.split("scale=")[1].split(",")[0].split(":"))
+        assert h >= w, (aspect, w, h)
+
+
+def test_every_crop_excludes_the_top_left_data_code():
+    """The code sits in the first ~4% of the width; no crop may include it."""
+    for aspect in ("1:1", "4:5", "9:16"):
+        assert _span(crop_filter(3840, 2160, aspect))[0] > 0.04, aspect
+
+
+def test_crop_x_moves_the_window():
+    left, right = _span(crop_filter(3840, 2160, "9:16", 0.30)), \
+                  _span(crop_filter(3840, 2160, "9:16", 0.70))
+    assert left[0] < right[0], (left, right)
+
+
+def test_crop_x_is_clamped_inside_the_frame():
+    for c in (-1.0, 0.0, 1.0, 2.0):
+        a, b = _span(crop_filter(3840, 2160, "1:1", c))
+        assert 0.0 <= a and b <= 1.0, (c, a, b)
+
+
+def test_crop_dimensions_are_even():
+    """h264 needs even dimensions; an odd crop width fails at encode time."""
+    for aspect in ("1:1", "4:5", "9:16"):
+        f = crop_filter(3840, 2160, aspect)
+        cw = int(f.split("crop=")[1].split(":")[0])
+        x = int(f.split(":")[2].split(",")[0])
+        assert cw % 2 == 0 and x % 2 == 0, (aspect, cw, x)
+
+
+def test_an_unknown_aspect_is_refused():
+    try:
+        crop_filter(3840, 2160, "16:9")
+    except ValueError:
+        return
+    raise AssertionError("expected ValueError for a landscape aspect")
 
 
 if __name__ == "__main__":

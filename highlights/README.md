@@ -42,9 +42,11 @@ empty reel.
     --batting-innings 1 --team Topguns --match "Topguns vs Bazzigarz" --vertical
 ```
 
-🛑 Pass the wrong `--batting-innings` and every attribution inverts. `--vertical` crops a 9:16
-centre column, which also removes the `?data=1` block for free. Reasoning and rules in
-[`../docs/highlights.md`](../docs/highlights.md) §13.
+🛑 Pass the wrong `--batting-innings` and every attribution inverts. `--vertical` crops
+**square** (1:1), not 9:16 — the camera is side-on, so a 9:16 window is narrower than the pitch
+and cuts off an end. `--aspect` and `--crop-x` override it. Every crop still removes the
+`?data=1` block for free. Reasoning and the measurement in
+[`../docs/highlights.md`](../docs/highlights.md) §13, §13a.
 
 ## Publish
 

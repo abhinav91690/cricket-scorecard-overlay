@@ -27,7 +27,8 @@ import json
 import os
 import re
 
-from cut import VERTICAL, WINDOWS, cut, segments
+from cut import ASPECTS, WINDOWS, crop_filter, cut, segments
+from detect import probe
 
 # What counts as a player's own highlight, by the role they were in.
 BATTING_TYPES = ('four', 'six')
@@ -248,8 +249,14 @@ def main():
     ap.add_argument("--team", default="", help='e.g. "Topguns" — used in the tags')
     ap.add_argument("--match", default="", help='e.g. "Topguns vs Bazzigarz"')
     ap.add_argument("--vertical", action="store_true",
-                    help="crop a 9:16 centre column for a Short (also removes the "
-                         "?data=1 block for free)")
+                    help="crop for a Short. Square by default — see --aspect")
+    ap.add_argument("--aspect", default="1:1", choices=sorted(ASPECTS),
+                    help="crop shape for --vertical. 1:1 is the default because a 9:16 "
+                         "window is narrower than a side-on pitch and cuts off an end "
+                         "(docs/highlights.md 13a)")
+    ap.add_argument("--crop-x", type=float, default=0.5, metavar="F",
+                    help="crop centre as a fraction of frame width (default 0.5). Use "
+                         "this if the pitch is not centred in your camera framing")
     ap.add_argument("--player", help="only this player (substring, case-insensitive)")
     ap.add_argument("--height", type=int, default=1080)
     a = ap.parse_args()
@@ -270,6 +277,11 @@ def main():
             f"{sorted({m.get('innings') for m in moments})}.")
 
     os.makedirs(a.out, exist_ok=True)
+    vf = None
+    if a.vertical:
+        m = probe(a.video)
+        vf = crop_filter(m["w"], m["h"], a.aspect, a.crop_x)
+        print(f"  crop {a.aspect} at x={a.crop_x:.0%}  ->  {vf.split(',')[0]}")
     print(f"{len(moments)} moments -> {len(by_player)} player(s), "
           f"innings {a.batting_innings} batting\n")
 
@@ -282,8 +294,7 @@ def main():
             continue
         base = os.path.join(a.out, slug(player))
         print(f"{titlecase(player)}  ({tally(ms)})")
-        cut(a.video, segs, base + ".mp4", a.height,
-            vf=VERTICAL if a.vertical else None)
+        cut(a.video, segs, base + ".mp4", a.height, vf=vf)
         meta = metadata(player, ms, segs, a.match, a.team, states)
         with open(base + ".json", "w") as fh:
             json.dump(meta, fh, indent=1)

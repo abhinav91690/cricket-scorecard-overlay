@@ -2,6 +2,35 @@
 
 ## 2026-09-21
 
+### 🛑 Reels crop square, not 9:16 — the old crop cut the pitch in half
+
+`--vertical` produced a 9:16 centre column. On this camera that is **geometrically incapable**
+of holding the action: the camera is side-on, the pitch runs across the frame occupying about
+36%–73% of the width, and a 9:16 window at 16:9 is only **31.6%** wide. Checked against three
+real events in the reference match, it cut off the bowler's end every time — including the
+batter at the far stumps on the wicket. A 1:1 crop is 56.2% wide and holds the whole pitch.
+[highlights.md](./highlights.md) §13a.
+
+🛑 **The old value was never a decision.** It was ffmpeg's `crop` centring default, and the
+justification written in these docs — that it removes the `?data=1` block — is a side effect of
+*any* crop starting past ~4% of the width, not a reason to pick that shape. I documented a
+coincidence as a rationale, and it stood until someone asked how the crop was chosen.
+
+❌ **Motion-based auto-crop was tried and rejected.** A per-column temporal standard-deviation
+map per clip, the same technique `find_bar()` uses to locate the overlay, put the peak at 81.6%,
+39.2% and 75.8% on the three events. Those are not the batter: across a 20-second window the
+bowler's run-up and the fielders chasing outweigh a shot lasting a fraction of a second. It
+found the bowler's end on one clip and the striker's on another — not consistently wrong, just
+uninformative. Recorded as a negative result so it is not re-attempted.
+
+⚠ There is no fixed action side to aim at anyway: the striker's end alternates every over and
+again on every odd run. Square sidesteps the question rather than answering it per ball.
+
+Shorts accept height ≥ width, so square still uploads as a Short — confirmed through
+`shorts_problems()` and a real 1080x1080 encode. `--aspect` and `--crop-x` remain for a
+different camera setup.
+
+
 ### Captions read like a scorecard line
 
 `reels.py` captions were `V. Kohli — 1 six`, which used almost nothing the payload carries.

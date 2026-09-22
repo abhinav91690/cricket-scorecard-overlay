@@ -50,7 +50,7 @@ def segments(events, types=None, windows=WINDOWS):
 
 
 def cut(video, segs, out, height=1080, bitrate='10M', keep_clips=False, vf=None):
-    """`vf` overrides the scale filter — reels.py passes VERTICAL for a 9:16 Short."""
+    """`vf` overrides the scale filter — reels.py passes crop_filter() for a Short."""
     ff = ffmpeg()
     work = os.path.join(os.path.dirname(os.path.abspath(out)), 'clips')
     os.makedirs(work, exist_ok=True)
@@ -74,9 +74,33 @@ def cut(video, segs, out, height=1080, bitrate='10M', keep_clips=False, vf=None)
     return out
 
 
-# A 9:16 centre column. At 16:9 that keeps ~32% of the frame width, which also removes
-# the top-left ?data=1 block for free — no need to find and cover it.
-VERTICAL = 'crop=floor(ih*9/16/2)*2:ih,scale=1080:1920,setsar=1'
+# Shorts accept anything with height >= width, so the crop is a real choice, not a
+# constraint. See docs/highlights.md §13a for the measurement behind the default.
+ASPECTS = {'1:1': 1.0, '4:5': 0.8, '9:16': 9 / 16}
+
+
+def crop_filter(w: int, h: int, aspect: str = '1:1', centre: float = 0.5) -> str:
+    """A full-height crop of the given aspect, centred at `centre` (a fraction of width).
+
+    🛑 The default is SQUARE, not 9:16, and that is measured rather than a preference.
+    The camera is side-on, so the pitch runs across the frame and occupies roughly
+    36%-73% of the width. A 9:16 window at 16:9 is only 31.6% of the width and therefore
+    **cannot contain the pitch wherever it is placed** — on three real events it cut off
+    the bowler's end every time. A 1:1 window is 56.25% wide and covers the whole pitch.
+
+    ⚠ Which end the striker is at alternates: every over, and again whenever the batters
+    cross on an odd run. So there is no fixed "action" side to aim a narrow crop at, and
+    picking one per ball needs state this pipeline does not reliably have.
+
+    Any crop starting past ~4% of the width still excludes the top-left ?data=1 block, so
+    that stays removed for free.
+    """
+    if aspect not in ASPECTS:
+        raise ValueError(f"aspect must be one of {', '.join(ASPECTS)}")
+    cw = min(w, int(h * ASPECTS[aspect]) // 2 * 2)
+    x = max(0, min(w - cw, int(round(centre * w - cw / 2)))) // 2 * 2
+    out_h = int(1080 / ASPECTS[aspect]) // 2 * 2
+    return f'crop={cw}:{h}:{x}:0,scale=1080:{out_h},setsar=1'
 
 
 def chapters(segs, events):
