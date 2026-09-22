@@ -41,6 +41,10 @@ SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 # Keychain services. The token is the durable secret and is written back on every refresh.
 KC_TOKEN = "cricket-overlay-youtube-token"
 KC_CLIENT = "cricket-overlay-youtube-client"
+# The Make webhook and the key that guards it. The URL alone can post video to the channel,
+# so it is treated as a credential and never committed — this repo is public.
+KC_MAKE_URL = "cricket-overlay-make-webhook-url"
+KC_MAKE_KEY = "cricket-overlay-make-webhook-key"
 # Only used by --import-client, to move the file Google hands you into the Keychain.
 CONFIG_DIR = Path.home() / ".config" / "cricket-scorecard-overlay"
 
@@ -51,6 +55,10 @@ DESC_MAX = 5000
 # line at 60: it satisfies every version of the rule and Instagram's 5-90s window as well, so
 # one encode serves both.
 SHORTS_MAX_SECONDS = 60.0
+# Make's custom-webhook payload ceiling, on every tier including paid. A full reel is well
+# over this, so --post-to is for the small-clip test; real reels need the file hosted where
+# Make can fetch it. See docs/publishing.md.
+MAKE_WEBHOOK_MAX_BYTES = 5 * 1024 * 1024
 
 
 # ---------------------------------------------------------------- pure helpers
@@ -243,6 +251,45 @@ def keychain_write(service: str, value: str) -> None:
                          "do not use it")
 
 
+def ssl_context():
+    """A TLS context that works behind the corporate proxy without weakening verification.
+
+    Two separate problems, and only the second is subtle:
+
+    1. Zscaler terminates TLS with its own root, which is not in Python's bundle. The root
+       lives at ~/.config/certs/corp-roots.pem — the same file ~/.zshrc points
+       NODE_EXTRA_CA_CERTS at for Node.
+    2. ⚠ Python 3.13+ turns on ssl.VERIFY_X509_STRICT by default, and that rejects this CA
+       with "Basic Constraints of CA cert not marked critical". Node does not apply that
+       check, which is why wrangler and npm work in the same shell where Python fails — the
+       symptom looks like a missing certificate but adding the bundle alone does not fix it.
+
+    🛑 This clears exactly ONE strictness flag. Certificate verification stays on, the
+    hostname is still checked, and an untrusted certificate still fails. Do not replace this
+    with verify_mode = CERT_NONE.
+    """
+    import ssl
+    bundle = next((p for p in (
+        os.environ.get("SSL_CERT_FILE"),
+        os.environ.get("REQUESTS_CA_BUNDLE"),
+        os.environ.get("NODE_EXTRA_CA_CERTS"),
+        os.path.expanduser("~/.config/certs/corp-roots.pem"),
+    ) if p and os.path.exists(p)), None)
+
+    ctx = ssl.create_default_context(cafile=bundle) if bundle else ssl.create_default_context()
+    if bundle:
+        ctx.verify_flags &= ~ssl.VERIFY_X509_STRICT
+    return ctx
+
+
+def keychain_read_text(service: str) -> str | None:
+    """A plain secret, base64-decoded. Never logged, never returned to a shell argument."""
+    blob = keychain_read(service)
+    if not blob:
+        return None
+    return base64.b64decode(blob).decode()
+
+
 def keychain_read_json(service: str) -> dict | None:
     blob = keychain_read(service)
     if not blob:
@@ -319,6 +366,81 @@ def import_client(path: str) -> None:
     print(f"  🛑 now delete the downloaded file: rm {p}")
 
 
+def post_to_webhook(url: str, path: str, meta: dict, privacy: str) -> None:
+    """POST the clip and its metadata to a Make custom webhook as multipart/form-data.
+
+    Why this exists at all: an unverified Google Cloud project can only upload videos that
+    YouTube locks private (see the module docstring). A hosted automation service uploads
+    through ITS OWN project, so if that project is audited the lock does not apply. Whether
+    Make's is could not be established from the public record — one community thread reports
+    exactly this symptom and was closed as a user policy violation without being
+    investigated. This is the cheap way to find out.
+
+    🛑 5 MB ceiling, and it is not ours. Make rejects a larger payload on every tier, so a
+    real reel cannot go this way — it has to be hosted somewhere Make can fetch it.
+    """
+    size = os.path.getsize(path)
+    if size > MAKE_WEBHOOK_MAX_BYTES:
+        raise SystemExit(
+            f"{size / 1048576:.1f} MB exceeds Make's 5 MB webhook limit (all tiers).\n"
+            "  Use a small clip for the lock test, or host the file and have Make fetch it.")
+
+    import urllib.request
+    boundary = "----cricketoverlay" + os.urandom(8).hex()
+    parts = []
+    for k, v in (("title", meta["title"]), ("description", meta["description"]),
+                 ("tags", ",".join(meta["tags"])), ("privacy", privacy)):
+        parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n'
+                     f'{v}\r\n'.encode())
+    parts.append(
+        f'--{boundary}\r\nContent-Disposition: form-data; name="video"; '
+        f'filename="{os.path.basename(path)}"\r\n'
+        f'Content-Type: video/mp4\r\n\r\n'.encode())
+    parts.append(Path(path).read_bytes())
+    parts.append(f'\r\n--{boundary}--\r\n'.encode())
+    body = b"".join(parts)
+
+    headers = {"Content-Type": f"multipart/form-data; boundary={boundary}",
+               "Content-Length": str(len(body))}
+    # Make checks this header when the webhook has API-key auth enabled. Without it the
+    # webhook answers 403, which is the point: the URL on its own is not enough.
+    api_key = keychain_read_text(KC_MAKE_KEY)
+    if api_key:
+        headers["x-make-apikey"] = api_key
+        print("  authenticating with the key from the Keychain")
+    else:
+        print(f"  ⚠ no key in the Keychain under '{KC_MAKE_KEY}' — sending unauthenticated")
+
+    req = urllib.request.Request(url, data=body, headers=headers)
+    print(f"  posting {size / 1048576:.2f} MB to the webhook…")
+    # Make's status codes are informative but its bodies are not, so say what each means.
+    WHY = {
+        403: "the API key was rejected — check the Keychain value matches the keychain in Make",
+        410: "the webhook is not attached to a saved, ACTIVE scenario. Save the scenario and\n"
+             "       turn its toggle on; Make answers 410 for a hook with nothing live behind it",
+        400: "Make received it but rejected the shape — redetermine the data structure",
+        413: "payload too large; Make's ceiling is 5 MB on every tier",
+    }
+    try:
+        with urllib.request.urlopen(req, timeout=180, context=ssl_context()) as r:
+            print(f"  HTTP {r.status}: "
+                  f"{r.read(400).decode(errors='replace').strip() or '(empty body)'}")
+    except urllib.error.HTTPError as e:
+        detail = e.read(300).decode(errors="replace").strip()
+        print(f"  HTTP {e.code} {e.reason}" + (f": {detail}" if detail else ""))
+        if e.code in WHY:
+            print(f"     -> {WHY[e.code]}")
+        raise SystemExit(1)
+    except urllib.error.URLError as e:
+        print(f"  could not reach Make: {e.reason}")
+        print("     -> if this is a certificate error, see ssl_context() and "
+              "docs/deployment.md \u00a73")
+        raise SystemExit(1)
+    print("\n  Make has the clip. Now check the channel:")
+    print("    · publishable          -> Make's project is audited; this route works")
+    print("    · Private (locked)     -> it is not; only a compliance audit lifts it")
+
+
 def upload(path: str, meta: dict, privacy: str) -> str:
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaFileUpload
@@ -360,6 +482,9 @@ def main():
                     help="default private — review it on the channel before making it public")
     ap.add_argument("--confirm", action="store_true",
                     help="actually upload; without this the tool only prints the plan")
+    ap.add_argument("--post-to", metavar="URL", nargs="?", const="__keychain__",
+                    help="POST the clip and metadata to a Make webhook instead of using the "
+                         "YouTube API (5 MB ceiling). With no URL, reads it from the Keychain")
     ap.add_argument("--metadata-only", action="store_true",
                     help="write a paste-ready title/description file for a manual upload "
                          "and do not touch the API")
@@ -418,6 +543,25 @@ def main():
     print("  description")
     for line in meta["description"].splitlines():
         print(f"    | {line}")
+
+    if a.post_to:
+        url = a.post_to
+        if url == "__keychain__":
+            url = keychain_read_text(KC_MAKE_URL)
+            if not url:
+                raise SystemExit(f"no webhook URL in the Keychain under '{KC_MAKE_URL}'")
+            print(f"\n  webhook URL from the Keychain ({url.split('/')[-1][:6]}…)")
+        # 🛑 The Make scenario sets Privacy Status itself; the `privacy` field in the POST is
+        # decoration. Whatever --privacy says, the video lands at whatever the module is set
+        # to, so do not let the dry-run output above imply our flag is in control.
+        print("\n  ⚠ --privacy is NOT honoured on this route. The Make module sets Privacy")
+        print("    Status statically (currently Public), so the POSTed field is ignored.")
+        if not a.confirm:
+            print("\n  DRY RUN — nothing posted. Re-run with --confirm to send to Make.")
+            return
+        print()
+        post_to_webhook(url, a.file, meta, a.privacy)
+        return
 
     if a.metadata_only:
         out = Path(a.file).with_suffix("").as_posix() + "-youtube.txt"
