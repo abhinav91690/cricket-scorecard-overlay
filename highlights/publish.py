@@ -555,7 +555,8 @@ def main():
         # decoration. Whatever --privacy says, the video lands at whatever the module is set
         # to, so do not let the dry-run output above imply our flag is in control.
         print("\n  ⚠ --privacy is NOT honoured on this route. The Make module sets Privacy")
-        print("    Status statically (currently Public), so the POSTed field is ignored.")
+        print("    Status itself, so the POSTed field is ignored and the video lands at")
+        print("    whatever the scenario is configured for. Check it in Make, not here.")
         if not a.confirm:
             print("\n  DRY RUN — nothing posted. Re-run with --confirm to send to Make.")
             return
