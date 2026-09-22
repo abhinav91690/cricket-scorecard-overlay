@@ -35,8 +35,9 @@ any file here. See [analytics.md](./analytics.md) §6 and §7.
 - [The `?data=1` code](./data-code.md) - The 42-byte wire format, the pinned geometry and why
   every number is what it is, the cross-language contract, and the decoder that must be used.
 - [Publishing](./publishing.md) - Reels to YouTube Shorts and the highlights video to YouTube:
-  the one-time Google setup, the OAuth trap that kills an unattended uploader weekly, and where
-  Instagram stands.
+  the locked-private trap that an unverified project cannot escape and the Make route that
+  bypasses it, the one-time Google setup, the OAuth trap that kills an unattended uploader
+  weekly, and where Instagram stands.
 
 ## Operations
 

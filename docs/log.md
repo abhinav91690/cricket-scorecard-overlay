@@ -2,6 +2,39 @@
 
 ## 2026-09-21
 
+### The locked-private blocker is solved: upload through Make's audited project
+
+`publish.py --post-to` posts a clip and its captions to a Make.com custom webhook, which feeds
+`YouTube › Upload a Video`. Tested end to end: the video landed **Public**, as a Short, with an
+**empty Notices panel** in Studio — so the §0 lock, which attaches to the calling API project
+rather than to the channel, does not apply to this route. Recorded in
+[publishing.md](./publishing.md) §5.
+
+This matters because §0 had made the uploader mostly pointless: our own unverified project can
+only produce videos YouTube locks private and will not unlock on appeal. `--metadata-only` was
+the honest fallback. It no longer has to be.
+
+Two things the test corrected about my own work:
+
+- ⚠ **`--post-to` returned before the `--confirm` gate**, so it uploaded with no confirmation —
+  breaking the one invariant §1 states outright ("nothing uploads without `--confirm`"). The
+  safety default existed and the new code path simply walked around it. Now gated.
+- ⚠ **`--privacy` is not honoured on this route** and nothing said so. The Make module sets
+  Privacy Status statically, so the POSTed field is ignored; the dry-run output printed
+  `privacy private` next to an upload that would land public. It now warns on every run.
+
+And one measurement trap worth keeping: **`oembed` answered 401 throughout, for both URL forms,
+while the video loaded fine in a signed-out incognito window.** Read on its own that looks
+exactly like a locked video, and I nearly wrote it up first as the lock and then as propagation
+lag. It was neither — oEmbed just does not resolve fresh Shorts. The controls (known-public →
+200, nonexistent id → 400) proved the instrument ran; they could not tell me it was the wrong
+instrument. A signed-out page load is what settled it. Fifth entry in the same family as the
+four harness faults in [highlights.md](./highlights.md) §7b.
+
+⚠ **Still true: the 5 MB webhook ceiling means real reels cannot go through the webhook body.**
+The test clip was 0.68 MB. Hosting the file for Make to fetch is the remaining work.
+
+
 ### Knowledge moved into an OKF v0.2 bundle
 
 `docs/` is now an Open Knowledge Format bundle — `okf-base.yaml` at the root, index at

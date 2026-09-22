@@ -45,8 +45,22 @@ empty reel.
     --match "Topguns vs Bazzigarz" --chapters highlights-chapters.txt
 ```
 
-Nothing uploads without `--confirm`, and uploads default to **private**. Setup and the OAuth
-trap are in [`../docs/publishing.md`](../docs/publishing.md).
+Nothing uploads without `--confirm`, and uploads default to **private**.
+
+🛑 **The direct API path cannot produce a publishable video.** Our Google project is unverified,
+so YouTube locks everything it uploads private, unappealably. Post to the Make webhook instead —
+it uploads through an audited project and lands publicly:
+
+```sh
+# --post-to with no argument reads the webhook URL from the Keychain
+.venv/bin/python publish.py reel.mp4 --target shorts --moment 3 \
+    --match "Topguns vs Bazzigarz" --post-to --confirm
+```
+
+⚠ Two limits on that route: **5 MB per payload** (so a real reel needs hosting, not the webhook
+body), and **`--privacy` is ignored** because the Make scenario sets visibility itself. Setup,
+the OAuth trap and the full reasoning are in
+[`../docs/publishing.md`](../docs/publishing.md) §5.
 
 ## Tests
 

@@ -1,8 +1,8 @@
 ---
 type: Operations Reference
 title: Publishing — reels to YouTube Shorts, highlights to YouTube
-description: "How a cut reel reaches a channel: the one-time Google Cloud setup, the OAuth trap that kills an unattended uploader weekly, why a Short needs no special endpoint but does need validating, and where Instagram stands."
-tags: [publishing, youtube, shorts, oauth, instagram, reels]
+description: "How a cut reel reaches a channel: why our own unverified project can only publish locked-private videos and how uploading through Make's audited project gets round it, the one-time Google Cloud setup, the OAuth trap that kills an unattended uploader weekly, why a Short needs no special endpoint but does need validating, and where Instagram stands."
+tags: [publishing, youtube, shorts, oauth, instagram, reels, make, webhook]
 status: stable
 generated: { by: claude/opus-5, at: 2026-09-21T22:32:46Z }
 ---
@@ -40,6 +40,9 @@ worth automating; the file transfer is a drag-and-drop either way.
 
 ⚠ **I found this after building the uploader, not before.** It should have been the first thing
 checked about an upload API, and it changes what the tool is for.
+
+✅ **There is now a way round it that does not need the audit** — uploading through a hosted
+service whose own project is already audited. Measured and working: see §5.
 
 ## 1. Two safety defaults, both deliberate
 
@@ -141,6 +144,64 @@ here is **base64 encoded first**, so the stored value is always quote-free.
 Verified live with a 529-character token blob containing 24 double quotes: stored as 708
 characters of base64 and read back byte-identical. `keychain_write()` compares the read-back
 **exactly**, not by length as the shell script does, since it has the original value in hand.
+
+## 5. ✅ The Make.com route bypasses the lock — measured, not assumed
+
+The lock in §0 attaches to **the API project that makes the call**, not to the channel. So a
+hosted automation service uploading through *its own* audited project is not subject to it. That
+was a hypothesis until it was tested end to end on 21 Sep 2026, and it holds:
+
+| Signal | Result |
+|---|---|
+| Make execution | Success, 2 operations, 2.3 s in the YouTube module |
+| API response | `uploadStatus: uploaded`, `privacyStatus: public` |
+| YouTube Studio | Visibility **Public**, and the **Notices panel empty** |
+| Classification | landed on a `youtube.com/shorts/…` URL — YouTube read it as a Short |
+| Signed-out load | played in an incognito window, so genuinely public |
+| Visibility change | **Public → Private succeeded** afterwards |
+
+🛑 **The conclusive evidence is that visibility could still be changed.** A video locked under
+§0 is stuck: Studio shows it Private, with a notice saying so, and the setting cannot be moved.
+This one went Public → Private on request. Reaching "Public" proves the upload was not locked at
+insert time; *being able to leave it* proves no lock arrived later either. The empty Notices
+panel agrees, and the word "Public" on its own would have proved neither.
+
+### 5c. 🛑 `oembed` is not a visibility test for a Short
+
+`https://www.youtube.com/oembed?url=…` answered **401 for the whole observation window** — with
+both the `watch?v=` and `/shorts/` URL forms — while the video was **already loading fine in a
+signed-out incognito window**. The controls were clean (a known-public video 200, a nonexistent
+id 400), so the instrument was working; it simply does not resolve fresh Shorts, and 401 there
+means nothing about visibility.
+
+⚠ **I nearly recorded this as evidence the lock had applied**, and then as propagation lag that
+would clear. It was neither. A signed-out browser load is the check that actually answers the
+question; oEmbed is the wrong instrument for a Short, not a slow one.
+
+### 5a. 🛑 What the webhook route cannot do
+
+- **`--privacy` is ignored.** The Make module sets Privacy Status **statically**, so the field in
+  the POST is decoration. Whatever the flag says, the video lands at whatever the scenario is
+  configured for. `post_to_webhook()` prints this every run rather than letting the dry-run
+  output imply our flag is in control. Changing visibility means editing the scenario.
+- 🛑 **5 MB per payload, on every tier.** Make rejects more, so a **real reel cannot go this
+  way** — `post_to_webhook()` refuses up front instead of failing mid-transfer. Getting real
+  reels through needs the file hosted where Make can fetch it (Cloudflare R2 is free at this
+  scale, per §8's costing), which turns the webhook body into a URL and removes the ceiling.
+- The scenario must be **saved *and* active**. Make answers **410 Gone** for a hook with nothing
+  live behind it, which reads like a bad URL and is not.
+
+### 5b. The scenario
+
+`Integration Webhooks, YouTube` — a Custom webhook feeding `YouTube › Upload a Video` (v4).
+Four mapped fields: `1.title`, `1.video.name`, `1.video.data`, `1.description`. Category Sports.
+Made-for-kids **No**, synthetic media **No**, notify subscribers **No** — the last of those keeps
+a test upload from notifying the channel's subscribers, which is worth keeping set.
+
+🛑 The webhook URL and its API key live in the **Keychain**
+(`cricket-overlay-make-webhook-url`, `cricket-overlay-make-webhook-key`), never in this repo,
+which is public. The key travels in the `x-make-apikey` header; without it the hook answers 403,
+which is the point — the URL alone is not a credential.
 
 ## 6. 🛑 A Short needs no special endpoint — but it does need validating
 

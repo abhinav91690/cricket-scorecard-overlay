@@ -207,6 +207,11 @@ Uploading a cut file to YouTube is built — `publish.py`, covered in
 captioned from the QR payload. Nothing uploads without `--confirm` and uploads default to
 private.
 
+🛑 **Do not use the direct API path expecting a publishable video.** Our own Google project is
+unverified, so everything it uploads is locked private and cannot be appealed. Posting to the
+Make webhook (`--post-to`) uploads through an audited project instead and lands publicly — see
+[publishing.md](./publishing.md) §5, and §5a for the two things that route cannot do.
+
 ## 12. Open work
 
 - **Per-player vertical reels.** The payload now carries the striker by name on every ball,
@@ -219,7 +224,7 @@ private.
   geometry, encoded at 14.65 Mb/s and decoded byte-exact — demonstrated working in about 9
   seconds for a 5-second clip. Noise is *harsher* than grass, since it is maximally expensive
   to encode, so it errs safe.
-- **Instagram publishing.** Researched and deferred — see [publishing.md](./publishing.md) §7.
+- **Instagram publishing.** Researched and deferred — see [publishing.md](./publishing.md) §8.
   ✅ App review turns out **not** to be needed for a single-user tool, which removes the 2–4 week
   blocker previously recorded here. The real cost is that Meta fetches the file, so it needs a
   publicly reachable URL.
