@@ -376,14 +376,18 @@ def post_to_webhook(url: str, path: str, meta: dict, privacy: str) -> None:
     exactly this symptom and was closed as a user policy violation without being
     investigated. This is the cheap way to find out.
 
-    🛑 5 MB ceiling, and it is not ours. Make rejects a larger payload on every tier, so a
-    real reel cannot go this way — it has to be hosted somewhere Make can fetch it.
+    🛑 5 MB ceiling on Make's FREE plan, and it is not ours. It is a plan-level limit on the
+    size of any file a scenario handles, NOT a webhook limit, so hosting the file and having
+    Make fetch it by URL does not get round it. Only a paid tier raises it: Core 100 MB,
+    Pro 250 MB, Teams 500 MB, Enterprise 1 GB. A ~20 MB reel needs Core.
     """
     size = os.path.getsize(path)
     if size > MAKE_WEBHOOK_MAX_BYTES:
         raise SystemExit(
-            f"{size / 1048576:.1f} MB exceeds Make's 5 MB webhook limit (all tiers).\n"
-            "  Use a small clip for the lock test, or host the file and have Make fetch it.")
+            f"{size / 1048576:.1f} MB exceeds Make's 5 MB file limit on the free plan.\n"
+            "  This is a plan-level limit on any file a scenario touches, not a webhook\n"
+            "  limit, so hosting the file for Make to fetch does NOT get round it.\n"
+            "  Core (100 MB) is the cheapest tier that carries a real reel.")
 
     import urllib.request
     boundary = "----cricketoverlay" + os.urandom(8).hex()
@@ -419,7 +423,7 @@ def post_to_webhook(url: str, path: str, meta: dict, privacy: str) -> None:
         410: "the webhook is not attached to a saved, ACTIVE scenario. Save the scenario and\n"
              "       turn its toggle on; Make answers 410 for a hook with nothing live behind it",
         400: "Make received it but rejected the shape — redetermine the data structure",
-        413: "payload too large; Make's ceiling is 5 MB on every tier",
+        413: "payload too large; Make's file ceiling is 5 MB on the free plan (Core is 100 MB)",
     }
     try:
         with urllib.request.urlopen(req, timeout=180, context=ssl_context()) as r:
@@ -484,7 +488,8 @@ def main():
                     help="actually upload; without this the tool only prints the plan")
     ap.add_argument("--post-to", metavar="URL", nargs="?", const="__keychain__",
                     help="POST the clip and metadata to a Make webhook instead of using the "
-                         "YouTube API (5 MB ceiling). With no URL, reads it from the Keychain")
+                         "YouTube API (5 MB on Make's free plan). With no URL, reads it "
+                         "from the Keychain")
     ap.add_argument("--metadata-only", action="store_true",
                     help="write a paste-ready title/description file for a manual upload "
                          "and do not touch the API")

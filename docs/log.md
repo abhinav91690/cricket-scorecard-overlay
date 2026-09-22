@@ -31,8 +31,12 @@ lag. It was neither — oEmbed just does not resolve fresh Shorts. The controls 
 instrument. A signed-out page load is what settled it. Fifth entry in the same family as the
 four harness faults in [highlights.md](./highlights.md) §7b.
 
-⚠ **Still true: the 5 MB webhook ceiling means real reels cannot go through the webhook body.**
-The test clip was 0.68 MB. Hosting the file for Make to fetch is the remaining work.
+⚠ **The 5 MB ceiling is worse than first recorded, and the workaround I proposed was wrong.**
+It is not a webhook limit and it is not "every tier": it is a **plan-level cap on any file a
+scenario handles**, 5 MB only on the free plan, rising to Core 100 MB / Pro 250 MB / Teams
+500 MB / Enterprise 1 GB. So hosting a reel on R2 and having Make fetch it by URL hits the same
+wall — the R2 work I had queued as "the remaining step" would not have helped. A ~20 MB reel
+needs the **Core** tier. The test clip was 0.68 MB, which is why nothing surfaced this.
 
 
 ### Knowledge moved into an OKF v0.2 bundle

@@ -57,9 +57,10 @@ it uploads through an audited project and lands publicly:
     --match "Topguns vs Bazzigarz" --post-to --confirm
 ```
 
-⚠ Two limits on that route: **5 MB per payload** (so a real reel needs hosting, not the webhook
-body), and **`--privacy` is ignored** because the Make scenario sets visibility itself. Setup,
-the OAuth trap and the full reasoning are in
+⚠ Two limits on that route: **5 MB per file on Make's free plan** — a plan-level cap, so
+hosting the reel for Make to fetch does *not* help; Core (100 MB) is the cheapest tier that
+carries a real reel — and **`--privacy` is ignored** because the Make scenario sets visibility
+itself. Setup, the OAuth trap and the full reasoning are in
 [`../docs/publishing.md`](../docs/publishing.md) §5.
 
 ## Tests

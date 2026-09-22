@@ -184,10 +184,18 @@ question; oEmbed is the wrong instrument for a Short, not a slow one.
   the POST is decoration. Whatever the flag says, the video lands at whatever the scenario is
   configured for. `post_to_webhook()` prints this every run rather than letting the dry-run
   output imply our flag is in control. Changing visibility means editing the scenario.
-- 🛑 **5 MB per payload, on every tier.** Make rejects more, so a **real reel cannot go this
-  way** — `post_to_webhook()` refuses up front instead of failing mid-transfer. Getting real
-  reels through needs the file hosted where Make can fetch it (Cloudflare R2 is free at this
-  scale, per §8's costing), which turns the webhook body into a URL and removes the ceiling.
+- 🛑 **5 MB per file on Make's free plan — and hosting the file does not get round it.** This
+  is a **plan-level limit on any file a scenario handles**, not a webhook limit, so pointing
+  Make at a file on R2 with `HTTP › Get a file` hits exactly the same ceiling; people have run
+  into it on that module and been told only to upgrade. The limit rises with the tier —
+  **Core 100 MB, Pro 250 MB, Teams 500 MB, Enterprise 1 GB** — so a ~20 MB reel needs **Core**,
+  the cheapest paid plan. `post_to_webhook()` refuses up front rather than failing mid-transfer.
+
+  ⚠ **This corrects an earlier note here** that said the ceiling was 5 MB "on every tier" and
+  that hosting the file would remove it. Both were wrong, and together they pointed at building
+  R2 hosting that would not have helped. Sources:
+  [Working with files](https://help.make.com/working-with-files),
+  [HTTP get file url — max file size exceeded](https://community.make.com/t/http-get-file-url-max-file-size-exceeded/45099).
 - The scenario must be **saved *and* active**. Make answers **410 Gone** for a hook with nothing
   live behind it, which reads like a bad URL and is not.
 
