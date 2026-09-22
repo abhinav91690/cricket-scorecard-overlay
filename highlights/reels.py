@@ -1,0 +1,362 @@
+"""Per-player reels for ONE team: their boundaries when batting, their wickets when bowling.
+
+A personal reel should only contain balls that belong to that player, and which player a
+ball belongs to depends on which side of it our team was on:
+
+    our team batting   ->  a four or a six belongs to the STRIKER
+    our team fielding  ->  a wicket belongs to the BOWLER
+
+🛑 The payload carries no team identity — only an innings number (see docs/data-code.md
+§2), because team names would have cost more bits than the whole rest of the record. So
+which innings our team batted has to be told to this tool with --batting-innings. There is
+no way to infer it from a recording, and guessing it inverts every attribution: our
+batters' boundaries would be credited to the opposition and vice versa.
+
+⚠ A wicket is only credited to the bowler when their OWN figure moved. A run-out raises
+the team wicket count while `bowlerWickets` stays put, and crediting that to the bowler
+would put another fielder's dismissal in their reel. `qrscan.moments()` carries the
+`bowlerWicket` flag for exactly this.
+
+🛑 There is no default crop. The camera framing changes every match and the two roles want
+different boxes, so the shape is reviewed per match rather than baked in. Omit a role's
+flag to leave it at full frame; pass a list to cut one file per shape and choose after
+watching them. `crop.py` draws the candidates on a real frame first.
+
+Usage:
+    .venv/bin/python reels.py "<video>" events.json -o reels/ \\
+        --batting-innings 1 --team "Topguns" --match "Topguns vs Bazzigarz" \\
+        --aspect-bat 4:5,1:1 --aspect-bowl 1:1
+"""
+from __future__ import annotations
+import argparse
+import json
+import os
+import re
+
+from cut import ASPECTS, WINDOWS, crop_filter, cut, segments
+from detect import probe
+
+# What counts as a player's own highlight, by the role they were in.
+BATTING_TYPES = ('four', 'six')
+FIELDING_TYPES = ('wicket',)
+ROLE_NAME = {'bat': 'batting', 'bowl': 'bowling'}
+
+
+def parse_aspects(spec: str) -> list:
+    """"4:5,1:1" -> ['4:5', '1:1']; "" -> [None], meaning leave it uncropped.
+
+    A list cuts one file per shape so they can be compared on screen before anything is
+    uploaded. Nothing here has a default shape — see the note in main().
+    """
+    items = [x.strip() for x in (spec or "").split(",") if x.strip()]
+    for x in items:
+        if x not in ASPECTS:
+            raise SystemExit(f"unknown aspect {x!r}; choose from {', '.join(sorted(ASPECTS))}")
+    return items or [None]
+
+
+def slug(name: str) -> str:
+    """'V. KOHLI' -> 'v-kohli'. Stable, filesystem-safe, no accidental collisions."""
+    s = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    return s or "unknown"
+
+
+def attribute(moments: list[dict], batting_innings: int) -> dict[tuple, list[dict]]:
+    """Group moments by the player AND the role they earned them in.
+
+    Returns {(player_name, role): [moment, ...]}, each moment carrying `_kinds` (the
+    subset of its types that put it in THIS reel) and `_role` ('bat' or 'bowl').
+
+    🛑 The key is (player, role), not player. An all-rounder who hits a four and later
+    takes a wicket would otherwise get both in one reel, and everything downstream reads
+    the role off the first moment — so the reel would be captioned with batting figures
+    while containing a wicket. Keyed this way they get two reels, which is also what the
+    two roles want anyway: they need different crops (§13a).
+    """
+    out: dict[tuple, list[dict]] = {}
+    for m in moments:
+        if m.get("innings") == batting_innings:
+            kinds = [t for t in m["types"] if t in BATTING_TYPES]
+            player, role = m.get("striker", ""), "bat"
+        else:
+            # Default True so a moment from an older scan, before `bowlerWicket` existed,
+            # is still attributed rather than silently dropped.
+            if not m.get("bowlerWicket", True):
+                continue
+            kinds = [t for t in m["types"] if t in FIELDING_TYPES]
+            player, role = m.get("bowler", ""), "bowl"
+
+        if not kinds or not player:
+            continue
+        out.setdefault((player, role), []).append({**m, "_kinds": kinds, "_role": role})
+    return out
+
+
+def tally(moments: list[dict]) -> str:
+    """'2 fours, 1 six' / '3 wickets' — reads naturally in a title."""
+    counts = {}
+    for m in moments:
+        for k in m["_kinds"]:
+            counts[k] = counts.get(k, 0) + 1
+    plural = {"four": "fours", "six": "sixes", "wicket": "wickets"}
+    parts = []
+    for kind in ("wicket", "six", "four"):          # most interesting first
+        n = counts.get(kind)
+        if n:
+            parts.append(f"{n} {plural[kind] if n > 1 else kind}")
+    return ", ".join(parts)
+
+
+def titlecase(name: str) -> str:
+    """'V. KOHLI' -> 'V. Kohli'. The payload is upper-case; a title should not shout."""
+    return " ".join(w[:1] + w[1:].lower() if w else w for w in name.split(" "))
+
+
+def over(balls: int) -> str:
+    """13 legal balls -> '2.1'. Cricket's over.ball notation, not a decimal."""
+    return f"{balls // 6}.{balls % 6}"
+
+
+def figures(states: list[dict], player: str, role: str) -> dict | None:
+    """The player's batting or bowling figures, read off the richest state we saw.
+
+    The moment for a given ball only knows the score *at* that ball, so a batter whose
+    last boundary came at 20 would be captioned "20" even if they went on to 60. Scanning
+    every state for the highest count that player reached gives their real figures for as
+    much of the innings as the recording covers.
+
+    ⚠ Returns None when there are no states — `detect.py` output has none, so captions
+    must degrade to the tally rather than inventing numbers.
+    """
+    best = None
+    for s in states or []:
+        f = s.get("fields", {})
+        if role == "bat":
+            if f.get("strikerName") != player:
+                continue
+            cur = {"runs": f.get("strikerRuns", 0), "balls": f.get("strikerBalls", 0),
+                   "fours": f.get("strikerFours", 0), "sixes": f.get("strikerSixes", 0)}
+            key = (cur["runs"], cur["balls"])
+        else:
+            if f.get("bowlerName") != player:
+                continue
+            cur = {"wickets": f.get("bowlerWickets", 0), "runs": f.get("bowlerRuns", 0),
+                   "balls": f.get("bowlerBalls", 0), "maidens": f.get("bowlerMaidens", 0)}
+            key = (cur["balls"], cur["wickets"])
+        if best is None or key > best[0]:
+            best = (key, cur)
+    return best[1] if best else None
+
+
+def breakdown(fig: dict | None, role: str) -> str:
+    """'3 fours, 2 sixes' from the player's innings figures. Zero counts are omitted —
+    a caption reading '1x4, 0x6' looks like a bug."""
+    if not fig:
+        return ""
+    bits = []
+    if role == "bat":
+        for n, one, many in ((fig["fours"], "four", "fours"), (fig["sixes"], "six", "sixes")):
+            if n:
+                bits.append(f"{n} {one if n == 1 else many}")
+    elif fig.get("maidens"):
+        n = fig["maidens"]
+        bits.append(f"{n} maiden{'' if n == 1 else 's'}")
+    return ", ".join(bits)
+
+
+def headline(player: str, moments: list[dict], fig: dict | None) -> str:
+    """'V. Kohli 46 (28)' or 'J. Bumrah 3/24 (4.0 ov)' — how a scorecard would say it."""
+    who = titlecase(player)
+    role = moments[0]["_role"]
+    if not fig:
+        return f"{who} — {tally(moments)}"
+    if role == "bat":
+        return f"{who} {fig['runs']} ({fig['balls']})"
+    return f"{who} {fig['wickets']}/{fig['runs']} ({over(fig['balls'])} ov)"
+
+
+def build_title(player: str, moments: list[dict], fig: dict | None, match: str,
+                limit: int = 100) -> str:
+    """Add detail while it fits, dropping the least important part first.
+
+    The scorecard line matters most, then what is actually in the reel, then the fixture.
+    A long team name must not push the player's own figures out of the title.
+    """
+    head = headline(player, moments, fig)
+    # Without figures, headline() already ends in the tally — appending it again would
+    # read "Venu S — 1 six — 1 six".
+    what = tally(moments) if fig else ""
+    # "3/24 (4.0 ov) — 3 wickets" says it twice. But when the reel holds fewer wickets
+    # than the innings figure (the stream started late), the count is real information,
+    # so only drop it when the two agree.
+    if fig and moments[0]["_role"] == "bowl":
+        in_reel = sum(1 for m in moments if "wicket" in m["_kinds"])
+        if in_reel == fig.get("wickets"):
+            what = ""
+    for candidate in (
+        f"{head} — {what}" + (f" | {match}" if match else "") if what else "",
+        f"{head} — {what}" if what else "",
+        f"{head}" + (f" | {match}" if match else ""),
+        head,
+    ):
+        if not candidate:
+            continue
+        if len(candidate) <= limit:
+            return candidate
+    return head[:limit]
+
+
+def ball_line(m: dict, t: float) -> str:
+    """One stamped line per ball, in the language of a commentary log."""
+    stamp = f"{int(t) // 60:02d}:{int(t) % 60:02d}"
+    where = f"{over(m['ball'])} ov, {m.get('score', '')}".strip(", ")
+    if m["_role"] == "bat":
+        shot = "SIX" if "six" in m["_kinds"] else "FOUR"
+        detail = f"{shot} off {titlecase(m['bowler'])}"
+        if str(m.get("outcome", "")).endswith("nb"):
+            detail += " (off a no-ball)"
+    else:
+        out = titlecase(m.get("striker", ""))
+        detail = f"WICKET — {out} {m.get('strikerScore', '')}".rstrip()
+    return f"{stamp}  {detail} — {where}"
+
+
+def metadata(player: str, moments: list[dict], segs: list, match: str, team: str,
+             states: list[dict] | None = None) -> dict:
+    """Title, description and tags for one player's reel."""
+    role = moments[0]["_role"]
+    fig = figures(states, player, role)
+    who = titlecase(player)
+    title = build_title(player, moments, fig, match)
+
+    lines, t = [], 0.0
+    for (a, b, _), m in zip(segs, moments):
+        lines.append(ball_line(m, t))
+        t += b - a
+
+    head = headline(player, moments, fig)
+    extra = breakdown(fig, role)
+    if extra:
+        head += f", {extra}"
+
+    body = [head]
+    if match:
+        body.append(match)
+    # 🛑 The headline is the player's figures for the whole innings; the reel only holds
+    # what the recording caught. Those differ whenever the stream started mid-innings, so
+    # say which is which rather than leaving a reader to think one of them is wrong.
+    body += ["", f"In this reel: {tally(moments)}", *lines, ""]
+    body.append("Every " + ("boundary" if role == "bat" else "wicket")
+                + " here was found automatically from the scorecard overlay burnt into "
+                  "the broadcast — no manual logging.")
+    body += ["", "Scorecard overlay: https://score.abhinav.dev", ""]
+
+    tag_words = ["cricket", "highlights"]
+    if team:
+        tag_words.append(team.lower())
+    tag_words += sorted({k for m in moments for k in m["_kinds"]})
+    tag_words.append("shorts")
+    # #Shorts in the description is what YouTube reads for Shorts discovery.
+    body.append(" ".join(f"#{w.replace(' ', '')}" for w in
+                         ["Shorts", "Cricket"] + ([team.replace(" ", "")] if team else [])))
+
+    return {"title": title[:100], "description": "\n".join(body)[:5000],
+            "tags": list(dict.fromkeys(tag_words))}
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("video")
+    ap.add_argument("events")
+    ap.add_argument("-o", "--out", required=True, help="output directory")
+    ap.add_argument("--batting-innings", type=int, required=True, choices=(1, 2),
+                    help="🛑 which innings OUR team batted. Not inferable; getting it "
+                         "wrong credits every event to the opposition")
+    ap.add_argument("--team", default="", help='e.g. "Topguns" — used in the tags')
+    ap.add_argument("--match", default="", help='e.g. "Topguns vs Bazzigarz"')
+    # 🛑 No default crop, on purpose. The camera framing changes every match, and the two
+    # roles want different boxes, so the shape is an INPUT that gets reviewed per match —
+    # never a constant baked in here. Omit a role's flag and that role is left at full
+    # frame. Pass a list to get one file per shape and pick after watching them.
+    # `crop.py` draws the candidates on a real frame to narrow the choice first.
+    ap.add_argument("--aspect-bat", default="", metavar="LIST",
+                    help="crop shape(s) for BATTING reels, comma-separated "
+                         f"({', '.join(sorted(ASPECTS))}). Omit to leave them uncropped. "
+                         "A batting crop wants BOTH sets of stumps — the end alternates")
+    ap.add_argument("--aspect-bowl", default="", metavar="LIST",
+                    help="crop shape(s) for BOWLING reels, comma-separated. Omit to "
+                         "leave them uncropped. A bowling crop wants the run-up too, "
+                         "so it needs a wider box than batting")
+    ap.add_argument("--crop-x-bat", type=float, default=0.5, metavar="F",
+                    help="batting crop centre, as a fraction of frame width")
+    ap.add_argument("--crop-x-bowl", type=float, default=0.5, metavar="F",
+                    help="bowling crop centre, as a fraction of frame width")
+    ap.add_argument("--player", help="only this player (substring, case-insensitive)")
+    ap.add_argument("--height", type=int, default=1080)
+    a = ap.parse_args()
+
+    doc = json.load(open(a.events))
+    moments = doc.get("moments") or doc.get("events") or []
+    # Present for qrscan output, absent for detect.py — captions degrade, not break.
+    states = doc.get("states") or []
+    if not moments:
+        raise SystemExit(f"{a.events} has no moments — run qrscan.py or detect.py first.")
+
+    by_player = attribute(moments, a.batting_innings)
+    if a.player:
+        by_player = {k: v for k, v in by_player.items()
+                     if a.player.lower() in k[0].lower()}
+    if not by_player:
+        raise SystemExit(
+            "no moments attributed. Check --batting-innings: innings present are "
+            f"{sorted({m.get('innings') for m in moments})}.")
+
+    os.makedirs(a.out, exist_ok=True)
+    plan = {"bat": parse_aspects(a.aspect_bat), "bowl": parse_aspects(a.aspect_bowl)}
+    m = probe(a.video)
+    for role in ("bat", "bowl"):
+        cx = a.crop_x_bat if role == "bat" else a.crop_x_bowl
+        for aspect in plan[role]:
+            if aspect is None:
+                print(f"  {ROLE_NAME[role]:8} full frame (uncropped — not a Short)")
+            else:
+                f = crop_filter(m["w"], m["h"], aspect, cx)
+                print(f"  {ROLE_NAME[role]:8} {aspect:4} at x={cx:.0%}  ->  "
+                      f"{f.split(',')[0]}")
+    print(f"\n{len(moments)} moments -> {len(by_player)} reel(s), "
+          f"innings {a.batting_innings} batting\n")
+
+    written = []
+    for (player, role), ms in sorted(by_player.items(), key=lambda kv: -len(kv[1])):
+        ms.sort(key=lambda m: m["t"])
+        kinds = {k for m in ms for k in m["_kinds"]}
+        segs = segments(ms, types=kinds, windows=WINDOWS)
+        if not segs:
+            continue
+        meta = metadata(player, ms, segs, a.match, a.team, states)
+        print(f"{titlecase(player)} — {ROLE_NAME[role]}  ({tally(ms)})")
+        cx = a.crop_x_bat if role == "bat" else a.crop_x_bowl
+        for aspect in plan[role]:
+            # The role is in the name because one player can have both reels; the aspect
+            # is in it because several shapes can be cut for review side by side.
+            base = os.path.join(a.out, f"{slug(player)}-{ROLE_NAME[role]}"
+                                       + (f"-{aspect.replace(':', 'x')}" if aspect else ""))
+            vf = crop_filter(m["w"], m["h"], aspect, cx) if aspect else None
+            cut(a.video, segs, base + ".mp4", a.height, vf=vf)
+            # One sidecar per file, so --meta pairs with whichever variant is chosen.
+            with open(base + ".json", "w") as fh:
+                json.dump(meta, fh, indent=1)
+            size = os.path.getsize(base + ".mp4") / 1e6
+            print(f"  -> {base}.mp4  ({size:.1f} MB)")
+            written.append(base)
+        print(f"     {meta['title']}\n")
+
+    print(f"wrote {len(written)} file(s) to {a.out}/")
+    if written:
+        print("\nupload one with:")
+        print(f"  .venv/bin/python publish.py {written[0]}.mp4 --target shorts \\\n"
+              f"      --meta {written[0]}.json --privacy public --confirm")
+
+
+if __name__ == "__main__":
+    main()

@@ -72,11 +72,16 @@ function pump() {
 }
 
 /** Sample cards for `?debug=…&card=<type>` so a card can be positioned in OBS without waiting for one. */
-export const SAMPLE_EVENTS: Record<OverlayEvent['type'], OverlayEvent> = {
+/** Keyed by card type, plus `four`/`six` aliases so every card is addressable. */
+export const SAMPLE_EVENTS: Record<OverlayEvent['type'] | 'four' | 'six', OverlayEvent> = {
     wicket: { type: 'wicket', name: 'Vikas B', runs: '11', balls: '8', dismissal: 'c Ravi T b Siva Krishna V' },
     milestone: { type: 'milestone', mark: 50, name: 'Abhinav V', runs: '52', balls: '31', fours: '6', sixes: '2' },
     partnership: { type: 'partnership', mark: 50, names: 'Abhinav & Raja', runs: '54', balls: '38' },
     boundary: { type: 'boundary', runs: 6 },
+    // Each boundary is also addressable on its own, so every card type can be positioned
+    // in OBS and screenshotted without editing code.
+    four: { type: 'boundary', runs: 4 },
+    six: { type: 'boundary', runs: 6 },
 };
 
 export function showSampleCard(type: string): void {
