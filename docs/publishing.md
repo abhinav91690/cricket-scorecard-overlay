@@ -221,8 +221,9 @@ chunk size does not exercise the upload path at all** — the same shape as the 
 ## 4d. Per-player reels use `--meta`, not `--moment`
 
 A per-player reel spans several balls, so no single moment describes it. `reels.py` writes a
-`{title, description, tags}` sidecar and `--meta <json>` uses it verbatim, bypassing
-`reel_metadata()`. See [highlights.md](./highlights.md) §13b.
+`{title, description, tags}` sidecar per reel and `--meta <json>` uses it verbatim, bypassing
+`reel_metadata()`. Reels are named `<player>-batting` / `<player>-bowling`, since one player
+can have both. See [highlights.md](./highlights.md) §13b and §13aa.
 
 ## 5. The Make.com route — works, but no longer needed
 

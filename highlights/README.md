@@ -36,24 +36,32 @@ empty reel.
 ## Per-player reels
 
 ```sh
-# one vertical reel per Topguns player: their boundaries when batting,
-# their wickets when bowling. --batting-innings is REQUIRED and cannot be guessed.
+# 1. pick this match's crop by eye — the camera framing changes every match
+.venv/bin/python crop.py "/path/match.mp4" -t 3800 -o crops.png
+
+# 2. cut one reel per player per role: boundaries when batting, wickets when bowling
 .venv/bin/python reels.py "/path/match.mp4" events.json -o reels/ \
-    --batting-innings 1 --team Topguns --match "Topguns vs Bazzigarz" --vertical
+    --batting-innings 1 --team Topguns --match "Topguns vs Bazzigarz" --vertical \
+    --aspect-bat 4:5 --crop-x-bat 0.50 \
+    --aspect-bowl 1:1 --crop-x-bowl 0.50
 ```
 
-🛑 Pass the wrong `--batting-innings` and every attribution inverts. `--vertical` crops
-**square** (1:1), not 9:16 — the camera is side-on, so a 9:16 window is narrower than the pitch
-and cuts off an end. `--aspect` and `--crop-x` override it. Every crop still removes the
-`?data=1` block for free. Reasoning and the measurement in
-[`../docs/highlights.md`](../docs/highlights.md) §13, §13a.
+🛑 Pass the wrong `--batting-innings` and every attribution inverts — it cannot be guessed.
+
+🛑 **The crop is a per-match input, and the two roles differ.** A batting reel must contain
+**both** sets of stumps, because the batter's end alternates every over and on every odd run;
+a bowling reel needs the run-up too, so it wants a wider box. `crop.py` draws the candidates on
+a real frame so you can read the values off the picture. Every crop still removes the `?data=1`
+block for free. Measurements in [`../docs/highlights.md`](../docs/highlights.md) §13a.
+
+One player can get two reels — `v-kohli-batting.mp4` and `v-kohli-bowling.mp4`.
 
 ## Publish
 
 ```sh
 # a per-player reel, captioned from the sidecar reels.py wrote
-.venv/bin/python publish.py reels/v-kohli.mp4 --target shorts \
-    --meta reels/v-kohli.json --privacy public --confirm
+.venv/bin/python publish.py reels/v-kohli-batting.mp4 --target shorts \
+    --meta reels/v-kohli-batting.json --privacy public --confirm
 
 # a single-moment reel, captioned from the scan output
 .venv/bin/python publish.py reel.mp4 --target shorts \
@@ -104,6 +112,7 @@ All four also run under `pytest`.
 | `detect.py` | fallback: finds event cards by accent-stripe colour |
 | `cut.py` | cuts and concatenates clips, writes a chapter list |
 | `payload.py` | the wire format, Python side |
-| `reels.py` | per-player reels for one team, vertical for Shorts |
+| `reels.py` | per-player, per-role reels for one team, cropped for Shorts |
+| `crop.py` | draws the candidate crops on a frame, to pick a match's framing |
 | `publish.py` | uploads a reel or the full video to YouTube |
 | `requirements.txt` | 🛑 zxing-cpp, **not** OpenCV — the comment explains why |

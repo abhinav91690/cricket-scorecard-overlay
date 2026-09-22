@@ -2,6 +2,33 @@
 
 ## 2026-09-21
 
+### The reel crop is a per-match input, and the two roles crop differently
+
+The camera framing changes every match, so the crop cannot be a constant — and batting and
+bowling do not want the same box anyway:
+
+| Reel | Must contain | Default |
+|---|---|---|
+| **batting** | **both** sets of stumps — 🛑 the batter's end alternates every over and on every odd run, so one end loses half their shots. The run-up is irrelevant. | `4:5` |
+| **bowling** | the stumps **and the run-up**, which starts behind them | `1:1` |
+
+`--aspect-bat`, `--aspect-bowl`, `--crop-x-bat`, `--crop-x-bowl` set them independently, and new
+`crop.py` draws the candidates on a real frame with their spans printed, so a match's values can
+be read off the picture in a minute. [highlights.md](./highlights.md) §13a.
+
+### 🛑 One player, two roles, two reels — an all-rounder was getting one broken reel
+
+Reels are now keyed by **(player, role)** with the role in the filename. Keyed by name alone, a
+player who hit a four and later took a wicket got a single reel holding both, and every caption
+helper reads the role off the first moment — so it would have been captioned with batting
+figures while containing a wicket. It also made a per-role crop impossible to apply.
+
+⚠ **Nothing in the fixture could have caught this**: it has one innings and two events sharing a
+striker and a bowler, so no player ever appears in both roles. It was found by asking what the
+per-role crop should do for a player who does both, not by a failing test. Now pinned by
+`test_an_all_rounder_gets_one_reel_per_role`.
+
+
 ### 🛑 Reels crop square, not 9:16 — the old crop cut the pitch in half
 
 `--vertical` produced a 9:16 centre column. On this camera that is **geometrically incapable**

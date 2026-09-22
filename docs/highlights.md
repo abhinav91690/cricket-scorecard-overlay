@@ -241,47 +241,68 @@ for scans made before the flag existed rather than silently dropping their wicke
 bad attribution produces a perfectly good clip filed under the wrong person, and nothing about
 the output looks wrong. That is why the rules are unit-tested rather than eyeballed.
 
-### 13a. 🛑 The crop is square, and that is measured
+### 13a. 🛑 The crop is a per-match input, and batting and bowling differ
 
-`--vertical` crops **1:1**, not 9:16. Shorts only require height ≥ width, so the shape is a
-free choice — and 9:16 is the wrong one for this camera.
+Shorts only need height ≥ width, so the crop shape is a free choice. There is **no single
+right answer** — and two separate reasons for that.
 
-**The camera is side-on**, so the pitch runs *across* the frame. Measured on three real events
-in the reference match, the pitch occupies roughly **36%–73% of the frame width**, about 37%.
+**1. The camera framing changes every match.** These are arguments, not constants. Run
+`crop.py` on one frame of the new recording and read the values off the picture:
 
-| Aspect | Crop width at 16:9 | Spans | Contains the pitch? |
+```sh
+.venv/bin/python crop.py "/path/match.mp4" -t 3800 -o crops.png
+```
+
+It draws all three candidates on a real frame with their spans printed. A minute's work per
+match, and it is the only reliable way — the framing is not derivable from the file.
+
+**2. The two roles need different boxes**, which is why they are separate flags:
+
+| Reel | Must contain | Default | Why |
 |---|---|---|---|
-| `9:16` | **31.6%** | 34.2%–65.8% | ❌ **cannot** — narrower than the pitch |
-| `4:5` | 45.0% | 27.5%–72.5% | ~ marginal at the far end |
-| **`1:1`** (default) | **56.2%** | 21.9%–78.1% | ✅ whole pitch, both ends |
+| **batting** | **both** sets of stumps | `4:5` | 🛑 The batter's end alternates every over *and* on every odd run, so a box holding one end loses half their shots. The bowler's run-up is irrelevant. |
+| **bowling** | the stumps **and the run-up** | `1:1` | The bowler starts well behind the stumps, so this needs the wider box. |
 
-🛑 **A 9:16 window is narrower than the pitch, so no placement works.** On the three events it
-cut off the bowler's end every time — the batter at the far stumps sat outside the frame on the
-wicket, and on both boundaries the bowler's end was gone. The old default was never chosen: it
-was ffmpeg's `crop` centring default, justified in these docs by the fact that it removed the
-data code, which is a side effect and not a framing decision.
+Measured on the reference camera, where the pitch spans about **36%–73%** of the frame width:
 
-⚠ **There is no fixed "action side" to aim a narrow crop at.** Which end the striker occupies
-alternates every over, *and* again whenever the batters cross on an odd run. Two frames minutes
-apart in the same match show the striker at 38% and at 68%.
+| Aspect | Width at 16:9 | Spans | Both batting ends? | Run-up? |
+|---|---|---|---|---|
+| `9:16` | 31.6% | 34.2%–65.8% | ❌ narrower than the pitch | ❌ |
+| `4:5` | 45.0% | 27.5%–72.5% | ✅ | ~ tight |
+| `1:1` | 56.2% | 21.9%–78.1% | ✅ | ✅ |
+
+`--aspect-bat`, `--aspect-bowl`, `--crop-x-bat`, `--crop-x-bowl` set them independently.
+
+🛑 **The original default was not a decision at all.** It was 9:16, which is ffmpeg's `crop`
+centring default, and the rationale written here — that it removes the `?data=1` block — is a
+side effect of *any* crop starting past ~4% of the width. A coincidence was documented as a
+reason, and on three real events that crop cut off the bowler's end every time, including the
+batter at the far stumps.
 
 ❌ **Motion-based auto-crop was tried and does not work.** A per-column temporal
-standard-deviation map over each clip — the same technique `find_bar()` uses to locate the
-overlay (§3) — put the peak at 81.6%, 39.2% and 75.8% for the three events. Those are not the
-batter: over a 20-second window the bowler's run-up and fielders chasing the ball move far more
-than a shot lasting a fraction of a second. It picked the bowler's end on one clip and the
-striker's on another, so it is not even consistently wrong. A square crop needs no such guess.
+standard-deviation map per clip — the technique `find_bar()` uses to locate the overlay (§3) —
+put the peak at 81.6%, 39.2% and 75.8% on those three events. None is the batter: across a
+20-second window the bowler's run-up and the fielders chasing outweigh a shot lasting a
+fraction of a second. It found the bowler's end on one clip and the striker's on another.
+Recorded so it is not re-attempted.
 
-Deriving the striker's end from cricket logic is possible in principle — over parity plus every
-odd-run crossing — but one missed ball desynchronises it silently, which is the exact failure
-class this pipeline keeps getting caught by.
+Deriving the striker's end from cricket logic — over parity plus every odd-run crossing — is
+possible in principle, but one missed ball desynchronises it silently, which is the exact
+failure class this pipeline keeps getting caught by. A box holding both ends needs no guess.
 
-`--aspect` and `--crop-x` exist for a different camera setup: `--crop-x` moves the window as a
-fraction of frame width, clamped inside the frame.
+✅ **Every crop starting past ~4% of the width still excludes the `?data=1` block**, at any
+aspect. Verified by re-scanning a finished reel: `qrscan.py` decoded **0 of 80** keyframes,
+against 13 of 13 on the source.
 
-✅ **Any crop starting past ~4% of the width still excludes the `?data=1` block**, so it stays
-removed for free at every aspect. Verified by re-scanning a finished reel: `qrscan.py` decoded
-**0 of 80** keyframes, against 13 of 13 on the source.
+### 13aa. 🛑 One player, two roles, two reels
+
+Reels are keyed by **(player, role)**, and the role is in the filename —
+`v-kohli-batting.mp4`, `v-kohli-bowling.mp4`.
+
+Keyed by name alone, an all-rounder who hit a four and later took a wicket got **one** reel
+holding both, and every caption helper reads the role off the first moment — so it would have
+been captioned with batting figures while containing a wicket. It also made the per-role crop
+above impossible to apply. Pinned by `test_an_all_rounder_gets_one_reel_per_role`.
 
 ### 13b. Captions travel in a sidecar
 
@@ -291,10 +312,11 @@ with the title, description and tags, and `publish.py --meta <json>` uses it ver
 
 ```sh
 .venv/bin/python reels.py "<video>" events.json -o reels/ \
-    --batting-innings 1 --team Topguns --match "Topguns vs Bazzigarz" --vertical
+    --batting-innings 1 --team Topguns --match "Topguns vs Bazzigarz" --vertical \
+    --aspect-bat 4:5 --aspect-bowl 1:1
 
-.venv/bin/python publish.py reels/v-kohli.mp4 --target shorts \
-    --meta reels/v-kohli.json --privacy public --confirm
+.venv/bin/python publish.py reels/v-kohli-batting.mp4 --target shorts \
+    --meta reels/v-kohli-batting.json --privacy public --confirm
 ```
 
 Reels and their sidecars are **gitignored** (`highlights/reels*/`) — generated per match and

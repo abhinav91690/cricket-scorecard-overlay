@@ -33,6 +33,7 @@ from detect import probe
 # What counts as a player's own highlight, by the role they were in.
 BATTING_TYPES = ('four', 'six')
 FIELDING_TYPES = ('wicket',)
+ROLE_NAME = {'bat': 'batting', 'bowl': 'bowling'}
 
 
 def slug(name: str) -> str:
@@ -41,13 +42,19 @@ def slug(name: str) -> str:
     return s or "unknown"
 
 
-def attribute(moments: list[dict], batting_innings: int) -> dict[str, list[dict]]:
-    """Group moments by the player they belong to, keeping only that player's own events.
+def attribute(moments: list[dict], batting_innings: int) -> dict[tuple, list[dict]]:
+    """Group moments by the player AND the role they earned them in.
 
-    Returns {player_name: [moment, ...]}, each moment carrying `_kinds` (the subset of its
-    types that earned it a place in THIS player's reel) and `_role` ('bat' or 'bowl').
+    Returns {(player_name, role): [moment, ...]}, each moment carrying `_kinds` (the
+    subset of its types that put it in THIS reel) and `_role` ('bat' or 'bowl').
+
+    🛑 The key is (player, role), not player. An all-rounder who hits a four and later
+    takes a wicket would otherwise get both in one reel, and everything downstream reads
+    the role off the first moment — so the reel would be captioned with batting figures
+    while containing a wicket. Keyed this way they get two reels, which is also what the
+    two roles want anyway: they need different crops (§13a).
     """
-    out: dict[str, list[dict]] = {}
+    out: dict[tuple, list[dict]] = {}
     for m in moments:
         if m.get("innings") == batting_innings:
             kinds = [t for t in m["types"] if t in BATTING_TYPES]
@@ -62,7 +69,7 @@ def attribute(moments: list[dict], batting_innings: int) -> dict[str, list[dict]
 
         if not kinds or not player:
             continue
-        out.setdefault(player, []).append({**m, "_kinds": kinds, "_role": role})
+        out.setdefault((player, role), []).append({**m, "_kinds": kinds, "_role": role})
     return out
 
 
@@ -249,14 +256,22 @@ def main():
     ap.add_argument("--team", default="", help='e.g. "Topguns" — used in the tags')
     ap.add_argument("--match", default="", help='e.g. "Topguns vs Bazzigarz"')
     ap.add_argument("--vertical", action="store_true",
-                    help="crop for a Short. Square by default — see --aspect")
-    ap.add_argument("--aspect", default="1:1", choices=sorted(ASPECTS),
-                    help="crop shape for --vertical. 1:1 is the default because a 9:16 "
-                         "window is narrower than a side-on pitch and cuts off an end "
-                         "(docs/highlights.md 13a)")
-    ap.add_argument("--crop-x", type=float, default=0.5, metavar="F",
-                    help="crop centre as a fraction of frame width (default 0.5). Use "
-                         "this if the pitch is not centred in your camera framing")
+                    help="crop for a Short. Batting and bowling crop differently — "
+                         "see --aspect-bat / --aspect-bowl")
+    # 🛑 Per-role, and per-match. The camera moves between matches, so these are inputs,
+    # not constants. `crop.py` draws the candidates on a real frame so a match's values
+    # can be picked in about a minute. Defaults are what the reference match measured:
+    # batting needs both batting ends but not the run-up, bowling needs the run-up too.
+    ap.add_argument("--aspect-bat", default="4:5", choices=sorted(ASPECTS),
+                    help="crop shape for BATTING reels (default 4:5 — covers both "
+                         "batting ends; the bowler's end is not needed)")
+    ap.add_argument("--aspect-bowl", default="1:1", choices=sorted(ASPECTS),
+                    help="crop shape for BOWLING reels (default 1:1 — the run-up and "
+                         "the bowler's end have to be in frame)")
+    ap.add_argument("--crop-x-bat", type=float, default=0.5, metavar="F",
+                    help="batting crop centre, as a fraction of frame width")
+    ap.add_argument("--crop-x-bowl", type=float, default=0.5, metavar="F",
+                    help="bowling crop centre, as a fraction of frame width")
     ap.add_argument("--player", help="only this player (substring, case-insensitive)")
     ap.add_argument("--height", type=int, default=1080)
     a = ap.parse_args()
@@ -270,31 +285,36 @@ def main():
 
     by_player = attribute(moments, a.batting_innings)
     if a.player:
-        by_player = {k: v for k, v in by_player.items() if a.player.lower() in k.lower()}
+        by_player = {k: v for k, v in by_player.items()
+                     if a.player.lower() in k[0].lower()}
     if not by_player:
         raise SystemExit(
             "no moments attributed. Check --batting-innings: innings present are "
             f"{sorted({m.get('innings') for m in moments})}.")
 
     os.makedirs(a.out, exist_ok=True)
-    vf = None
+    vfs = {"bat": None, "bowl": None}
     if a.vertical:
         m = probe(a.video)
-        vf = crop_filter(m["w"], m["h"], a.aspect, a.crop_x)
-        print(f"  crop {a.aspect} at x={a.crop_x:.0%}  ->  {vf.split(',')[0]}")
-    print(f"{len(moments)} moments -> {len(by_player)} player(s), "
+        for role, aspect, cx in (("bat", a.aspect_bat, a.crop_x_bat),
+                                 ("bowl", a.aspect_bowl, a.crop_x_bowl)):
+            vfs[role] = crop_filter(m["w"], m["h"], aspect, cx)
+            print(f"  {ROLE_NAME[role]:8} crop {aspect:4} at x={cx:.0%}  ->  "
+                  f"{vfs[role].split(',')[0]}")
+    print(f"{len(moments)} moments -> {len(by_player)} reel(s), "
           f"innings {a.batting_innings} batting\n")
 
     written = []
-    for player, ms in sorted(by_player.items(), key=lambda kv: -len(kv[1])):
+    for (player, role), ms in sorted(by_player.items(), key=lambda kv: -len(kv[1])):
         ms.sort(key=lambda m: m["t"])
         kinds = {k for m in ms for k in m["_kinds"]}
         segs = segments(ms, types=kinds, windows=WINDOWS)
         if not segs:
             continue
-        base = os.path.join(a.out, slug(player))
-        print(f"{titlecase(player)}  ({tally(ms)})")
-        cut(a.video, segs, base + ".mp4", a.height, vf=vf)
+        # The role is in the filename because one player can have both reels.
+        base = os.path.join(a.out, f"{slug(player)}-{ROLE_NAME[role]}")
+        print(f"{titlecase(player)} — {ROLE_NAME[role]}  ({tally(ms)})")
+        cut(a.video, segs, base + ".mp4", a.height, vf=vfs[role])
         meta = metadata(player, ms, segs, a.match, a.team, states)
         with open(base + ".json", "w") as fh:
             json.dump(meta, fh, indent=1)
