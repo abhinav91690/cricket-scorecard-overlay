@@ -451,34 +451,49 @@ Consequences for the design: the review happens *before* the call, `--confirm` i
 load-bearing in a way it is not for YouTube, and Instagram publishing should stay
 **manual-trigger only** — never wired to fire automatically off a scan.
 
-### 8f. The publish flow
+### 8f. The publish flow — built (`igpublish.py`)
 
-Three calls, not two:
+Three calls, and the middle one is what write-ups omit:
 
-1. `POST /<ig-user-id>/media` with `media_type=REELS`, `video_url=<presigned>`, `caption`
-2. **Poll `GET /<container-id>?fields=status_code` until `FINISHED`** — Meta transcodes
-   asynchronously, and publishing a container that is still `IN_PROGRESS` fails. This is the
-   step most write-ups omit.
-3. `POST /<ig-user-id>/media_publish` with `creation_id=<container-id>`
+1. `POST /<ig-user-id>/media` — `media_type=REELS`, `video_url=<presigned>`, `caption`
+2. **`GET /<container-id>?fields=status_code` until `FINISHED`** — Meta transcodes the
+   fetched video asynchronously, and publishing an `IN_PROGRESS` container fails. Statuses
+   are `IN_PROGRESS`, `FINISHED`, `ERROR`, `EXPIRED` (unpublished for 24 h), `PUBLISHED`.
+3. `POST /<ig-user-id>/media_publish` — `creation_id`
 
-Then delete the object from R2. The presigned URL should outlive the transcode — an hour is
-the default in `r2.py`, against a transcode measured in minutes.
+Then the R2 object is deleted in a `finally`, so a failure part-way through does not leave
+an orphan accruing storage.
 
-## 9. Use
+Host is **`graph.instagram.com`** — the Instagram Login path, not `graph.facebook.com`.
 
-```sh
-# a reel, captioned from the scan output
-.venv/bin/python publish.py reel.mp4 --target shorts \
-    --moments events.json --moment 3 --match "Topguns vs Bazzigarz — 2026 FTP20 Div-A"
+#### Documented Reels limits, and how our reels compare
 
-# the full highlights video, with cut.py's chapters in the description
-.venv/bin/python publish.py highlights.mp4 --target video \
-    --match "Topguns vs Bazzigarz — 2026 FTP20 Div-A" --chapters highlights-chapters.txt
+| Spec | Limit | Ours |
+|---|---|---|
+| File size | **300 MB** | ~20–75 MB ✅ |
+| Duration | 3 s – 15 min | 6–60 s ✅ |
+| Video bitrate | 25 Mbps VBR | 10 Mbps ✅ |
+| Horizontal pixels | 1920 | 1080 ✅ |
+| Audio | 128 kbps AAC | 128 kbps ✅ |
+| Aspect | 0.01:1–10:1 required | 1:1 / 4:5 ✅ accepted |
 
-# add --confirm to actually upload; add --privacy unlisted|public to change visibility
-```
+⚠ **A secondary source claimed 8 MB.** That is the **image** limit, mis-attributed — it
+appears alongside image-only specs like sRGB conversion. Meta's own `ig-user/media`
+reference says 300 MB for Reels video. Worth recording because an 8 MB ceiling would have
+forced re-encoding every reel for nothing. Third time this project has been misled by a
+secondary source on a size limit.
 
-`test_publish.py` covers the decision logic — the Shorts checks, the caption generation and
-YouTube's field limits — with no network and no Google libraries. The Keychain path is not unit
-tested, because a test that mutates the login Keychain is worse than no test; it was verified
-live against a throwaway service name that was deleted afterwards.
+⚠ **9:16 is recommended, and may decide Reels-tab placement.** Meta says 9:16 avoids
+"cropping or blank space". Secondary sources go further and claim only ~9:16 clips reach
+the Reels *tab*, others landing in the feed as an ordinary video post — Meta's reference
+does not say that, so `reel_notes()` warns rather than refuses. If Reels-tab placement
+matters, `reels.py --aspect-bat 9:16` exists; the trade-off is that 9:16 cannot hold both
+batting ends (§13a in [highlights.md](./highlights.md)), so it is a per-platform choice.
+
+`reel_problems()` refuses before uploading, so a bad file costs nothing. Verified it can
+actually refuse: a 2 s clip → "under Instagram's 3s minimum"; a 3000×400 file → "exceeds
+the 1920 horizontal-pixel maximum"; the real 9:16 reel → accepted.
+
+⚠ `reels.py` writes `#Shorts` for YouTube discovery, which means nothing on Instagram.
+`caption_from()` swaps it for `#Reels` rather than maintaining two near-identical sidecars.
+
