@@ -497,3 +497,27 @@ the 1920 horizontal-pixel maximum"; the real 9:16 reel → accepted.
 ⚠ `reels.py` writes `#Shorts` for YouTube discovery, which means nothing on Instagram.
 `caption_from()` swaps it for `#Reels` rather than maintaining two near-identical sidecars.
 
+🛑 **Ask Instagram for the permalink; never build one.** A reel's URL uses a **shortcode**,
+not the numeric media id, so `instagram.com/reel/<media_id>/` 404s — and it does so exactly
+when the link is needed most, to go and delete a post. `GET /<media-id>?fields=permalink`
+returns the real one.
+
+### 8g. ✅ Verified live
+
+Published a 14 s 9:16 clip cut from the reference match to @topgunscricketclub on
+23 Sep 2026, then deleted it:
+
+```
+uploading to R2 … ok
+creating the Reels container … ok
+waiting for Meta to transcode:
+    IN_PROGRESS
+    FINISHED
+publishing … ok
+removing from R2 … HTTP 204
+```
+
+`media_product_type: REELS`, so it landed as a Reel rather than a feed video. R2 held **0
+objects** afterwards — the `finally` cleanup works. The transcode took one poll interval,
+well inside the 5-minute budget.
+

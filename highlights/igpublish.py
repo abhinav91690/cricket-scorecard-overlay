@@ -244,7 +244,15 @@ def main():
 
         print("  publishing …", end=" ", flush=True)
         mid = publish_container(creds, cid)
-        print(f"ok\n\n  ✅ published: https://www.instagram.com/reel/{mid}/")
+        print("ok")
+        # 🛑 Ask for the permalink; do not build one. Instagram's reel URLs use a
+        # SHORTCODE, not the numeric media id, so a constructed link 404s — and it 404s
+        # exactly when it is needed most, to go and delete a post.
+        info = _get(f"/{mid}", fields="permalink,media_product_type",
+                    access_token=creds["token"])
+        link = info.get("permalink") or "(no permalink returned)"
+        print(f"\n  ✅ published as {info.get('media_product_type', '?')}")
+        print(f"     {link}")
         print(f"     (media id {mid})")
     finally:
         # Always clean up: Meta has already fetched by the time we publish, and an orphan
