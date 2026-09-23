@@ -521,7 +521,12 @@ removing from R2 … HTTP 204
 objects** afterwards — the `finally` cleanup works. The transcode took one poll interval,
 well inside the 5-minute budget.
 
-⚠ **The publish worked; the clip was wrong.** It showed the batter waiting and never the six,
+✅ **Re-cut properly and republished**, this time through `cut.segments()` from the computed
+card time (3818 s, window 3798–3824). Verified *before* publishing by reading the burnt-in
+scorebar at each end of the clip — 80/2 at 9 ov going in, 86/2 at 9.1 ov coming out, so the six
+is provably inside. That technique is now [highlights.md](./highlights.md) §6a.
+
+⚠ **The first attempt: the publish worked; the clip was wrong.** It showed the batter waiting and never the six,
 because the test clip was cut with raw `ffmpeg -ss` instead of through `cut.segments()`, and
 from a mis-converted timestamp. The window ended 9 s before the ball. Nothing to do with
 Instagram — see [highlights.md](./highlights.md) §6, now a 🛑 tripwire. Worth recording here

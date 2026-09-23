@@ -133,6 +133,32 @@ instead of 3818, and 66:34 as 3962 instead of 3994 — two of three timestamps w
 silently shifting the window earlier. Combined with hand-rolling the cut, the clip missed
 twice over.
 
+### 6a. ✅ The overlay is its own witness: verify a clip before publishing it
+
+🛑 **"The cut succeeded" and "the shot is in the clip" are separate claims.** A clip that
+misses the ball looks perfectly fine — right length, right crop, real cricket, no error
+anywhere. Extracting one mid-clip frame proves only that the video is not black.
+
+Because the scorebar is **burnt into the footage**, the clip carries the evidence. Read the
+score at each end:
+
+| | |
+|---|---|
+| start of clip | `TOPGUNS 80/2 · 9 ov · CRR 8.89` |
+| end of clip | `TOPGUNS 86/2 · 9.1 ov · CRR 9.38` |
+
+Six runs on one ball, so the six is inside the window. Objective, and it takes two frames:
+
+```sh
+ffmpeg -ss 1      -i reel.mp4 -frames:v 1 -vf "crop=iw:220:0:ih-220" start.png
+ffmpeg -ss <dur-1> -i reel.mp4 -frames:v 1 -vf "crop=iw:220:0:ih-220" end.png
+```
+
+⚠ **Worth automating for `?data=1` recordings.** `qrscan.py` already decodes the payload from
+frames, so running it over a *finished clip* would read the before-and-after state directly and
+assert the expected delta — a boundary adds 4 or 6, a wicket moves the wicket count. That turns
+"did the cut work" from a human eyeball into a check. Not built; see §12.
+
 ## 7. Lessons that cost the most
 
 ### 7a. 🛑 Detection being right is not the same as the timestamp being right
@@ -396,6 +422,11 @@ exercise for the first time: several players, both innings, real names, and `qrs
 ## 12. Open work
 
 - ~~Per-player vertical reels~~ — **built**, see §13.
+- **Assert the cut, don't eyeball it.** §6a verifies a clip by reading the burnt-in scorebar
+  at each end. For a `?data=1` recording this could be mechanical: scan the finished clip with
+  `qrscan.py` and assert the payload delta matches the event the clip claims to be — +4 or +6
+  for a boundary, a wicket count that moves. A clip that misses its ball would then fail loudly
+  instead of looking fine.
 - **A committed regression fixture.** The geometry in [data-code.md](./data-code.md) §1 sits
   deliberately at the edge of what the pipeline supports, which is exactly the kind of constant
   someone shaves without re-measuring. A fixture can run without any committed video: ffmpeg
