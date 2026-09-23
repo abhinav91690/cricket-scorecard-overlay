@@ -122,6 +122,9 @@ export interface ViewCache {
     /** Team names and totals as the data views report them (main-match order and totals, see docs/cricclubs-api.md §3) */
     t1Name?: string;
     t2Name?: string;
+    /** Three-letter team codes ("TGN"), in data-view order like the names above */
+    t1Code?: string;
+    t2Code?: string;
     t1Total?: string; t1Wickets?: string; t1Overs?: string;
     t2Total?: string; t2Wickets?: string; t2Overs?: string;
     /** Fall of wickets per innings: wicket number -> team score when it fell */
@@ -140,7 +143,7 @@ export function mergeCache(cache: ViewCache, data: CricketAPIData): ViewCache {
     // Names and totals only from data views: the scorebar view swaps the sides and shows
     // super-over totals during a super over, while data views keep the main match.
     if (!isFullFrame(data)) {
-        for (const key of ['t1Name', 't2Name', 't1Total', 't1Wickets', 't1Overs', 't2Total', 't2Wickets', 't2Overs'] as const) {
+        for (const key of ['t1Name', 't2Name', 't1Code', 't2Code', 't1Total', 't1Wickets', 't1Overs', 't2Total', 't2Wickets', 't2Overs'] as const) {
             const value = v[key];
             if (value !== undefined && value !== null && value !== '') next[key] = value;
         }
@@ -238,12 +241,10 @@ export function squadRows(rows: Player[] | undefined): PanelRow[] {
 }
 
 // ---------- panel builders (what to show while nothing can happen) ----------
-import type { PanelEvent, PanelMeta, PanelTeam } from './cards';
+import type { PanelEvent, PanelMeta, PanelTeam, ResultTeam } from './cards';
 
 const teamLabel = (v: CricketAPIValues, n: 1 | 2, cache?: ViewCache) => (cache && (n === 1 ? cache.t1Name : cache.t2Name)) || (n === 1 ? v.t1Name : v.t2Name) || `Team ${n}`;
 const pick = <K extends keyof ViewCache & keyof CricketAPIValues>(v: CricketAPIValues, cache: ViewCache, key: K) => (cache[key] as string | undefined) || (v[key] as string | undefined);
-const scoreLabel = (v: CricketAPIValues, cache: ViewCache, n: 1 | 2) => `${pick(v, cache, n === 1 ? 't1Total' : 't2Total') || '0'}/${pick(v, cache, n === 1 ? 't1Wickets' : 't2Wickets') || '0'}`;
-const oversLabel = (v: CricketAPIValues, cache: ViewCache, n: 1 | 2) => `${pick(v, cache, n === 1 ? 't1Overs' : 't2Overs') || '0.0'} ov`;
 
 function team(v: CricketAPIValues, cache: ViewCache, n: 1 | 2): PanelTeam {
     const cached = n === 1 ? cache.t1Logo : cache.t2Logo;
@@ -324,13 +325,114 @@ export function inningsSummaryPanel(v: CricketAPIValues, cache: ViewCache): Pane
     };
 }
 
-export function matchSummaryPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent {
+/** "59 (44)" for a batter, "4-27 (3.0)" for a bowler: one compact figure for the performers strip. */
+const batFigure = (r: BattingStats) => `${r.runsScored ?? 0} (${r.ballsFaced ?? 0})`;
+const bowlFigure = (r: BowlingStats) => `${r.wickets ?? 0}-${r.runs ?? 0} (${oversFromBalls(r.balls)})`;
+const fullName = (p: { firstName?: string; lastName?: string }) => `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim().toLowerCase();
+const byRuns = (a: BattingStats, b: BattingStats) => (b.runsScored ?? 0) - (a.runsScored ?? 0) || (a.ballsFaced ?? 0) - (b.ballsFaced ?? 0);
+const byFigures = (a: BowlingStats, b: BowlingStats) => (b.wickets ?? 0) - (a.wickets ?? 0) || (a.runs ?? 0) - (b.runs ?? 0);
+const batted = (rows: BattingStats[] | undefined) => (rows ?? []).filter(r => (r.ballsFaced ?? 0) > 0 || (r.runsScored ?? 0) > 0);
+const bowled = (rows: BowlingStats[] | undefined) => (rows ?? []).filter(r => (r.balls ?? 0) > 0);
+
+/**
+ * Which side the result names as the winner, as 1 or 2 in panel order, or undefined for a tie,
+ * no result, or wording we cannot pin to a team. CricClubs names the winner by full name
+ * ("TOPGUNS UNITED won by 5 Wickets") or by code ("Match tied. TGN won the super over."), so
+ * both are accepted. Undefined is the safe answer: it means no card gets the winner's accent.
+ */
+export function resultWinner(result: string | undefined, teams: { name: string; code?: string }[]): 1 | 2 | undefined {
+    // The capture cannot cross a full stop: "Match tied. TGN won" must yield "TGN", not the whole lot.
+    const m = /(?:^|[.!]\s+)([^.!]+?)\s+won\b/i.exec((result || '').trim());
+    if (!m) return undefined;
+    const who = m[1].trim().toLowerCase();
+    const i = teams.findIndex(t => [t.name, t.code].some(x => x && x.trim().toLowerCase() === who));
+    return i < 0 ? undefined : (i + 1) as 1 | 2;
+}
+
+/**
+ * The result as a headline: team names title-cased, a winner named by code given its full name,
+ * and "5 Wickets" lower-cased. Anything it does not recognise passes through unchanged.
+ */
+export function resultHeadline(result: string | undefined, teams: { name: string; code?: string }[]): string {
+    let s = (result || '').trim();
+    if (!s) return 'Match over';
+    const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    for (const t of teams) {
+        if (!t.name) continue;
+        s = s.replace(new RegExp(esc(t.name), 'gi'), tidyName(t.name));
+        if (t.code) s = s.replace(new RegExp(`\\b${esc(t.code)}(?=\\s+won\\b)`, 'g'), tidyName(t.name));
+    }
+    return s.replace(/\bwon by (\d+) (runs?|wickets?)\b/i, (_, n, u) => `won by ${n} ${u.toLowerCase()}`);
+}
+
+/**
+ * Up to three standout performances, with no one listed twice: CricClubs' own player of the match
+ * when it names one, then the top scorer, the best bowling, and the other side's top scorer.
+ *
+ * ⚠ The player of the match is a full name ("Anand Babu Badrichetty") with no player id, so it is
+ * matched to the cards by first and last name. Matched, it shows everything they did; unmatched,
+ * it still shows the name CricClubs gave rather than dropping the award.
+ */
+export function topPerformers(cache: ViewCache, mom?: string, momPic?: string, n = 3): PanelRow[] {
+    const bats = [batted(cache.t1Batting).map(r => ({ r, side: 1 })), batted(cache.t2Batting).map(r => ({ r, side: 2 }))].flat();
+    const bowls = [...bowled(cache.t1Bowling), ...bowled(cache.t2Bowling)];
+    const out: PanelRow[] = [];
+    const seen = new Set<string>();
+    const add = (key: string, row: PanelRow) => { if (key && !seen.has(key) && out.length < n) { seen.add(key); out.push(row); } };
+
+    const award = (mom || '').trim();
+    if (award) {
+        const key = award.toLowerCase();
+        const bat = bats.find(b => fullName(b.r) === key)?.r;
+        const bowl = bowls.find(b => fullName(b) === key);
+        const src = bat ?? bowl;
+        const words = tidyName(award).split(/\s+/);
+        const name = src ? displayName(src) : words.length > 1 ? `${words.slice(0, -1).join(' ')} ${words.at(-1)!.charAt(0)}` : words[0];
+        const value = [bat && batFigure(bat), bowl && bowl.balls ? bowlFigure(bowl) : ''].filter(Boolean).join(' · ');
+        add(key, { name, value, note: 'Player of the match', pic: imageUrl(src?.profilepic_file_path) ?? imageUrl(momPic), initials: src ? initialsOf(src) : words.map(w => w[0]).join('').slice(0, 2).toUpperCase() });
+    }
+    const batRow = (r: BattingStats): PanelRow => ({ name: displayName(r), value: batFigure(r), pic: imageUrl(r.profilepic_file_path), initials: initialsOf(r) });
+    const top = [...bats].sort((a, b) => byRuns(a.r, b.r))[0];
+    if (top) add(fullName(top.r), batRow(top.r));
+    const best = [...bowls].sort(byFigures)[0];
+    if (best) add(fullName(best), { name: displayName(best), value: bowlFigure(best), pic: imageUrl(best.profilepic_file_path), initials: initialsOf(best) });
+    const other = top && bats.filter(b => b.side !== top.side).sort((a, b) => byRuns(a.r, b.r))[0];
+    if (other) add(fullName(other.r), batRow(other.r));
+    return out;
+}
+
+/** One side's card on the result panel: its own total, its own top two batters and its own best bowler. */
+function resultTeam(v: CricketAPIValues, cache: ViewCache, n: 1 | 2): ResultTeam {
+    const k = n === 1 ? 't1' : 't2';
+    const overs = pick(v, cache, `${k}Overs`) || '';
     return {
-        type: 'match-summary', result: v.result || 'Match over',
-        innings: [
-            { team: team(v, cache, 1), score: scoreLabel(v, cache, 1), overs: oversLabel(v, cache, 1), batters: topBatters(cache.t1Batting, 2), bowlers: topBowlers(cache.t2Bowling, 1), fow: fowText(cache.fow1) },
-            { team: team(v, cache, 2), score: scoreLabel(v, cache, 2), overs: oversLabel(v, cache, 2), batters: topBatters(cache.t2Batting, 2), bowlers: topBowlers(cache.t1Bowling, 1), fow: fowText(cache.fow2) },
-        ],
+        team: { ...team(v, cache, n), code: pick(v, cache, `${k}Code`) },
+        runs: pick(v, cache, `${k}Total`) || '0',
+        wickets: pick(v, cache, `${k}Wickets`) || '0',
+        overs: overs ? `${overs.includes('.') ? overs : `${overs}.0`} ov` : '', // CricClubs says "20" for a full innings
+        batters: topBatters(n === 1 ? cache.t1Batting : cache.t2Batting, 2),
+        bowler: topBowlers(n === 1 ? cache.t1Bowling : cache.t2Bowling, 1)[0],
+    };
+}
+
+/**
+ * Match over: the result as the headline, then a card per side in batting order, then the
+ * standout performers across the match.
+ *
+ * 🛑 Each card holds that side's OWN players — its batters and its bowler. The earlier panel paired
+ * a side's batters with the opposition bowler who bowled at them, an innings view that read as if
+ * the bowler belonged to the team named above him.
+ */
+export function matchSummaryPanel(v: CricketAPIValues, cache: ViewCache): PanelEvent {
+    const teams: [ResultTeam, ResultTeam] = [resultTeam(v, cache, 1), resultTeam(v, cache, 2)];
+    const named = teams.map(t => t.team);
+    return {
+        type: 'match-summary',
+        result: resultHeadline(v.result, named),
+        winner: resultWinner(v.result, named),
+        teams,
+        performers: topPerformers(cache, v.manOfTheMatch, v.momImagePath),
+        ...panelMeta(v),
     };
 }
 

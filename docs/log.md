@@ -1,5 +1,48 @@
 # Update Log
 
+## 2026-09-23
+
+### The result card, rebuilt to a broadcast layout
+
+The match-summary panel now follows a reference result card: the result as the headline over a
+rule, a card per side with its score, its two top batters and its best bowler, then an inverted
+strip of the match's top performers. Built in the overlay's own tokens, so every theme styles it.
+[overlay.md](./overlay.md) §14c.
+
+🛑 **Each card now holds that side's own players.** The previous panel paired a side's batters with
+the *opposition* bowler who bowled at them — an innings view that read as if the bowler belonged
+to the team named above him. The reference mock-up had the same mix-up in a plainer form, with one
+team's players under the other's name. A test fails if either comes back; it was checked by putting
+the opposition bowler back and watching it fail.
+
+⚠ **The winner is read from free text, by name or by code.** CricClubs writes both
+`"TOPGUNS UNITED won by 5 Wickets"` and, after a tie, `"Match tied. TGN won the super over."`. The
+first version of the parser anchored at the start and captured `"Match tied. TGN"` across the full
+stop, so no winner was found; the test built from the real 2079 wording caught it.
+
+⚠ **Team codes are cached from the data views, next to the names**, because the scorebar swaps
+sides during a super over and would put the wrong badge on each card.
+
+✅ **`manOfTheMatch` is real data**, filled in after a match ends — [cricclubs-api.md](./cricclubs-api.md)
+had it listed as empty in practice, which was wrong. It now leads the performers strip.
+
+### 🛑 The simulator leaked a real match's data a second time
+
+The first light-theme run named *Anand Babu B* player of the match on 1-43 — the award from real
+match 2079, inherited by `sim/match.ts` through the capture its scorebar is built from, and handed
+to whoever that player happened to be in a different, simulated match. Exactly the class of leak
+`isSuperOver` was. The sim now publishes its own award, the way CricClubs does: its top scorer,
+only once the match has ended.
+
+Two of these is a pattern, so it is now a `CLAUDE.md` tripwire: every field the simulator does not
+set explicitly is a value from a real, different match.
+
+### Also
+
+- The stale `setDisplay` line in `overlay.md` §3 is gone; this branch deleted the helper.
+- `overlay.md` §14's subsections are back in order (14a, 14b, 14c).
+- Both themes screenshotted: `topguns-dark` and `topguns-light`, each 17/17 in the simulator.
+
 ## 2026-09-22
 
 ### Instagram: the hosting half is built, and §8 rewritten from measurements

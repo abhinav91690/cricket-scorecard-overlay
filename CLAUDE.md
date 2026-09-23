@@ -153,6 +153,11 @@ not that the network is broken. Homebrew is unusable through the same proxy. →
 only thing that knows the scorer's graphic lags the ball (a six by ~5 s, a wicket by ~35 s), so
 a hand-rolled `-ss` produces a clip of the batter waiting. → `highlights.md` §6
 
+🛑 **Every field `sim/match.ts` does not set explicitly comes from a real, different match.** Its
+scorebar spreads the match 2079 capture, so an unset field carries 2079's value into the simulated
+game. It has happened twice — a live super over on every frame, then 2079's player of the match.
+→ `docs/log.md` 2026-09-23
+
 ⚠ **Run `sim/` after any change to `views.ts`, `cards.ts`, `events.ts` or `app.ts`** — unit tests
 did not catch the three bugs it found on its first runs. → `overlay.md` §13
 

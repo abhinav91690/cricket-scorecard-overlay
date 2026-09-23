@@ -51,7 +51,7 @@ every field of the (large) type in `types.ts`.
 ## 3. Rendering discipline
 
 `src/ui.ts` owns the DOM. `updateScoreboard()` picks team 1 vs team 2 fields from
-`values.isSecondInningsStarted === "true"`, then writes through `setText`/`setDisplay` helpers
+`values.isSecondInningsStarted === "true"`, then writes through the `setText` helper
 that only touch the DOM when a value actually changed, to avoid layout thrash.
 
 ⚠ **API booleans are strings.** `isSecondInningsStarted` is `"true"`, and `isMatchEnded` is
@@ -333,25 +333,6 @@ view while the ball is live and only *peeks* at another view when nothing can be
 `matchOverlayConfig.do?viewId=` — write, CORS-allowed, unauthenticated — and the next poll
 returns that view. Full endpoint reference in [cricclubs-api.md](./cricclubs-api.md).
 
-### 14b. 🛑 A live super over is not an innings break
-
-The scorebar **swaps to the super-over sides and totals** ([cricclubs-api.md](./cricclubs-api.md)
-§3), so the gap between the two super-over innings is indistinguishable from an innings break by
-overs and balls alone: the chase has started, the "second" side has no overs, nothing is in hand.
-
-Read as `break`, that puts the **main match's** first innings on air — stale, and labelled
-"1st innings" — while a super over is actually being bowled. `matchPhase()` therefore returns
-`play` whenever `isSuperOver` is set, checked *after* `isMatchEnded`, so a **finished** super over
-is still `ended` and still gets its match summary.
-
-⚠ **Match 2079, the source of every fixture in `mockData.ts`, is a super-over tie** — but it was
-captured *after* the match ended, so `isMatchEnded` is `'1'` and the real frame short-circuits to
-`ended`. The broken window never appeared in any fixture, which is why nothing caught it. The
-test winds that capture back to mid-super-over.
-
-⚠ **`isSuperOver` stays true for the rest of the match once a super over happens**, so it is not
-a "right now" flag on its own — it only means "live super over" *below* the `isMatchEnded` check.
-
 🛑 **`isFullFrame()` keeps a peek off the bar.** A peek frame has no live fields, so rendering
 it would blank the score, and counting it as a score change would dismiss a card that had only
 just appeared. It also must not reach the `?data=1` code: encoding a peek would hand
@@ -381,3 +362,51 @@ seen. It carries a `WeakSet` so a cyclic payload cannot hang the poll loop.
 
 This is a ground rule, not a nicety: the overlay is composited into a public broadcast and this
 repository is public.
+
+### 14b. 🛑 A live super over is not an innings break
+
+The scorebar **swaps to the super-over sides and totals** ([cricclubs-api.md](./cricclubs-api.md)
+§3), so the gap between the two super-over innings is indistinguishable from an innings break by
+overs and balls alone: the chase has started, the "second" side has no overs, nothing is in hand.
+
+Read as `break`, that puts the **main match's** first innings on air — stale, and labelled
+"1st innings" — while a super over is actually being bowled. `matchPhase()` therefore returns
+`play` whenever `isSuperOver` is set, checked *after* `isMatchEnded`, so a **finished** super over
+is still `ended` and still gets its match summary.
+
+⚠ **Match 2079, the source of every fixture in `mockData.ts`, is a super-over tie** — but it was
+captured *after* the match ended, so `isMatchEnded` is `'1'` and the real frame short-circuits to
+`ended`. The broken window never appeared in any fixture, which is why nothing caught it. The
+test winds that capture back to mid-super-over.
+
+⚠ **`isSuperOver` stays true for the rest of the match once a super over happens**, so it is not
+a "right now" flag on its own — it only means "live super over" *below* the `isMatchEnded` check.
+
+### 14c. The result card
+
+The match-summary panel follows a broadcast result card: the result as the headline over a rule,
+one card per side in batting order, then an inverted strip of top performers.
+
+- 🛑 **Each card holds that side's own players** — its two top batters and its own best bowler.
+  The earlier version paired a side's batters with the *opposition* bowler who bowled at them,
+  an innings view that read as if the bowler belonged to the team named above him.
+- **The winner's card carries the brand-accent edge**; the other gets the divider colour.
+  `resultWinner()` reads the winner from the result text by full name *or* team code, because
+  CricClubs writes both — `"TOPGUNS UNITED won by 5 Wickets"` and, after a tie,
+  `"Match tied. TGN won the super over."`. ⚠ The capture must not cross a full stop, or that second
+  form yields `"Match tied. TGN"` and no winner. Wording it cannot pin to a side marks **no** winner,
+  never a guessed one.
+- `resultHeadline()` title-cases team names, expands a winner's code to its name and lower-cases
+  `"5 Wickets"`. Anything it does not recognise passes through unchanged.
+- ⚠ **Team codes are cached from the data views, with the names.** The scorebar carries them too,
+  but it swaps sides during a super over (§14b), so pairing its `t1Code` with a data view's
+  `t1Name` puts the wrong badge on each card.
+- The crest is shown when there is one; otherwise the team code in a square badge.
+- **Top performers**: CricClubs' own `manOfTheMatch` first when it is set, then the match's top
+  scorer, its best bowling, and the other side's top scorer, with nobody listed twice. ⚠ The award
+  is a full name with no player id, so it is matched to the cards by first and last name; an award
+  that matches no card is still shown, under the name CricClubs gave.
+- ⚠ **A player can appear twice on one card** — once as a batter and again as the best bowler.
+  That is an all-rounder, not a duplication bug.
+- The strip reuses the inverted surface of the innings summary's Target tile, so it is dark on a
+  light theme and light on a dark one. Neither piece needs a theme file to know it exists.

@@ -48,7 +48,20 @@ Public, CORS-open (works from any origin, no credentials). Returns JSON:
 ### `values` fields we use
 `t1Name t2Name t1Code t2Code t1Total t2Total t1Wickets t2Wickets t1Overs t2Overs t1RR t2RR RRR totalOvers isSecondInningsStarted isMatchEnded result firstLogo secondLogo batsman1Name batsman1Runs batsman1Balls batsman1Fours batsman1Sixers batsman1ID batsman2… bowlerName bowlerRuns bowlerWickets bowlerOvers bowlerMaidens lastOutName lastOutRuns lastOutBalls lastOutString currentPartnershipMap{partnershipTotalRuns, partnershipTotalBalls, partnershipBatsman1/2ID, …FirstName} toss groundName seriesName`
 
-The full key list of the default view is in `src/mockData.ts` (`mock_1stInnings`). Fields that are typed but empty in practice for this club: `t1Extras`/`t2Extras` (only in card views), `manOfTheMatch`, `momImagePath`, `sponsorsImgPaths`, `projectedRunRate`.
+The full key list of the default view is in `src/mockData.ts` (`mock_1stInnings`). Fields that are typed but empty in practice for this club: `t1Extras`/`t2Extras` (only in card views), `sponsorsImgPaths`, `projectedRunRate`.
+
+⚠ **`manOfTheMatch` and `momImagePath` are filled in once the match ends** — an earlier note here
+called them empty in practice, which was wrong: three of the captured frames carry an award,
+including match 2079 (`"Anand Babu Badrichetty"`). It is a **full name with no player id**, so
+matching it to a card row means comparing `firstName` + `lastName`.
+
+`t1Code` / `t2Code` are three-letter team codes (`"TGN"`, `"LNS"`). The data views carry them in
+data-view order, like the names; the scorebar views carry them too but swap them with the sides
+during a super over.
+
+`result` is free text and comes in several shapes: `"TOPGUNS UNITED won by 5 Wickets"`,
+`"Match tied. TGN won the super over."` (the winner by **code**), `"Super Over."`, and — before
+the match ends — a live status such as `"Hutto Hippos: 142/8 (20.0/20 OVERS )"`.
 
 ## 2. `GET /matchOverlayConfig.do?clubId=&matchId=&viewId=N`  (write: switch the view)
 

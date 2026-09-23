@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { VIEW, matchPhase, desiredView, isFullFrame, stripPii, mergeCache, scoreChanged, displayName, oversFromBalls, fowText, wicketFallText, topBatters, topBowlers, phasePanels, inningsSummaryPanel, imageUrl, initialsOf, roleTag, squadRows, tossInfo, tidyName, runRate, boundaryCount } from './views';
-import { mock_view_1, mock_view_2, mock_view_3, mock_view_4, mock_view_8, mock_view_48 } from './mockData';
+import { VIEW, matchPhase, desiredView, isFullFrame, stripPii, mergeCache, scoreChanged, displayName, oversFromBalls, fowText, wicketFallText, topBatters, topBowlers, phasePanels, inningsSummaryPanel, matchSummaryPanel, resultWinner, resultHeadline, topPerformers, imageUrl, initialsOf, roleTag, squadRows, tossInfo, tidyName, runRate, boundaryCount } from './views';
+import { mock_view_1, mock_view_2, mock_view_3, mock_view_4, mock_view_5, mock_view_8, mock_view_48 } from './mockData';
 import { CricketAPIData } from './types';
 
 const frame = (values: Record<string, unknown>, balls: string[] = [], view = 1) => ({ view, values, balls } as unknown as CricketAPIData);
@@ -278,5 +278,91 @@ describe('innings tiles', () => {
     it('adds up boundaries across a batting card', () => {
         expect(boundaryCount([{ fours: 2, sixers: 1 }, { fours: 3, sixers: 0 }, {}] as any)).toEqual({ fours: 5, sixes: 1 });
         expect(boundaryCount(undefined)).toEqual({ fours: 0, sixes: 0 });
+    });
+});
+
+describe('result card', () => {
+    const teams = [{ name: 'TOPGUNS UNITED', code: 'TGN' }, { name: 'Lions', code: 'LNS' }];
+
+    it('finds the winner by full name or by team code', () => {
+        expect(resultWinner('TOPGUNS UNITED won by 5 Wickets', teams)).toBe(1);
+        expect(resultWinner('Lions won by 12 runs', teams)).toBe(2);
+        // the real 2079 wording names the winner by code, after a tie
+        expect(resultWinner('Match tied. TGN won the super over.', teams)).toBe(1);
+    });
+
+    it('marks no winner when the result cannot be pinned to a side', () => {
+        expect(resultWinner('Match tied', teams)).toBeUndefined();
+        expect(resultWinner('No result', teams)).toBeUndefined();
+        expect(resultWinner('Hippos won by 3 runs', teams)).toBeUndefined();   // not either side
+        expect(resultWinner(undefined, teams)).toBeUndefined();
+    });
+
+    it('turns the CricClubs wording into a headline', () => {
+        expect(resultHeadline('TOPGUNS UNITED won by 5 Wickets', teams)).toBe('Topguns United won by 5 wickets');
+        expect(resultHeadline('Match tied. TGN won the super over.', teams)).toBe('Match tied. Topguns United won the super over.');
+        expect(resultHeadline('Lions won by 12 Runs', teams)).toBe('Lions won by 12 runs');
+        expect(resultHeadline('', teams)).toBe('Match over');
+        // a code not followed by "won" is left alone
+        expect(resultHeadline('TGN v LNS abandoned', teams)).toBe('TGN v LNS abandoned');
+    });
+
+    // The real match 2079 cards: TOPGUNS UNITED 188 v Lions 188, then a super over.
+    const cache = [mock_view_2, mock_view_3, mock_view_4, mock_view_5, mock_view_8]
+        .reduce((c, v) => mergeCache(c, stripPii(v as CricketAPIData)), {} as ReturnType<typeof mergeCache>);
+    const scorebar = (mock_view_1 as CricketAPIData).values;
+
+    it('fills each card with that side\'s OWN batters and bowler', () => {
+        // 🛑 The old panel put the opposition bowler under each side, which read as if he
+        // belonged to the team named above him.
+        const p = matchSummaryPanel(scorebar, cache);
+        if (p.type !== 'match-summary') throw new Error('wrong panel');
+        const own = (rows: { firstName?: string; lastName?: string }[] | undefined) =>
+            new Set((rows ?? []).map(r => displayName(r)));
+        const t1 = own([...(cache.t1Batting ?? []), ...(cache.t1Bowling ?? [])]);
+        const t2 = own([...(cache.t2Batting ?? []), ...(cache.t2Bowling ?? [])]);
+        const card1 = [...p.teams[0].batters, p.teams[0].bowler!].map(r => r.name);
+        const card2 = [...p.teams[1].batters, p.teams[1].bowler!].map(r => r.name);
+        expect(card1.every(n => t1.has(n))).toBe(true);
+        expect(card2.every(n => t2.has(n))).toBe(true);
+        expect(p.teams[0].batters).toHaveLength(2);
+    });
+
+    it('takes names, codes and totals from the data views, not the swapped super-over scorebar', () => {
+        const p = matchSummaryPanel(scorebar, cache);
+        if (p.type !== 'match-summary') throw new Error('wrong panel');
+        // the scorebar frame says Lions/LNS 10 first; the main match was TOPGUNS UNITED 188 first
+        expect(p.teams.map(t => [t.team.name, t.team.code, t.runs])).toEqual([['TOPGUNS UNITED', 'TGN', '188'], ['Lions', 'LNS', '188']]);
+        expect(p.teams[0].overs).toBe('20.0 ov');
+        expect(p.winner).toBe(1);   // "TGN won the super over", resolved through the code
+        expect(p.result).toBe('Match tied. Topguns United won the super over.');
+        expect(p.ground).toBe('LPCL-G1');
+    });
+
+    it('leads the performers with CricClubs\' own player of the match, and lists nobody twice', () => {
+        const perf = topPerformers(cache, 'Anand Babu Badrichetty');
+        expect(perf[0].note).toBe('Player of the match');
+        expect(perf[0].name).toMatch(/^Anand Babu/);
+        expect(perf.length).toBeLessThanOrEqual(3);
+        expect(new Set(perf.map(p => p.name)).size).toBe(perf.length);
+    });
+
+    it('still shows an award it cannot match to a card, rather than dropping it', () => {
+        const perf = topPerformers({}, 'Rakesh Gopishetty');
+        expect(perf).toEqual([{ name: 'Rakesh G', value: '', note: 'Player of the match', pic: undefined, initials: 'RG' }]);
+    });
+
+    it('without an award: top scorer, best bowling, then the other side\'s top scorer', () => {
+        const perf = topPerformers({
+            t1Batting: [{ firstName: 'A', lastName: 'One', runsScored: 70, ballsFaced: 40 }, { firstName: 'B', lastName: 'Two', runsScored: 20, ballsFaced: 15 }] as any,
+            t2Batting: [{ firstName: 'C', lastName: 'Three', runsScored: 45, ballsFaced: 30 }] as any,
+            t1Bowling: [{ firstName: 'D', lastName: 'Four', wickets: 4, runs: 20, balls: 24 }] as any,
+            t2Bowling: [{ firstName: 'E', lastName: 'Five', wickets: 2, runs: 30, balls: 24 }] as any,
+        });
+        expect(perf.map(p => [p.name, p.value])).toEqual([['A O', '70 (40)'], ['D F', '4-20 (4.0)'], ['C T', '45 (30)']]);
+    });
+
+    it('lists nothing when no cards have been peeked yet', () => {
+        expect(topPerformers({})).toEqual([]);
     });
 });

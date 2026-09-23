@@ -88,7 +88,7 @@ While nothing can happen the overlay fills the gap by itself, using richer CricC
 | :--- | :--- |
 | Before the first ball | Line-up card: series, ground and overs on top, both crests, the toss as a callout ("Topguns United elected to bat"), then each XI in two columns of headshots with a Batting / Fielding tag worked out from the toss |
 | Innings break | First-innings summary: the batting side with its total large on the right, tiles for run rate, boundaries, extras and the target, then top scorers and best bowling with headshots, fall of wickets beneath |
-| Match over | Match summary: the result, then both innings side by side |
+| Match over | Result card: the result as the headline, then a card per side with its score, top two batters and best bowler (the winner's card accented), then a strip of the match's top performers — led by CricClubs' player of the match when one is named |
 
 Panels rotate on timers and disappear the moment a ball is bowled. The overlay never leaves the live scorebar view while play is possible; it peeks at the squads before the match, team 1's cards at the break and team 2's at the end, one poll each. `&panel=lineup` (or `innings-summary`, `match-summary`) with `?debug=` holds a sample.
 

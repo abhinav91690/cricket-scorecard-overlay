@@ -127,10 +127,39 @@ describe('card queue', () => {
         resetCardsForTests();
 
         enqueueCards([panel('match-summary')]);
+        expect(DOM.panelEyebrow.textContent).toBe('Result · LPCL-G1');
         expect(DOM.panelHeadline.textContent).toBe('Topguns United won by 5 wickets');
-        expect(DOM.panelColumns.querySelectorAll('.panel-block')).toHaveLength(2);
-        expect(DOM.panelColumns.querySelectorAll('.panel-team-extra')[0].textContent).toBe('142/8 · 20 ov');
-        expect(DOM.panelColumns.querySelectorAll('.is-first-bowler')).toHaveLength(2);
+        const cards = DOM.panelColumns.querySelectorAll('.result-card');
+        expect(cards).toHaveLength(2);
+        // the winner's card, and only it, carries the accent edge
+        expect(Array.from(cards).map(c => c.classList.contains('is-winner'))).toEqual([false, true]);
+        expect(cards[1].querySelector('.panel-team-name')!.textContent).toBe('Topguns United');
+        expect(cards[1].querySelector('.panel-score-runs')!.textContent).toBe('143');
+        expect(cards[1].querySelector('.panel-score-wkts')!.textContent).toBe('/5');
+        expect(cards[1].querySelector('.result-overs')!.textContent).toBe('18.4 ov');
+        // no crest in the sample, so the team code stands in for it
+        expect(cards[0].querySelector('.result-code')!.textContent).toBe('LNS');
+        // two batters then the bowler, as a plain table: no headshots inside the cards
+        const rows = cards[0].querySelectorAll('.panel-row');
+        expect(rows).toHaveLength(3);
+        expect(rows[2].classList.contains('is-bowler')).toBe(true);
+        expect(cards[0].querySelectorAll('.avatar')).toHaveLength(0);
+        expect(rows[1].querySelector('.panel-note')!.textContent).toBe('not out');
+        // performers: an inverted strip with headshots, the award tagged
+        expect(DOM.panelFooter.querySelector('.perf-label')!.textContent).toBe('Top performers');
+        const perfs = DOM.panelFooter.querySelectorAll('.perf');
+        expect(perfs).toHaveLength(3);
+        expect(perfs[0].querySelector('.perf-note')!.textContent).toBe('Player of the match');
+        expect(perfs[0].querySelector('.avatar')).not.toBeNull();
+        expect(perfs[1].querySelector('.perf-value')!.textContent).toBe('52 (31)');
+    });
+
+    it('marks no winner on a result it cannot pin to a side', () => {
+        const base = panel('match-summary');
+        if (base.type !== 'match-summary') throw new Error('sample changed');
+        enqueueCards([{ ...base, result: 'Match tied', winner: undefined, performers: [] }]);
+        expect(DOM.panelColumns.querySelectorAll('.result-card.is-winner')).toHaveLength(0);
+        expect(DOM.panelFooter.children).toHaveLength(0);   // no strip at all rather than an empty one
     });
 
     it('uses a headshot when there is a picture and falls back to initials when it fails to load', () => {

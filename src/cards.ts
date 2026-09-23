@@ -9,16 +9,17 @@ import { e2eLog } from './e2e';
  * every card has a hold time, and any score change dismisses everything (see app.ts).
  */
 
-export interface PanelTeam { name: string; logo?: string; }
+export interface PanelTeam { name: string; logo?: string; code?: string; }
 export interface LineupTeam extends PanelTeam { players: PanelRow[]; role?: 'Batting' | 'Fielding'; }
 /** The strip along the top of a panel: competition, ground and the match length. */
 export interface PanelMeta { series: string; ground: string; matchOvers: string; }
-export interface InningsBlock { team: PanelTeam; score: string; overs: string; batters: PanelRow[]; bowlers: PanelRow[]; fow: string; }
+/** One side on the result card: its total, its own top batters and its own best bowler. */
+export interface ResultTeam { team: PanelTeam; runs: string; wickets: string; overs: string; batters: PanelRow[]; bowler?: PanelRow; }
 
 export type PanelEvent =
     | ({ type: 'lineup'; teams: [LineupTeam, LineupTeam]; toss: string } & PanelMeta)
     | { type: 'innings-summary'; eyebrow: string; team: PanelTeam; runs: string; wickets: string; overs: string; runRate: string; fours: string; sixes: string; extras: string; target: string; batters: PanelRow[]; bowlers: PanelRow[]; fow: string }
-    | { type: 'match-summary'; result: string; innings: InningsBlock[] };
+    | ({ type: 'match-summary'; result: string; winner?: 1 | 2; teams: [ResultTeam, ResultTeam]; performers: PanelRow[] } & PanelMeta);
 
 export type AnyCard = OverlayEvent | PanelEvent;
 type Surface = 'bar' | 'panel';
@@ -143,10 +144,10 @@ function teamHead(team: PanelTeam, extra?: string): HTMLElement {
     return head;
 }
 
-function personRow(r: PanelRow, size: 'sm' | 'md', extraClass = ''): HTMLElement {
+function personRow(r: PanelRow, size: 'sm' | 'md' | null, extraClass = ''): HTMLElement {
     const row = document.createElement('li');
     row.className = `panel-row ${extraClass}`.trim();
-    row.appendChild(avatar(r, size));
+    if (size) row.appendChild(avatar(r, size));
     row.appendChild(el('panel-name', r.name));
     if (r.captain) row.appendChild(el('panel-captain', 'C'));
     if (r.note) row.appendChild(el('panel-note', r.note));
@@ -173,6 +174,49 @@ function column(title: string, tag: string | undefined, accent: boolean, rows: H
     if (tag) head.appendChild(el('panel-col-head-tag', tag));
     block.append(head, rows);
     return block;
+}
+
+/** The crest when there is one, else the team code in a square badge ("TGN"), else nothing. */
+function teamBadge(team: PanelTeam): HTMLElement | null {
+    if (team.logo) {
+        const img = document.createElement('img');
+        img.className = 'panel-team-logo'; img.alt = ''; img.src = team.logo;
+        return img;
+    }
+    return team.code ? el('result-code', team.code) : null;
+}
+
+/** One side's card: badge, name and total across the top, then its batters and its bowler. */
+function resultCard(t: ResultTeam, winner: boolean): HTMLElement {
+    const card = el(`result-card${winner ? ' is-winner' : ''}`);
+    const head = el('result-head');
+    const badge = teamBadge(t.team);
+    if (badge) head.appendChild(badge);
+    head.appendChild(el('panel-team-name', t.team.name));
+    const score = el('result-score');
+    score.append(el('panel-score-runs', t.runs), el('panel-score-wkts', `/${t.wickets}`));
+    if (t.overs) score.appendChild(el('result-overs', t.overs));
+    head.appendChild(score);
+    const rows = rowList('result-rows');
+    t.batters.forEach(r => rows.appendChild(personRow(r, null)));
+    if (t.bowler) rows.appendChild(personRow(t.bowler, null, 'is-bowler'));
+    card.append(head, rows);
+    return card;
+}
+
+/** The inverted strip under the cards: headshot, name, the figure that earned the place. */
+function performerStrip(rows: PanelRow[]) {
+    DOM.panelFooter.replaceChildren();
+    if (!rows.length) return;
+    DOM.panelFooter.appendChild(el('perf-label', 'Top performers'));
+    for (const r of rows) {
+        const item = el('perf');
+        const words = el('perf-text');
+        words.appendChild(el('perf-name', r.name));
+        if (r.note) words.appendChild(el('perf-note', r.note));
+        item.append(avatar(r, 'sm'), words, el('perf-value', r.value));
+        DOM.panelFooter.appendChild(item);
+    }
 }
 
 function matchup(a: PanelTeam, b: PanelTeam) {
@@ -251,19 +295,11 @@ function renderPanel(card: PanelEvent) {
             break;
         }
         case 'match-summary': {
-            text(DOM.panelEyebrow, 'Result');
+            text(DOM.panelEyebrow, ['Result', card.ground].filter(Boolean).join(' · '));
             text(DOM.panelHeadline, card.result);
             text(DOM.panelDetail, '');
-            for (const inn of card.innings) {
-                const block = el('panel-block');
-                block.appendChild(teamHead(inn.team, `${inn.score} · ${inn.overs}`));
-                const ul = rowList('panel-list');
-                inn.batters.forEach(r => ul.appendChild(personRow(r, 'md')));
-                inn.bowlers.forEach((r, i) => ul.appendChild(personRow(r, 'md', i === 0 ? 'is-first-bowler' : '')));
-                block.appendChild(ul);
-                DOM.panelColumns.appendChild(block);
-            }
-            footer(card.innings.map(i => [`${i.team.name} FoW`, i.fow] as [string, string]));
+            card.teams.forEach((t, i) => DOM.panelColumns.appendChild(resultCard(t, card.winner === i + 1)));
+            performerStrip(card.performers);
             break;
         }
     }
@@ -307,10 +343,21 @@ export const SAMPLE_EVENTS: Record<string, AnyCard> = {
         batters: [{ name: 'Pavan V', value: '45 (30)', initials: 'PV' }, { name: 'Gautham R', value: '32 (21)', note: 'not out', initials: 'GR' }, { name: 'Rakesh K', value: '18 (12)', initials: 'RK' }],
         bowlers: [{ name: 'Siva Krishna V', value: '3-21', note: '4.0 ov', initials: 'SV' }, { name: 'Chandu B', value: '2-18', note: '4.0 ov', initials: 'CB' }, { name: 'Aamir K', value: '1-24', note: '4.0 ov', initials: 'AK' }],
         fow: '1-14, 2-21, 3-24, 4-45, 5-90, 6-148, 7-171, 8-181' },
-    'match-summary': { type: 'match-summary', result: 'Topguns United won by 5 wickets',
-        innings: [
-            { team: { name: 'Lions' }, score: '142/8', overs: '20 ov', batters: [{ name: 'Pavan V', value: '45 (30)', initials: 'PV' }, { name: 'Gautham R', value: '32 (21)', initials: 'GR' }], bowlers: [{ name: 'Siva Krishna V', value: '3-21', note: '4.0 ov', initials: 'SV' }], fow: '1-14, 2-21, 3-24' },
-            { team: { name: 'Topguns United' }, score: '143/5', overs: '18.4 ov', batters: [{ name: 'Abhinav V', value: '52 (31)', initials: 'AV' }, { name: 'Raja K', value: '40 (28)', initials: 'RK' }], bowlers: [{ name: 'Ravi T', value: '2-30', note: '4.0 ov', initials: 'RT' }], fow: '1-67, 2-82, 3-84' },
+    // Each card holds that side's own players, drawn from the line-up sample above so the two agree.
+    'match-summary': { type: 'match-summary', result: 'Topguns United won by 5 wickets', winner: 2,
+        series: '2024 Fall Champions', ground: 'LPCL-G1', matchOvers: '20 overs',
+        teams: [
+            { team: { name: 'Lions', code: 'LNS' }, runs: '142', wickets: '8', overs: '20.0 ov',
+              batters: [{ name: 'Sumeer G', value: '45 (30)', initials: 'SG' }, { name: 'Qasim A', value: '32 (21)', note: 'not out', initials: 'QA' }],
+              bowler: { name: 'Ravi T', value: '2-30', note: '4.0 ov', initials: 'RT' } },
+            { team: { name: 'Topguns United', code: 'TGN' }, runs: '143', wickets: '5', overs: '18.4 ov',
+              batters: [{ name: 'Abhinav V', value: '52 (31)', initials: 'AV' }, { name: 'Raja K', value: '40 (28)', note: 'not out', initials: 'RK' }],
+              bowler: { name: 'Siva Krishna V', value: '3-21', note: '4.0 ov', initials: 'SV' } },
+        ],
+        performers: [
+            { name: 'Siva Krishna V', value: '3-21 (4.0)', note: 'Player of the match', initials: 'SV' },
+            { name: 'Abhinav V', value: '52 (31)', initials: 'AV' },
+            { name: 'Sumeer G', value: '45 (30)', initials: 'SG' },
         ] },
 };
 

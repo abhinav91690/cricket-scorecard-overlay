@@ -478,7 +478,7 @@ body {
 .panel-xi .avatar-sm { inline-size: 30px; block-size: 30px; }
 
 /* Sheet panels (line-up, innings summary): bar width, accent down the left edge, explicit spacing per block. */
-.panel-card:is([data-type="lineup"], [data-type="innings-summary"]) { box-sizing: border-box; inline-size: min(1240px, calc(100vw - 80px)); row-gap: 0; border-block-start-width: 1px; border-inline-start: 6px solid var(--brand-accent); padding: 20px 30px 22px 30px; }
+.panel-card:is([data-type="lineup"], [data-type="innings-summary"], [data-type="match-summary"]) { box-sizing: border-box; inline-size: min(1240px, calc(100vw - 80px)); row-gap: 0; border-block-start-width: 1px; border-inline-start: 6px solid var(--brand-accent); padding: 20px 30px 22px 30px; }
 .panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-columns { gap: 0 40px; margin: 0; }
 .panel-card:is([data-type="lineup"], [data-type="innings-summary"]) .panel-block { gap: 0; }
 .panel-col-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-block-end: 8px; margin-block-end: 2px; border-block-end: 2px solid var(--divider); font-size: 13px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
@@ -530,9 +530,38 @@ body {
 .panel-card[data-type="innings-summary"] .panel-list .panel-value { font-size: 22px; }
 .panel-card[data-type="innings-summary"] .panel-footer { order: 5; margin-block-start: 14px; padding: 0; border: 0; }
 
+/* Result card: result as the headline over a rule, a card per side (the winner's edge in the
+   brand accent), then an inverted strip of top performers. Surfaces reuse the tile tint and the
+   inverted "Target" tile, so every theme styles it without a theme file knowing it exists. */
+.panel-card[data-type="match-summary"] .panel-eyebrow { order: 1; margin-block-end: 10px; }
+.panel-card[data-type="match-summary"] .panel-headline { order: 2; font-size: 52px; font-weight: 900; line-height: 1; letter-spacing: -0.025em; white-space: normal; text-wrap: balance; padding-block-end: 20px; margin-block-end: 22px; border-block-end: 2px solid var(--card-fg); }
+.panel-card[data-type="match-summary"] .panel-columns { order: 3; gap: 0 20px; margin: 0; }
+.result-card { display: grid; align-content: start; padding: 16px 22px 6px; border-radius: 8px; background: rgba(127, 127, 127, 0.1); border-block-start: 5px solid var(--divider); }
+.result-card.is-winner { border-block-start-color: var(--brand-accent); }
+.result-head { display: flex; align-items: center; gap: 14px; padding-block-end: 14px; border-block-end: 1px solid var(--divider); }
+.result-head .panel-team-logo { inline-size: 40px; block-size: 40px; }
+.result-head .panel-team-name { flex: 1 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; font-size: 22px; }
+.result-code { flex: none; display: grid; place-items: center; inline-size: 40px; block-size: 40px; border-radius: 6px; background: var(--card-fg); color: var(--card-bg); font-size: 13px; font-weight: 800; letter-spacing: 0.04em; }
+.result-card.is-winner .result-code { background: var(--brand-accent); color: var(--fg-pill, #fff); }
+.result-score { flex: none; display: flex; align-items: baseline; gap: 2px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.result-score .panel-score-runs { font-size: 46px; line-height: 0.9; }
+.result-score .panel-score-wkts { font-size: 24px; }
+.result-overs { font-size: 14px; font-weight: 700; opacity: 0.6; margin-inline-start: 10px; }
+.result-rows { list-style: none; margin: 0; padding: 0; }
+.result-rows .panel-row { padding-block: 12px; border-block-end: 1px solid var(--divider-row, var(--divider)); font-size: 19px; }
+.result-rows .panel-row:last-child { border-block-end: 0; }
+.result-rows .panel-row:not(.is-bowler) .panel-note { color: var(--brand-accent); opacity: 1; }
+.result-rows .panel-value { font-size: 22px; }
+.panel-card[data-type="match-summary"] .panel-footer { order: 4; display: flex; align-items: center; gap: 30px; margin: 18px 0 0; padding: 14px 22px; border: 0; border-radius: 8px; background: var(--card-fg); color: var(--card-bg); font-size: inherit; opacity: 1; }
+.perf-label { flex: none; font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.65; }
+.perf { display: flex; align-items: center; gap: 10px; min-inline-size: 0; }
+.perf-text { display: grid; min-inline-size: 0; }
+.perf-name { font-size: 18px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.perf-note { font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.65; white-space: nowrap; }
+.perf-value { flex: none; font-size: 16px; font-weight: 700; opacity: 0.8; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
 .panel-list, .panel-xi { list-style: none; margin: 0; padding: 0; }
 .panel-list { display: grid; gap: 8px; }
-.panel-row.is-first-bowler { margin-block-start: 4px; padding-block-start: 8px; border-block-start: 1px solid var(--divider); }
 
 .panel-footer { display: flex; align-items: baseline; gap: 12px; margin-block-start: 12px; padding-block-start: 10px; border-block-start: 1px solid var(--divider); font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; }
 .panel-footer:empty { display: none; }

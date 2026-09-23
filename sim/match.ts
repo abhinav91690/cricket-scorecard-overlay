@@ -201,6 +201,21 @@ export function snapshotAt(timeline: Snapshot[], t: number): Snapshot {
 // ---------------- payload rendering ----------------
 
 const overs = (balls: number) => `${Math.floor(balls / 6)}.${balls % 6}`;
+/**
+ * The simulated match's own player of the match: its top run-scorer, published only once the
+ * match has ended, which is when CricClubs fills the field in.
+ *
+ * 🛑 Without this the award is inherited from the match 2079 capture `base` is built from — a real
+ * award from a different match, handed to whoever that player is in this one. Same class of leak
+ * as isSuperOver below.
+ */
+function simAward(s: Snapshot): { name: string; pic: string } {
+    if (s.phase !== 'ended') return { name: '', pic: '' };
+    const all = [...s.inn1.batters, ...(s.inn2?.batters ?? [])];
+    const top = all.reduce((a, b) => (b.runs > a.runs || (b.runs === a.runs && b.balls < a.balls) ? b : a), all[0]);
+    return top ? { name: `${top.row.firstName ?? ''} ${top.row.lastName ?? ''}`.trim(), pic: top.row.profilepic_file_path ?? '' } : { name: '', pic: '' };
+}
+
 const rate = (runs: number, balls: number) => (balls ? (runs / (balls / 6)).toFixed(2) : '--.--');
 const name = (p: { firstName?: string; lastName?: string }) => `${p.firstName ?? ''} ${(p.lastName ?? '').charAt(0)}`.trim();
 
@@ -223,6 +238,7 @@ export function fullFrame(s: Snapshot, cfg: SimConfig = DEFAULT_CONFIG): Cricket
     const live = s.phase === 'inn1' || s.phase === 'inn2';
     const striker = inn.batters[inn.strikerIdx]; const non = inn.batters[inn.nonStrikerIdx]; const bowler = inn.bowlers[inn.bowlerIdx];
     const target = s.inn1.total + 1;
+    const award = simAward(s);
     const values: V = {
         ...base,
         t1Name: t1.name, t2Name: t2.name, firstLogo: chase ? t2.logo : t1.logo, secondLogo: chase ? t1.logo : t2.logo, t1Logo: t1.logo, t2Logo: t2.logo,
@@ -236,6 +252,7 @@ export function fullFrame(s: Snapshot, cfg: SimConfig = DEFAULT_CONFIG): Cricket
         // break, so the pre-match and break phases vanish. The intent was always false; it was
         // only being set on the data object, not inside `values` where the overlay reads it.
         isSuperOver: 'false', isSuperOverSecondInningsStarted: 'false',
+        manOfTheMatch: award.name, manOfTheMatchNickName: '', momImagePath: award.pic,
         totalOvers: cfg.totalOvers, toss: base.toss, seriesName: base.seriesName, groundName: base.groundName,
         batsman1Name: name(striker.row), batsman1Runs: String(striker.runs), batsman1Balls: String(striker.balls), batsman1Fours: String(striker.fours), batsman1Sixers: String(striker.sixes), batsman1ID: striker.row.playerID,
         batsman2Name: name(non.row), batsman2Runs: String(non.runs), batsman2Balls: String(non.balls), batsman2Fours: String(non.fours), batsman2Sixers: String(non.sixes), batsman2ID: non.row.playerID,
