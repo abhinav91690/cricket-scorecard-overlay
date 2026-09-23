@@ -533,3 +533,52 @@ Instagram — see [highlights.md](./highlights.md) §6, now a 🛑 tripwire. Wor
 because "the upload succeeded" and "the reel is any good" are separate claims, and only the
 first was verified by this run.
 
+## 10. 🛑 Why YouTube does not go through R2, and must not be made to
+
+The two APIs move bytes in opposite directions:
+
+| | |
+|---|---|
+| **Instagram** | Meta **fetches** from a URL you supply — `video_url` on the container |
+| **YouTube** | you **push** the bytes; `videos.insert` takes a resumable media body and has **no URL parameter at all** |
+
+So R2 cannot serve YouTube. ⚠ **R2 is not a feature of this pipeline — it is a workaround for
+Instagram's refusal to accept an upload.** YouTube already does natively what R2 exists to
+compensate for, which is why `publish.py` uploads straight from disk while `igpublish.py`
+goes via a presigned URL. That asymmetry is the platforms', not ours, and it is not a
+consistency bug to be fixed.
+
+### 10a. ❌ Do not move the YouTube upload into a Worker to save the double upload
+
+Posting one reel to both platforms uploads it twice from the machine — roughly 2 GB per match
+instead of 1 GB. The only way to avoid that is to put the reel in R2 once and have a
+Cloudflare Worker with the R2 binding push it to YouTube. Rejected:
+
+- 🛑 It moves the **YouTube refresh token into Cloudflare**, widening where a long-lived
+  credential lives, for no functional gain. Everything else in this repo keeps secrets in the
+  macOS Keychain.
+- Workers are a poor fit for streaming a 75 MB resumable upload, and the analytics Worker's
+  deploy is **manual by decision** (`analytics.md` §4) — so this would mean a second Worker to
+  maintain.
+- It buys about ten minutes of upload time per match.
+
+### 10b. Parked: R2 as a review staging area
+
+The free tier is 10 GB-month and a match is ~1.1 GB, so R2 could hold roughly **nine matches'
+reels**. Today a reel exists only on the Mac and then on the platforms — cut, uploaded,
+deleted. Staging them in R2 instead would suit reviewing a match's cuts from a phone before
+anything is published, which is how this is actually meant to be used.
+
+Speculative until a real match has been through the pipeline, and YouTube is the archive once
+published. Noted so it is not re-derived, not queued.
+
+## 11. The intended run, per match
+
+1. Stream with **`?data=1`** — 🛑 without it there are no names and per-player reels are
+   impossible ([highlights.md](./highlights.md) §14).
+2. `qrscan.py` the recording, then `crop.py` to pick the match's framing.
+3. `reels.py` with a per-role aspect to cut one reel per player per role.
+4. **Review the cuts.** Not optional: a clip that misses its ball looks perfectly fine
+   ([highlights.md](./highlights.md) §6a).
+5. Publish the approved ones — `publish.py` for YouTube, `igpublish.py` for Instagram. Both
+   need `--confirm`; only YouTube offers private-first.
