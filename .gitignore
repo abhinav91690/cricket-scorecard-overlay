@@ -154,3 +154,7 @@ highlights/reels*/
 
 # simulated match runs
 sim/out/
+
+# Session worktrees. Each is its own git checkout, so `git add -A` commits it as an
+# embedded repo (a gitlink pointing at nothing a clone can fetch). Never tracked.
+.claude/worktrees/
