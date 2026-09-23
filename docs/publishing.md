@@ -340,40 +340,245 @@ turned a chaptered video into one with none. Caught by
 first so that holds for a real match, but a short test reel produces too few and the tool says
 so rather than pretending.
 
-## 8. Instagram: researched, not built
+## 8. Instagram Reels
 
-An Instagram path was costed and deferred. What was established:
+Same reels, second platform. The R2 half is built and verified (§8c); the Meta half needs a
+one-time app setup (§8b).
 
-- ✅ **App review is not needed** for a single-user tool. Leave the Meta app in **Development
-  mode** and give your own account the **Instagram Tester** role; review only starts when
-  publishing on behalf of accounts you do not own. ⚠ This corrects an earlier belief that
-  `instagram_business_content_publish` needed 2–4 weeks of review.
-- ⚠ The account must be **Professional**. Sources disagree on whether Creator works or it must
-  be Business — a two-minute check in the app when setting up.
-- 🛑 **There is no file upload.** Meta's servers *fetch* the video, so
-  `media_type=REELS` needs a **publicly reachable `video_url`**, then a second call to
-  `/media_publish` with the container id. Limit is 100 API posts per 24 h per account.
-- The public-URL requirement is the whole architectural cost. **Cloudflare R2** is free at this
-  scale — 10 GB-month, 1 M writes, 10 M reads, and egress is free on R2 with no tier — against
-  roughly 400 MB per match that gets deleted within minutes. A **Cloudflare Tunnel** serving a
-  local file is the zero-storage alternative, but the tunnel has to stay up until Meta's
-  container reports `FINISHED`.
+### 8a. ✅ Settled facts
 
-## 9. Use
+- **The account must be Professional** — Business *or* Creator, both work. Personal accounts
+  are excluded from the API entirely. ⚠ This resolves an earlier note here that said sources
+  disagreed: they don't, only Personal is locked out. Topguns Cricket Club is already
+  Professional.
+- ✅ **No app review.** Leave the app in **Development mode**. Review only applies to
+  publishing on behalf of accounts you do not own.
+- 🛑 **There is no file upload.** Meta *fetches* the video, so a Reel needs a reachable
+  `video_url`. That is the whole architectural cost, and it is what R2 solves.
+- **100 API posts per rolling 24 h** per account — far past a match's worth of reels.
+- ⚠ **Creator vs Business only changes the music library** (Creator gets trending audio,
+  Business is limited to the ~14,000-track commercially cleared collection). Irrelevant to
+  these reels: `cut.py` keeps the clip's own match audio and we never add a soundtrack. It
+  only matters for Reels posted by hand.
 
-```sh
-# a reel, captioned from the scan output
-.venv/bin/python publish.py reel.mp4 --target shorts \
-    --moments events.json --moment 3 --match "Topguns vs Bazzigarz — 2026 FTP20 Div-A"
+### 8b. 🛑 The app setup, and the one path that avoids a Facebook Page
 
-# the full highlights video, with cut.py's chapters in the description
-.venv/bin/python publish.py highlights.mp4 --target video \
-    --match "Topguns vs Bazzigarz — 2026 FTP20 Div-A" --chapters highlights-chapters.txt
+Meta offers two configurations, and the difference matters:
 
-# add --confirm to actually upload; add --privacy unlisted|public to change visibility
+| | Facebook Page needed? | Publishing scope |
+|---|---|---|
+| **Instagram API with Instagram Login** | **No** | `instagram_business_content_publish` |
+| Instagram API with Facebook Login for Business | **Yes** — a linked Page | `instagram_content_publish` |
+
+**Use Instagram Login.** Content publishing is supported on it, and it needs no Facebook Page
+— the club has an Instagram account, not necessarily a Page.
+
+Steps, at [developers.facebook.com](https://developers.facebook.com/apps):
+
+1. **Create app** → app type **Business**. 🛑 Not "Consumer" — the Instagram Login docs say
+   plainly that a non-Business app type has to be recreated, so picking wrong costs a rebuild.
+2. Add the **Instagram** product, and choose **API setup with Instagram login**.
+3. Under **App roles**, add the club's Instagram account as an **Instagram Tester**, then
+   accept the invitation from *inside Instagram* (Settings → Website permissions → Tester
+   invites). An unaccepted invitation looks exactly like a permissions failure later.
+4. Request the scopes `instagram_business_basic` and `instagram_business_content_publish`.
+   In Development mode these are granted without review.
+5. Generate a token from the App Dashboard. Store it with the same Keychain discipline as
+   everything else — never in the repo, never in `argv`.
+
+### 8c. ✅ The hosting half is built
+
+`r2creds.py` holds the R2 S3 credentials in the Keychain (clipboard-driven, adapted from the
+homelab script, §4a). `r2.py` uploads, presigns and deletes, with **SigV4 implemented in
+stdlib** rather than pulling in ~50 MB of botocore for three operations.
+
+Hand-rolling request signing is normally a bad idea. It is defensible here for one reason:
+**a signing bug fails loudly.** A wrong signature is a 403 — it can never produce a
+wrong-but-accepted result.
+
+`r2.py --selftest` proves the chain against the live bucket, and the selftest was itself
+checked for the ways it could pass for free:
+
+| Probe | Result |
+|---|---|
+| Is the bucket public? | **HTTP 400 unsigned** — so a successful presigned GET really is testing the signature |
+| Wrong secret | 403 |
+| Wrong access key id | 401 |
+| Presign expired 2 s ago | 403 — expiry is enforced server-side |
+| Tampered key inside the URL | 403 |
+
+⚠ **That first probe is the one that matters.** With a public bucket the presign test would
+pass with a completely broken signer.
+
+Real-size round trip, 16.7 MB: PUT 2.1 s, presigned GET 0.8 s byte-exact, `video/mp4`, exact
+content-length, DELETE 204. **A Range request returns 206** — Meta probes with partial
+requests before pulling the whole file, so that path had to work.
+
+Bucket `overlay-reels`, WNAM, **Standard** storage class — the free tier does not cover
+Infrequent Access. At ~1.1 GB per match deleted the same day, that is under 0.5% of the
+10 GB-month allowance; egress is free on R2 at every tier, which is the line item that would
+cost money anywhere else.
+
+### 8d. 🛑 The 60-day token trap, worse than YouTube's
+
+A long-lived Instagram token lasts **60 days**. It is refreshable:
+
+```
+GET https://graph.instagram.com/refresh_access_token
+    ?grant_type=ig_refresh_token&access_token=<token>
 ```
 
-`test_publish.py` covers the decision logic — the Shorts checks, the caption generation and
-YouTube's field limits — with no network and no Google libraries. The Keychain path is not unit
-tested, because a test that mutates the login Keychain is worse than no test; it was verified
-live against a throwaway service name that was deleted afterwards.
+🛑 **A token not refreshed within 60 days expires and can never be refreshed** — the whole
+OAuth has to be redone. And **using the token does not extend it**; only an explicit refresh
+does.
+
+⚠ **The off-season is the hazard.** Publishing weekly during a season keeps nobody honest,
+because use is not refresh — but a gap longer than 60 days between matches kills the token
+silently, and the next match day starts with a broken uploader. This is the same shape as the
+7-day OAuth trap in §3, with a longer fuse and a worse failure: YouTube's re-auth is a
+browser round trip, this one is the full app flow again.
+
+So the uploader should **refresh opportunistically on every run** (a token at least 24 h old
+can be refreshed) and warn when expiry is inside ~10 days.
+
+### 8e. 🛑 There is no private-first option
+
+Our entire YouTube safety model — upload private, watch it, flip to public — **has no
+Instagram equivalent**. A publish is live the moment it succeeds; the only remedy is deleting
+it afterwards.
+
+Consequences for the design: the review happens *before* the call, `--confirm` is
+load-bearing in a way it is not for YouTube, and Instagram publishing should stay
+**manual-trigger only** — never wired to fire automatically off a scan.
+
+### 8f. The publish flow — built (`igpublish.py`)
+
+Three calls, and the middle one is what write-ups omit:
+
+1. `POST /<ig-user-id>/media` — `media_type=REELS`, `video_url=<presigned>`, `caption`
+2. **`GET /<container-id>?fields=status_code` until `FINISHED`** — Meta transcodes the
+   fetched video asynchronously, and publishing an `IN_PROGRESS` container fails. Statuses
+   are `IN_PROGRESS`, `FINISHED`, `ERROR`, `EXPIRED` (unpublished for 24 h), `PUBLISHED`.
+3. `POST /<ig-user-id>/media_publish` — `creation_id`
+
+Then the R2 object is deleted in a `finally`, so a failure part-way through does not leave
+an orphan accruing storage.
+
+Host is **`graph.instagram.com`** — the Instagram Login path, not `graph.facebook.com`.
+
+#### Documented Reels limits, and how our reels compare
+
+| Spec | Limit | Ours |
+|---|---|---|
+| File size | **300 MB** | ~20–75 MB ✅ |
+| Duration | 3 s – 15 min | 6–60 s ✅ |
+| Video bitrate | 25 Mbps VBR | 10 Mbps ✅ |
+| Horizontal pixels | 1920 | 1080 ✅ |
+| Audio | 128 kbps AAC | 128 kbps ✅ |
+| Aspect | 0.01:1–10:1 required | 1:1 / 4:5 ✅ accepted |
+
+⚠ **A secondary source claimed 8 MB.** That is the **image** limit, mis-attributed — it
+appears alongside image-only specs like sRGB conversion. Meta's own `ig-user/media`
+reference says 300 MB for Reels video. Worth recording because an 8 MB ceiling would have
+forced re-encoding every reel for nothing. Third time this project has been misled by a
+secondary source on a size limit.
+
+⚠ **9:16 is recommended, and may decide Reels-tab placement.** Meta says 9:16 avoids
+"cropping or blank space". Secondary sources go further and claim only ~9:16 clips reach
+the Reels *tab*, others landing in the feed as an ordinary video post — Meta's reference
+does not say that, so `reel_notes()` warns rather than refuses. If Reels-tab placement
+matters, `reels.py --aspect-bat 9:16` exists; the trade-off is that 9:16 cannot hold both
+batting ends (§13a in [highlights.md](./highlights.md)), so it is a per-platform choice.
+
+`reel_problems()` refuses before uploading, so a bad file costs nothing. Verified it can
+actually refuse: a 2 s clip → "under Instagram's 3s minimum"; a 3000×400 file → "exceeds
+the 1920 horizontal-pixel maximum"; the real 9:16 reel → accepted.
+
+⚠ `reels.py` writes `#Shorts` for YouTube discovery, which means nothing on Instagram.
+`caption_from()` swaps it for `#Reels` rather than maintaining two near-identical sidecars.
+
+🛑 **Ask Instagram for the permalink; never build one.** A reel's URL uses a **shortcode**,
+not the numeric media id, so `instagram.com/reel/<media_id>/` 404s — and it does so exactly
+when the link is needed most, to go and delete a post. `GET /<media-id>?fields=permalink`
+returns the real one.
+
+### 8g. ✅ Verified live
+
+Published a 14 s 9:16 clip cut from the reference match to @topgunscricketclub on
+23 Sep 2026, then deleted it:
+
+```
+uploading to R2 … ok
+creating the Reels container … ok
+waiting for Meta to transcode:
+    IN_PROGRESS
+    FINISHED
+publishing … ok
+removing from R2 … HTTP 204
+```
+
+`media_product_type: REELS`, so it landed as a Reel rather than a feed video. R2 held **0
+objects** afterwards — the `finally` cleanup works. The transcode took one poll interval,
+well inside the 5-minute budget.
+
+✅ **Re-cut properly and republished**, this time through `cut.segments()` from the computed
+card time (3818 s, window 3798–3824). Verified *before* publishing by reading the burnt-in
+scorebar at each end of the clip — 80/2 at 9 ov going in, 86/2 at 9.1 ov coming out, so the six
+is provably inside. That technique is now [highlights.md](./highlights.md) §6a.
+
+⚠ **The first attempt: the publish worked; the clip was wrong.** It showed the batter waiting and never the six,
+because the test clip was cut with raw `ffmpeg -ss` instead of through `cut.segments()`, and
+from a mis-converted timestamp. The window ended 9 s before the ball. Nothing to do with
+Instagram — see [highlights.md](./highlights.md) §6, now a 🛑 tripwire. Worth recording here
+because "the upload succeeded" and "the reel is any good" are separate claims, and only the
+first was verified by this run.
+
+## 10. 🛑 Why YouTube does not go through R2, and must not be made to
+
+The two APIs move bytes in opposite directions:
+
+| | |
+|---|---|
+| **Instagram** | Meta **fetches** from a URL you supply — `video_url` on the container |
+| **YouTube** | you **push** the bytes; `videos.insert` takes a resumable media body and has **no URL parameter at all** |
+
+So R2 cannot serve YouTube. ⚠ **R2 is not a feature of this pipeline — it is a workaround for
+Instagram's refusal to accept an upload.** YouTube already does natively what R2 exists to
+compensate for, which is why `publish.py` uploads straight from disk while `igpublish.py`
+goes via a presigned URL. That asymmetry is the platforms', not ours, and it is not a
+consistency bug to be fixed.
+
+### 10a. ❌ Do not move the YouTube upload into a Worker to save the double upload
+
+Posting one reel to both platforms uploads it twice from the machine — roughly 2 GB per match
+instead of 1 GB. The only way to avoid that is to put the reel in R2 once and have a
+Cloudflare Worker with the R2 binding push it to YouTube. Rejected:
+
+- 🛑 It moves the **YouTube refresh token into Cloudflare**, widening where a long-lived
+  credential lives, for no functional gain. Everything else in this repo keeps secrets in the
+  macOS Keychain.
+- Workers are a poor fit for streaming a 75 MB resumable upload, and the analytics Worker's
+  deploy is **manual by decision** (`analytics.md` §4) — so this would mean a second Worker to
+  maintain.
+- It buys about ten minutes of upload time per match.
+
+### 10b. Parked: R2 as a review staging area
+
+The free tier is 10 GB-month and a match is ~1.1 GB, so R2 could hold roughly **nine matches'
+reels**. Today a reel exists only on the Mac and then on the platforms — cut, uploaded,
+deleted. Staging them in R2 instead would suit reviewing a match's cuts from a phone before
+anything is published, which is how this is actually meant to be used.
+
+Speculative until a real match has been through the pipeline, and YouTube is the archive once
+published. Noted so it is not re-derived, not queued.
+
+## 11. The intended run, per match
+
+1. Stream with **`?data=1`** — 🛑 without it there are no names and per-player reels are
+   impossible ([highlights.md](./highlights.md) §14).
+2. `qrscan.py` the recording, then `crop.py` to pick the match's framing.
+3. `reels.py` with a per-role aspect to cut one reel per player per role.
+4. **Review the cuts.** Not optional: a clip that misses its ball looks perfectly fine
+   ([highlights.md](./highlights.md) §6a).
+5. Publish the approved ones — `publish.py` for YouTube, `igpublish.py` for Instagram. Both
+   need `--confirm`; only YouTube offers private-first.

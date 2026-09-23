@@ -128,6 +128,14 @@ like the clickable unverified-app warning. → `publishing.md` §3a
 days.** An unattended uploader works for a week and then silently stops. Set it to "In
 Production". → `publishing.md` §3
 
+🛑 **An Instagram long-lived token dies at 60 days and then cannot be refreshed at all** —
+and *using* it does not extend it, only an explicit refresh does. An off-season gap longer
+than 60 days silently kills the uploader. → `publishing.md` §8d
+
+🛑 **Instagram has no private-first option.** The YouTube safety model — upload private, watch,
+flip public — has no equivalent; a publish is live on success. Keep it manual-trigger only.
+→ `publishing.md` §8e
+
 ⚠ **A landscape file uploaded as a "Short" produces no error** — it lands as an ordinary video
 and the only way to notice is to look. → `publishing.md` §6
 
@@ -137,6 +145,10 @@ not that the network is broken. Homebrew is unusable through the same proxy. →
 ⚠ **A phone cannot load `localhost` or anything behind a login.** Use a Netlify deploy preview
 (`deploy-preview-<N>--score-overlay.netlify.app`) or `npm run dev -- --host 0.0.0.0`. →
 `deployment.md` §2
+
+🛑 **Never cut a clip with raw ffmpeg — go through `cut.segments()`.** The `WINDOWS` are the
+only thing that knows the scorer's graphic lags the ball (a six by ~5 s, a wicket by ~35 s), so
+a hand-rolled `-ss` produces a clip of the batter waiting. → `highlights.md` §6
 
 ⚠ **Run `sim/` after any change to `views.ts`, `cards.ts`, `events.ts` or `app.ts`** — unit tests
 did not catch the three bugs it found on its first runs. 🛑 It exists only on

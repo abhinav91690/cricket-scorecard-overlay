@@ -122,6 +122,43 @@ because a dismissal has more fields to fill in. Widen these if your scorer is sl
 `cut.py` re-encodes to 1080p with `h264_videotoolbox`, concatenates, and writes a chapter list
 next to the reel.
 
+🛑 **Never hand-roll a clip with raw ffmpeg — always go through `segments()`.** These windows
+are the only thing that knows the graphic lags the action, and bypassing them produces a clip
+of the *wait* rather than the shot. Demonstrated on 23 Sep 2026: a test reel cut with
+`ffmpeg -ss 3790 -t 14` showed the batter standing still and nothing else, because the window
+ended 9 s before the ball was bowled. `segments()` would have given 3798–3824 and caught it.
+
+⚠ **Convert `mm:ss` arithmetically, not by eye.** The same test had 63:38 entered as 3808 s
+instead of 3818, and 66:34 as 3962 instead of 3994 — two of three timestamps wrong, each error
+silently shifting the window earlier. Combined with hand-rolling the cut, the clip missed
+twice over.
+
+### 6a. ✅ The overlay is its own witness: verify a clip before publishing it
+
+🛑 **"The cut succeeded" and "the shot is in the clip" are separate claims.** A clip that
+misses the ball looks perfectly fine — right length, right crop, real cricket, no error
+anywhere. Extracting one mid-clip frame proves only that the video is not black.
+
+Because the scorebar is **burnt into the footage**, the clip carries the evidence. Read the
+score at each end:
+
+| | |
+|---|---|
+| start of clip | `TOPGUNS 80/2 · 9 ov · CRR 8.89` |
+| end of clip | `TOPGUNS 86/2 · 9.1 ov · CRR 9.38` |
+
+Six runs on one ball, so the six is inside the window. Objective, and it takes two frames:
+
+```sh
+ffmpeg -ss 1      -i reel.mp4 -frames:v 1 -vf "crop=iw:220:0:ih-220" start.png
+ffmpeg -ss <dur-1> -i reel.mp4 -frames:v 1 -vf "crop=iw:220:0:ih-220" end.png
+```
+
+⚠ **Worth automating for `?data=1` recordings.** `qrscan.py` already decodes the payload from
+frames, so running it over a *finished clip* would read the before-and-after state directly and
+assert the expected delta — a boundary adds 4 or 6, a wicket moves the wicket count. That turns
+"did the cut work" from a human eyeball into a check. Not built; see §12.
+
 ## 7. Lessons that cost the most
 
 ### 7a. 🛑 Detection being right is not the same as the timestamp being right
@@ -290,7 +327,11 @@ stumps.
 
 ❌ **Motion-based auto-crop was tried and does not work.** A per-column temporal
 standard-deviation map per clip — the technique `find_bar()` uses to locate the overlay (§3) —
-put the peak at 81.6%, 39.2% and 75.8% on those three events. None is the batter: across a
+put the peak at 81.6%, 39.2% and 75.8% on those three events. ⚠ Those three figures are
+**doubly unreliable**: the windows they were measured over used the mis-converted timestamps
+above, so they did not even cover the deliveries. The conclusion stands anyway, because it
+rests on the frame *geometry* — a side-on pitch spanning 36%–73% of the width, read off real
+frames — and not on the peaks. None is the batter: across a
 20-second window the bowler's run-up and the fielders chasing outweigh a shot lasting a fraction
 of a second. It found the bowler's end on one clip and the striker's on another. Recorded so it
 is not re-attempted.
@@ -381,6 +422,11 @@ exercise for the first time: several players, both innings, real names, and `qrs
 ## 12. Open work
 
 - ~~Per-player vertical reels~~ — **built**, see §13.
+- **Assert the cut, don't eyeball it.** §6a verifies a clip by reading the burnt-in scorebar
+  at each end. For a `?data=1` recording this could be mechanical: scan the finished clip with
+  `qrscan.py` and assert the payload delta matches the event the clip claims to be — +4 or +6
+  for a boundary, a wicket count that moves. A clip that misses its ball would then fail loudly
+  instead of looking fine.
 - **A committed regression fixture.** The geometry in [data-code.md](./data-code.md) §1 sits
   deliberately at the edge of what the pipeline supports, which is exactly the kind of constant
   someone shaves without re-measuring. A fixture can run without any committed video: ffmpeg
@@ -388,7 +434,9 @@ exercise for the first time: several players, both innings, real names, and `qrs
   geometry, encoded at 14.65 Mb/s and decoded byte-exact — demonstrated working in about 9
   seconds for a 5-second clip. Noise is *harsher* than grass, since it is maximally expensive
   to encode, so it errs safe.
-- **Instagram publishing.** Researched and deferred — see [publishing.md](./publishing.md) §8.
+- **Instagram publishing.** The hosting half is built and verified (R2 upload, presigned
+  URLs, delete — [publishing.md](./publishing.md) §8c). What remains is the Meta app setup
+  (§8b) and the three-call publish (§8f).
   ✅ App review turns out **not** to be needed for a single-user tool, which removes the 2–4 week
   blocker previously recorded here. The real cost is that Meta fetches the file, so it needs a
   publicly reachable URL.
