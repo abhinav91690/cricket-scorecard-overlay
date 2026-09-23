@@ -128,6 +128,14 @@ like the clickable unverified-app warning. → `publishing.md` §3a
 days.** An unattended uploader works for a week and then silently stops. Set it to "In
 Production". → `publishing.md` §3
 
+🛑 **An Instagram long-lived token dies at 60 days and then cannot be refreshed at all** —
+and *using* it does not extend it, only an explicit refresh does. An off-season gap longer
+than 60 days silently kills the uploader. → `publishing.md` §8d
+
+🛑 **Instagram has no private-first option.** The YouTube safety model — upload private, watch,
+flip public — has no equivalent; a publish is live on success. Keep it manual-trigger only.
+→ `publishing.md` §8e
+
 ⚠ **A landscape file uploaded as a "Short" produces no error** — it lands as an ordinary video
 and the only way to notice is to look. → `publishing.md` §6
 

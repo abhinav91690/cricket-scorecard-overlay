@@ -1,5 +1,48 @@
 # Update Log
 
+## 2026-09-22
+
+### Instagram: the hosting half is built, and §8 rewritten from measurements
+
+R2 bucket `overlay-reels` created (WNAM, Standard — the free tier does not cover Infrequent
+Access). `r2creds.py` holds the S3 credentials in the Keychain, clipboard-driven, adapted from
+the homelab script. `r2.py` uploads, presigns and deletes with **SigV4 written in stdlib**.
+
+🛑 Hand-rolling request signing is normally wrong. The reason it is defensible here is that
+**a signing bug fails loudly** — a wrong signature is a 403, never a wrong-but-accepted
+result. That is the inverse of the failure class this repo keeps hitting. boto3 was rejected
+on three grounds: ~50 MB of botocore for three operations, a `requirements.txt` that justifies
+every line, and a venv in the main checkout that other sessions share.
+
+⚠ **The selftest was checked for the ways it could pass for free**, not just run. The decisive
+probe: an unsigned GET of the object returns **HTTP 400**, so the bucket is not public — which
+is what makes a successful presigned GET evidence of anything. With a public bucket the test
+would pass with a completely broken signer. Wrong secret → 403, wrong key id → 401, presign
+expired 2 s ago → 403, tampered key → 403.
+
+Real-size round trip, 16.7 MB: PUT 2.1 s, presigned GET 0.8 s byte-exact, `video/mp4`, exact
+length, DELETE 204. **Range request → 206**, which had to work because Meta probes with
+partial requests before pulling the file.
+
+### Corrections to what §8 previously claimed
+
+- **"Sources disagree on whether Creator works or it must be Business"** — they don't. Both
+  work; only Personal accounts are excluded. The club account is already Professional.
+- **A Facebook Page is not required.** Meta has two configurations and only *Facebook Login
+  for Business* needs a linked Page. **Instagram API with Instagram Login** supports content
+  publishing with no Page, scope `instagram_business_content_publish`.
+- The app must be created as type **Business** — the docs state a non-Business app has to be
+  recreated, so choosing wrong costs a rebuild.
+
+### 🛑 Two new tripwires
+
+- **A long-lived Instagram token dies at 60 days and then cannot be refreshed at all.** Using
+  it does not extend it; only an explicit `refresh_access_token` call does. The off-season is
+  the hazard — a gap over 60 days kills it silently and costs the whole app flow again, where
+  YouTube's equivalent trap only costs a browser round trip.
+- **Instagram has no private-first option.** The YouTube model of upload-private-then-flip has
+  no equivalent, so `--confirm` is load-bearing and publishing stays manual-trigger only.
+
 ## 2026-09-21
 
 ### The reel crop is left open — no default shape at all

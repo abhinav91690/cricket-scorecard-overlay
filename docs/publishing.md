@@ -340,24 +340,129 @@ turned a chaptered video into one with none. Caught by
 first so that holds for a real match, but a short test reel produces too few and the tool says
 so rather than pretending.
 
-## 8. Instagram: researched, not built
+## 8. Instagram Reels
 
-An Instagram path was costed and deferred. What was established:
+Same reels, second platform. The R2 half is built and verified (§8c); the Meta half needs a
+one-time app setup (§8b).
 
-- ✅ **App review is not needed** for a single-user tool. Leave the Meta app in **Development
-  mode** and give your own account the **Instagram Tester** role; review only starts when
-  publishing on behalf of accounts you do not own. ⚠ This corrects an earlier belief that
-  `instagram_business_content_publish` needed 2–4 weeks of review.
-- ⚠ The account must be **Professional**. Sources disagree on whether Creator works or it must
-  be Business — a two-minute check in the app when setting up.
-- 🛑 **There is no file upload.** Meta's servers *fetch* the video, so
-  `media_type=REELS` needs a **publicly reachable `video_url`**, then a second call to
-  `/media_publish` with the container id. Limit is 100 API posts per 24 h per account.
-- The public-URL requirement is the whole architectural cost. **Cloudflare R2** is free at this
-  scale — 10 GB-month, 1 M writes, 10 M reads, and egress is free on R2 with no tier — against
-  roughly 400 MB per match that gets deleted within minutes. A **Cloudflare Tunnel** serving a
-  local file is the zero-storage alternative, but the tunnel has to stay up until Meta's
-  container reports `FINISHED`.
+### 8a. ✅ Settled facts
+
+- **The account must be Professional** — Business *or* Creator, both work. Personal accounts
+  are excluded from the API entirely. ⚠ This resolves an earlier note here that said sources
+  disagreed: they don't, only Personal is locked out. Topguns Cricket Club is already
+  Professional.
+- ✅ **No app review.** Leave the app in **Development mode**. Review only applies to
+  publishing on behalf of accounts you do not own.
+- 🛑 **There is no file upload.** Meta *fetches* the video, so a Reel needs a reachable
+  `video_url`. That is the whole architectural cost, and it is what R2 solves.
+- **100 API posts per rolling 24 h** per account — far past a match's worth of reels.
+- ⚠ **Creator vs Business only changes the music library** (Creator gets trending audio,
+  Business is limited to the ~14,000-track commercially cleared collection). Irrelevant to
+  these reels: `cut.py` keeps the clip's own match audio and we never add a soundtrack. It
+  only matters for Reels posted by hand.
+
+### 8b. 🛑 The app setup, and the one path that avoids a Facebook Page
+
+Meta offers two configurations, and the difference matters:
+
+| | Facebook Page needed? | Publishing scope |
+|---|---|---|
+| **Instagram API with Instagram Login** | **No** | `instagram_business_content_publish` |
+| Instagram API with Facebook Login for Business | **Yes** — a linked Page | `instagram_content_publish` |
+
+**Use Instagram Login.** Content publishing is supported on it, and it needs no Facebook Page
+— the club has an Instagram account, not necessarily a Page.
+
+Steps, at [developers.facebook.com](https://developers.facebook.com/apps):
+
+1. **Create app** → app type **Business**. 🛑 Not "Consumer" — the Instagram Login docs say
+   plainly that a non-Business app type has to be recreated, so picking wrong costs a rebuild.
+2. Add the **Instagram** product, and choose **API setup with Instagram login**.
+3. Under **App roles**, add the club's Instagram account as an **Instagram Tester**, then
+   accept the invitation from *inside Instagram* (Settings → Website permissions → Tester
+   invites). An unaccepted invitation looks exactly like a permissions failure later.
+4. Request the scopes `instagram_business_basic` and `instagram_business_content_publish`.
+   In Development mode these are granted without review.
+5. Generate a token from the App Dashboard. Store it with the same Keychain discipline as
+   everything else — never in the repo, never in `argv`.
+
+### 8c. ✅ The hosting half is built
+
+`r2creds.py` holds the R2 S3 credentials in the Keychain (clipboard-driven, adapted from the
+homelab script, §4a). `r2.py` uploads, presigns and deletes, with **SigV4 implemented in
+stdlib** rather than pulling in ~50 MB of botocore for three operations.
+
+Hand-rolling request signing is normally a bad idea. It is defensible here for one reason:
+**a signing bug fails loudly.** A wrong signature is a 403 — it can never produce a
+wrong-but-accepted result.
+
+`r2.py --selftest` proves the chain against the live bucket, and the selftest was itself
+checked for the ways it could pass for free:
+
+| Probe | Result |
+|---|---|
+| Is the bucket public? | **HTTP 400 unsigned** — so a successful presigned GET really is testing the signature |
+| Wrong secret | 403 |
+| Wrong access key id | 401 |
+| Presign expired 2 s ago | 403 — expiry is enforced server-side |
+| Tampered key inside the URL | 403 |
+
+⚠ **That first probe is the one that matters.** With a public bucket the presign test would
+pass with a completely broken signer.
+
+Real-size round trip, 16.7 MB: PUT 2.1 s, presigned GET 0.8 s byte-exact, `video/mp4`, exact
+content-length, DELETE 204. **A Range request returns 206** — Meta probes with partial
+requests before pulling the whole file, so that path had to work.
+
+Bucket `overlay-reels`, WNAM, **Standard** storage class — the free tier does not cover
+Infrequent Access. At ~1.1 GB per match deleted the same day, that is under 0.5% of the
+10 GB-month allowance; egress is free on R2 at every tier, which is the line item that would
+cost money anywhere else.
+
+### 8d. 🛑 The 60-day token trap, worse than YouTube's
+
+A long-lived Instagram token lasts **60 days**. It is refreshable:
+
+```
+GET https://graph.instagram.com/refresh_access_token
+    ?grant_type=ig_refresh_token&access_token=<token>
+```
+
+🛑 **A token not refreshed within 60 days expires and can never be refreshed** — the whole
+OAuth has to be redone. And **using the token does not extend it**; only an explicit refresh
+does.
+
+⚠ **The off-season is the hazard.** Publishing weekly during a season keeps nobody honest,
+because use is not refresh — but a gap longer than 60 days between matches kills the token
+silently, and the next match day starts with a broken uploader. This is the same shape as the
+7-day OAuth trap in §3, with a longer fuse and a worse failure: YouTube's re-auth is a
+browser round trip, this one is the full app flow again.
+
+So the uploader should **refresh opportunistically on every run** (a token at least 24 h old
+can be refreshed) and warn when expiry is inside ~10 days.
+
+### 8e. 🛑 There is no private-first option
+
+Our entire YouTube safety model — upload private, watch it, flip to public — **has no
+Instagram equivalent**. A publish is live the moment it succeeds; the only remedy is deleting
+it afterwards.
+
+Consequences for the design: the review happens *before* the call, `--confirm` is
+load-bearing in a way it is not for YouTube, and Instagram publishing should stay
+**manual-trigger only** — never wired to fire automatically off a scan.
+
+### 8f. The publish flow
+
+Three calls, not two:
+
+1. `POST /<ig-user-id>/media` with `media_type=REELS`, `video_url=<presigned>`, `caption`
+2. **Poll `GET /<container-id>?fields=status_code` until `FINISHED`** — Meta transcodes
+   asynchronously, and publishing a container that is still `IN_PROGRESS` fails. This is the
+   step most write-ups omit.
+3. `POST /<ig-user-id>/media_publish` with `creation_id=<container-id>`
+
+Then delete the object from R2. The presigned URL should outlive the transcode — an hour is
+the default in `r2.py`, against a transcode measured in minutes.
 
 ## 9. Use
 

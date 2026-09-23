@@ -388,7 +388,9 @@ exercise for the first time: several players, both innings, real names, and `qrs
   geometry, encoded at 14.65 Mb/s and decoded byte-exact — demonstrated working in about 9
   seconds for a 5-second clip. Noise is *harsher* than grass, since it is maximally expensive
   to encode, so it errs safe.
-- **Instagram publishing.** Researched and deferred — see [publishing.md](./publishing.md) §8.
+- **Instagram publishing.** The hosting half is built and verified (R2 upload, presigned
+  URLs, delete — [publishing.md](./publishing.md) §8c). What remains is the Meta app setup
+  (§8b) and the three-call publish (§8f).
   ✅ App review turns out **not** to be needed for a single-user tool, which removes the 2–4 week
   blocker previously recorded here. The real cost is that Meta fetches the file, so it needs a
   publicly reachable URL.
