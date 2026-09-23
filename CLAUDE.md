@@ -146,6 +146,10 @@ not that the network is broken. Homebrew is unusable through the same proxy. →
 (`deploy-preview-<N>--score-overlay.netlify.app`) or `npm run dev -- --host 0.0.0.0`. →
 `deployment.md` §2
 
+🛑 **Never cut a clip with raw ffmpeg — go through `cut.segments()`.** The `WINDOWS` are the
+only thing that knows the scorer's graphic lags the ball (a six by ~5 s, a wicket by ~35 s), so
+a hand-rolled `-ss` produces a clip of the batter waiting. → `highlights.md` §6
+
 ⚠ **Run `sim/` after any change to `views.ts`, `cards.ts`, `events.ts` or `app.ts`** — unit tests
 did not catch the three bugs it found on its first runs. 🛑 It exists only on
 `feature/cricclubs-views`, so it cannot be run from `main`. → `overlay.md` §13

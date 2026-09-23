@@ -521,3 +521,10 @@ removing from R2 … HTTP 204
 objects** afterwards — the `finally` cleanup works. The transcode took one poll interval,
 well inside the 5-minute budget.
 
+⚠ **The publish worked; the clip was wrong.** It showed the batter waiting and never the six,
+because the test clip was cut with raw `ffmpeg -ss` instead of through `cut.segments()`, and
+from a mis-converted timestamp. The window ended 9 s before the ball. Nothing to do with
+Instagram — see [highlights.md](./highlights.md) §6, now a 🛑 tripwire. Worth recording here
+because "the upload succeeded" and "the reel is any good" are separate claims, and only the
+first was verified by this run.
+
