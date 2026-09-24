@@ -326,6 +326,47 @@ describe('pollLoop', () => {
         await vi.advanceTimersByTimeAsync(CONFIG.REFRESH_RATE);
         expect(fetchScoreData).toHaveBeenCalledTimes(4);
     });
+
+    // Delays pollLoop re-armed itself with, in order.
+    const delays = (spy: { mock: { calls: unknown[][] } }) => spy.mock.calls.filter(c => c[0] === pollLoop).map(c => c[1] as number);
+
+    it('reads again almost at once after a peek, so CricClubs\' overlay is not left on the data view', async () => {
+        // A switch applies in under half a second (measured, cricclubs-api.md §2). Waiting the full
+        // refresh before reading it left CricClubs' own overlay on the squad or card view for ~5 s.
+        setSearch('?matchId=2079&clubId=1089463');
+        const pre = { view: 1, values: { t1Name: 'Lions', t2Name: 'TGU', batsman1Name: 'A', isSecondInningsStarted: 'false', t1Overs: '0.0' }, balls: [] } as any;
+        vi.mocked(fetchScoreData).mockResolvedValueOnce(pre).mockResolvedValueOnce(mock_view_48 as any).mockResolvedValue(pre);
+        const spy = vi.spyOn(globalThis, 'setTimeout');
+        await pollLoop();                                            // live frame: asks for 48
+        expect(switchView).toHaveBeenLastCalledWith('1089463', '2079', 48, 'https://cricclubs.com');
+        expect(delays(spy).at(-1)).toBe(CONFIG.PEEK_FOLLOW_MS);
+        await vi.advanceTimersByTimeAsync(CONFIG.PEEK_FOLLOW_MS);    // reads the squad, asks for home
+        expect(fetchScoreData).toHaveBeenCalledTimes(2);
+        expect(switchView).toHaveBeenLastCalledWith('1089463', '2079', 1, 'https://cricclubs.com');
+        expect(delays(spy).at(-1)).toBe(CONFIG.PEEK_FOLLOW_MS);
+    });
+
+    it('keeps the normal cadence when no switch was asked for', async () => {
+        setSearch('?matchId=1');
+        vi.mocked(fetchScoreData).mockResolvedValue(live);
+        const spy = vi.spyOn(globalThis, 'setTimeout');
+        await pollLoop();
+        await vi.advanceTimersByTimeAsync(CONFIG.REFRESH_RATE);
+        expect(delays(spy)).toEqual([CONFIG.REFRESH_RATE, CONFIG.REFRESH_RATE]);
+    });
+
+    it('falls back to the normal cadence if CricClubs never comes home', async () => {
+        // 🛑 Coming home is not attempt-limited, so a feed stuck on a data view would otherwise
+        // fast-poll forever. Past the cap it behaves exactly as it did before this change.
+        setSearch('?matchId=2079&clubId=1089463');
+        vi.mocked(fetchScoreData).mockResolvedValue(mock_view_48 as any);
+        const spy = vi.spyOn(globalThis, 'setTimeout');
+        await pollLoop();
+        for (let i = 0; i < 11; i++) await vi.advanceTimersByTimeAsync(delays(spy).at(-1)!);
+        const d = delays(spy);
+        expect(d.slice(0, CONFIG.MAX_FAST_POLLS)).toEqual(Array(CONFIG.MAX_FAST_POLLS).fill(CONFIG.PEEK_FOLLOW_MS));
+        expect(d.slice(CONFIG.MAX_FAST_POLLS)).toEqual(Array(d.length - CONFIG.MAX_FAST_POLLS).fill(CONFIG.REFRESH_RATE));
+    });
 });
 
 describe('setupLinkStreamForm', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { fetchScoreData } from './api';
+import { fetchScoreData, switchView } from './api';
 
 describe('fetchScoreData', () => {
     afterEach(() => vi.unstubAllGlobals());
@@ -20,5 +20,36 @@ describe('fetchScoreData', () => {
     it('propagates network failures', async () => {
         vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch'); }));
         await expect(fetchScoreData('https://cricclubs.com/x')).rejects.toThrow('Failed to fetch');
+    });
+});
+
+describe('switchView', () => {
+    afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
+    const URL = 'https://cricclubs.com/matchOverlayConfig.do?clubId=1089463&matchId=4631&viewId=48';
+
+    it('resolves once CricClubs has answered, so the caller can read the view straight after', async () => {
+        let answer!: () => void;
+        vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(r => { answer = () => r(new Response('success')); })));
+        let done = false;
+        const p = switchView('1089463', '4631', 48).then(() => { done = true; });
+        await Promise.resolve();
+        expect(done).toBe(false);                    // still waiting on the answer
+        answer(); await p;
+        expect(done).toBe(true);
+        expect(fetch).toHaveBeenCalledWith(URL, expect.objectContaining({ keepalive: true }));
+    });
+
+    it('never rejects: a failed switch only means the next read has less data', async () => {
+        vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('network down'); }));
+        await expect(switchView('1089463', '4631', 48)).resolves.toBeUndefined();
+    });
+
+    it('gives up waiting after a ceiling, so a hung request cannot stall the poll loop', async () => {
+        vi.useFakeTimers();
+        vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => { /* never answers */ })));
+        let done = false;
+        switchView('1089463', '4631', 48).then(() => { done = true; });
+        await vi.advanceTimersByTimeAsync(3000);
+        expect(done).toBe(true);
     });
 });

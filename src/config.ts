@@ -4,6 +4,14 @@ import perryHomesLogo from './assets/images/PerryHomes.png';
 
 export const CONFIG: Config = {
     REFRESH_RATE: 5000,
+    // A view switch applies in under half a second (measured, docs/cricclubs-api.md §2), so after
+    // one the overlay reads again almost at once instead of leaving CricClubs' own overlay on the
+    // data view for a whole refresh.
+    PEEK_FOLLOW_MS: 300,
+    // A normal phase needs 4 fast reads (peek, home, peek, home); retries and a late start need
+    // up to 8. Past that the feed is stuck, and the normal cadence takes over.
+    MAX_FAST_POLLS: 8,
+    SWITCH_TIMEOUT_MS: 3000,
     DEFAULT_CLUB_ID: '1089463', // LPCL
     // Imported so Vite copies and hashes the files into dist/ and resolves the
     // URL relative to the deployed base (a plain '../assets/...' path 404s on

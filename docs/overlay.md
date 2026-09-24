@@ -353,6 +353,16 @@ yielded blocked every view after it. A failed team 1 squad meant team 2's was ne
 the line-up went on air with *both* XIs empty. It now takes the set of views that have used their
 tries and moves past them. The simulator cannot catch this: every peek it serves succeeds first time.
 
+✅ **After a switch the overlay reads again almost at once.** `switchView()` resolves when CricClubs
+answers (with a `SWITCH_TIMEOUT_MS` ceiling, never rejecting), and a poll that asked for a switch is
+followed by one `PEEK_FOLLOW_MS` (300 ms) later instead of a full refresh. Measured on match 4631,
+CricClubs' own overlay sat on the data view for **1.47 s per peek instead of 6.16 s** — about 9 s a
+match instead of 37 — and the 300 ms read still collected the squad. It is the same single timeout
+chain, so polls never overlap. 🛑 Coming home is not attempt-limited, so `MAX_FAST_POLLS`
+consecutive fast reads fall back to the normal cadence; without the cap a feed stuck on a data view
+would fast-poll forever. ⚠ The simulator already polls every 250 ms, below the follow-up, so it
+cannot show this gain — the unit tests pin it instead.
+
 ✅ **A view switch applies within one poll — measured.** On finished match 4631 (2026-09-24), four
 switches (1→48, back, 1→2, back) had each taken effect by the *first* read, 0.37–0.41 s after the
 request; that figure is the read's own round trip, so the switch itself is at least that fast.

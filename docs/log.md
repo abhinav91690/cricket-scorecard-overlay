@@ -2,6 +2,17 @@
 
 ## 2026-09-24
 
+### The overlay reads straight after a view switch, not a whole refresh later
+
+With switches applying in under half a second, waiting the full 5 s refresh before reading a
+peeked view was pure cost: CricClubs' own overlay sat on the squad or scorecard view for that whole
+time. `switchView()` now resolves when CricClubs answers, and the next poll follows 300 ms later.
+Measured on 4631: **1.47 s** on the data view per peek instead of **6.16 s**, about 9 s a match
+instead of 37, and the early read still collected the squad. [overlay.md](./overlay.md) §14.
+
+🛑 Coming home is not attempt-limited, so the fast follow-up is capped at `MAX_FAST_POLLS` in a row
+before falling back to the old cadence. The test for that was checked by removing the cap.
+
 ### ✅ View-switch latency, measured: under half a second
 
 The peek design assumed CricClubs applies a view switch by the next poll, and nobody had checked.

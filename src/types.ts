@@ -450,6 +450,12 @@ export interface CricketAPIData {
 export interface Config {
     /** Refresh rate for polling the API (in milliseconds) */
     REFRESH_RATE: number;
+    /** Delay before reading again after a view switch; a switch applies in under half a second. */
+    PEEK_FOLLOW_MS: number;
+    /** Consecutive fast reads allowed before falling back to REFRESH_RATE (a feed stuck on a data view). */
+    MAX_FAST_POLLS: number;
+    /** Longest the poll loop waits for CricClubs to answer a view switch. */
+    SWITCH_TIMEOUT_MS: number;
     /** Default CricClubs club ID */
     DEFAULT_CLUB_ID: string;
     /** Map of team names/codes to logo URLs */

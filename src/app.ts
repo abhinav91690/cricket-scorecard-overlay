@@ -33,6 +33,10 @@ let viewCache: ViewCache = {};
 let peekAttempts: Record<number, number> = {};
 const PEEK_ATTEMPTS = 3;
 /** Views that have used all their tries. Skipped rather than retried, so they cannot block the views after them. */
+/** Set when a poll asked CricClubs to switch view, so the next read comes almost at once. */
+let peekFollowUp = false;
+/** Fast reads in a row; capped so a feed stuck on a data view cannot fast-poll forever. */
+let fastPolls = 0;
 const gaveUp = () => new Set(Object.entries(peekAttempts).filter(([, n]) => n >= PEEK_ATTEMPTS).map(([v]) => Number(v)));
 
 /** Test hook: forget replay position, last frame and whether a frame has rendered. */
@@ -43,6 +47,8 @@ export function resetAppStateForTests() {
     sampleCardShown = false;
     viewCache = {};
     peekAttempts = {};
+    peekFollowUp = false;
+    fastPolls = 0;
     resetDataQrForTests();
 }
 
@@ -99,14 +105,17 @@ function samplePanel(type: string): PanelEvent | null {
 }
 
 /** Ask CricClubs for the next view we want, if any (live matches only). */
-function steerView(data: CricketAPIData, clubId: string, matchId: string) {
+/** Asks for the next view the phase needs; true when it asked, so the caller reads again soon. */
+async function steerView(data: CricketAPIData, clubId: string, matchId: string): Promise<boolean> {
     const want = desiredView(data, isFullFrame(data) ? matchPhase(data) : (lastData ? matchPhase(lastData) : 'play'), viewCache, gaveUp());
     if (want !== null && want !== (data.view ?? 1)) {
         // desiredView() never returns a view that has used its tries, so this cannot run away.
         if (want !== 1) peekAttempts[want] = (peekAttempts[want] ?? 0) + 1;
         e2eLog('switch', { from: data.view ?? 1, to: want });
-        switchView(clubId, matchId, want, apiBase());
+        await switchView(clubId, matchId, want, apiBase());
+        return true;
     }
+    return false;
 }
 
 /**
@@ -236,7 +245,7 @@ export async function updateScore() {
 
         if (isFullFrame(data)) await updateTeamLogos(data);
         renderFrame(data, params.quiet, params.data);
-        if (!params.debug) steerView(data, params.clubId, params.matchId!);
+        if (!params.debug) peekFollowUp = await steerView(data, params.clubId, params.matchId!);
         hasRenderedScore = true;
 
     } catch (error) {
@@ -261,5 +270,20 @@ export async function pollLoop() {
     } catch (error) {
         console.error('Unexpected error in update loop:', error);
     }
-    setTimeout(pollLoop, refreshMs());
+    setTimeout(pollLoop, nextDelay());
+}
+
+/**
+ * The normal refresh, or a short one straight after a view switch. A switch applies in under half a
+ * second, so reading at once keeps CricClubs' own overlay on the data view for about a second per
+ * peek instead of a whole refresh. Still one timeout chain, so polls never overlap.
+ */
+function nextDelay(): number {
+    const normal = refreshMs();
+    if (!peekFollowUp) { fastPolls = 0; return normal; }
+    peekFollowUp = false;
+    // 🛑 Coming home to the scorebar is not attempt-limited, so a feed stuck on a data view would
+    // otherwise fast-poll forever. Past the cap this falls back to the old cadence.
+    if (++fastPolls > CONFIG.MAX_FAST_POLLS) return normal;
+    return Math.min(CONFIG.PEEK_FOLLOW_MS, normal);
 }
