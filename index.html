@@ -112,7 +112,10 @@
                                 <tr><td><code>theme</code></td><td>No</td><td>One of the themes above. Defaults to <code>modern-light</code>.</td></tr>
                                 <tr><td><code>logo</code></td><td>No</td><td>Shows a sponsor logo in the top-right corner (<code>1</code> or <code>2</code>).</td></tr>
                                 <tr><td><code>debug</code></td><td>No</td><td>Sample data instead of a live match: <code>1</code> first innings, <code>2</code> chase, <code>3</code> result, <code>4</code> toss, <code>5</code> no logos. Add <code>card=wicket|milestone|partnership|boundary</code> or <code>panel=lineup|innings-summary|match-summary</code> to hold a sample on screen.</td></tr>
-                                <tr><td><code>mode</code></td><td>No</td><td><code>replay</code> cycles through a recorded match to test transitions.</td></tr>
+                                <tr><td><code>mode</code></td><td>No</td><td><code>replay</code> plays a whole simulated match, toss to result, with no match ID needed.</td></tr>
+                                <tr><td><code>speed</code></td><td>No</td><td>With <code>mode=replay</code>: <code>5</code> by default (about 30 minutes), <code>2</code> for broadcast pace, up to <code>30</code>.</td></tr>
+                                <tr><td><code>start</code></td><td>No</td><td>With <code>mode=replay</code>: begin at <code>pre</code>, <code>inn1</code>, <code>break</code>, <code>inn2</code> or <code>ended</code>.</td></tr>
+                                <tr><td><code>superover</code></td><td>No</td><td>With <code>mode=replay</code>: a tie decided by a super over.</td></tr>
                                 <tr><td><code>quiet</code></td><td>No</td><td>Turns off the event cards (wicket, fifty, partnership, boundary) and shows only the bar.</td></tr>
                                 <tr><td><code>nostats</code></td><td>No</td><td>Opts this browser out of anonymous usage statistics.</td></tr>
                             </tbody>

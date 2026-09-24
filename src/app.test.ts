@@ -29,7 +29,7 @@ import { enqueueCards, showSampleCard, dismissAll } from './cards';
 import { mock_view_48 } from './mockData';
 import { linkLiveStream, LinkLiveStreamError } from './liveStream';
 import { mock_1stInnings, mock_2ndInnings, mock_matchEnded, mock_toss, mock_noTeamImage } from './mockData';
-import { sampleReplayData } from './replayData';
+import { buildTimeline, DEFAULT_CONFIG } from '../sim/match.ts';
 import { CONFIG } from './config';
 
 function setSearch(search: string) {
@@ -91,15 +91,61 @@ describe('updateScore mode switch', () => {
         expect(applyTheme).toHaveBeenCalledWith('kkr');
     });
 
-    it('cycles through the replay fixtures and wraps around', async () => {
-        setSearch('?mode=replay');
-        for (let i = 0; i < sampleReplayData.length + 1; i++) await updateScore();
-        const calls = vi.mocked(updateScoreboard).mock.calls.map(c => c[0]);
-        expect(calls).toHaveLength(sampleReplayData.length + 1);
-        expect(calls[0]).toBe(sampleReplayData[0]);
-        expect(calls[sampleReplayData.length]).toBe(sampleReplayData[0]);
-        expect(fetchScoreData).not.toHaveBeenCalled();
-        expect(updateTeamLogos).not.toHaveBeenCalled();
+    it('replays a whole simulated match, toss to result, with no network at all', async () => {
+        // The replay is a simulated CricClubs inside the page: frames AND view switches go to it,
+        // so peeks, panels and the result card run exactly the code a live match does.
+        vi.useFakeTimers(); vi.setSystemTime(0);
+        try {
+            setSearch('?mode=replay&speed=30');
+            await updateScore();
+            const first = vi.mocked(updateScoreboard).mock.calls[0][0].values as any;
+            expect(first.isMatchEnded).toBe('0');
+            expect(first.isSecondInningsStarted).toBe('false');          // before the first ball
+            await updateScore();                                          // team 1's squad lands, locally
+            expect(vi.mocked(updateScoreboard)).toHaveBeenCalledTimes(1); // and stays off the bar
+            for (let i = 0; i < 3; i++) await updateScore();              // home, team 2's squad, home
+            const lineups = () => vi.mocked(enqueueCards).mock.calls.flat(2).filter((c: any) => c?.type === 'lineup');
+            expect(lineups()).toHaveLength(1);                            // both squads in: the line-up plays
+            // Jump past the last ball; the end-of-match peeks run, then the result card
+            const end = buildTimeline(DEFAULT_CONFIG).at(-1)!.t;
+            vi.setSystemTime((end / 30) * 1000 + 1000);
+            for (let i = 0; i < 12; i++) await updateScore();
+            const last = vi.mocked(updateScoreboard).mock.calls.at(-1)![0].values as any;
+            expect(last.isMatchEnded).toBe('1');
+            const types = vi.mocked(enqueueCards).mock.calls.flat(2).map((c: any) => c?.type);
+            expect(types).toContain('match-summary');
+            expect(fetchScoreData).not.toHaveBeenCalled();
+            expect(switchView).not.toHaveBeenCalled();
+        } finally { vi.useRealTimers(); }
+    });
+
+    it('starts from a chosen phase with ?start=', async () => {
+        setSearch('?mode=replay&start=ended');
+        await updateScore();
+        expect((vi.mocked(updateScoreboard).mock.calls[0][0].values as any).isMatchEnded).toBe('1');
+    });
+
+    it('replays a tie decided by a super over with ?superover=1', async () => {
+        setSearch('?mode=replay&superover=1&start=so1');
+        await updateScore();
+        const v = vi.mocked(updateScoreboard).mock.calls[0][0].values as any;
+        expect(v.isSuperOver).toBe('true');
+        expect(v.result).toBe('Super Over.');
+    });
+
+    it('caps the speed, so every simulated ball still gets a read of its own', async () => {
+        // x1000 would be over in seconds; capped at REPLAY_MAX_SPEED ten real seconds are 300
+        // simulated ones, still before the first ball.
+        vi.useFakeTimers(); vi.setSystemTime(0);
+        try {
+            setSearch('?mode=replay&speed=1000');
+            await updateScore();
+            vi.setSystemTime(10_000);
+            await updateScore();
+            const v = vi.mocked(updateScoreboard).mock.calls.at(-1)![0].values as any;
+            expect(v.isMatchEnded).toBe('0');
+            expect(v.isSecondInningsStarted).toBe('false');
+        } finally { vi.useRealTimers(); }
     });
 
     it('fetches the live feed for a matchId, applying theme/logo and recording overlay_start once', async () => {
@@ -146,11 +192,13 @@ describe('event cards', () => {
     });
 
     it('also fires in replay mode', async () => {
-        setSearch('?mode=replay');
+        setSearch('?mode=replay&start=inn1');
         await updateScore();
         await updateScore();
         expect(detectEvents).toHaveBeenCalledTimes(2);
-        expect(detectEvents).toHaveBeenLastCalledWith(sampleReplayData[0], sampleReplayData[1]);
+        const [prev, next] = vi.mocked(detectEvents).mock.calls[1];
+        expect(prev).toBe(vi.mocked(detectEvents).mock.calls[0][1]);   // consecutive frames, as live
+        expect(next).toBeTruthy();
     });
 
     it('is silenced by ?quiet', async () => {
@@ -344,6 +392,13 @@ describe('pollLoop', () => {
         expect(fetchScoreData).toHaveBeenCalledTimes(2);
         expect(switchView).toHaveBeenLastCalledWith('1089463', '2079', 1, 'https://cricclubs.com');
         expect(delays(spy).at(-1)).toBe(CONFIG.PEEK_FOLLOW_MS);
+    });
+
+    it('reads a replay every REPLAY_REFRESH_MS, since there is no network to spare', async () => {
+        setSearch('?mode=replay&start=inn1');
+        const spy = vi.spyOn(globalThis, 'setTimeout');
+        await pollLoop();
+        expect(delays(spy).at(-1)).toBe(CONFIG.REPLAY_REFRESH_MS);
     });
 
     it('keeps the normal cadence when no switch was asked for', async () => {

@@ -38,7 +38,10 @@ previews, the Link Live Stream form, and a reference table of every parameter.
 | `clubId` | No | The club ID (default `1089463`, LPCL). | `?clubId=12345` |
 | `theme` | No | Any theme below (default `modern-light`). | `?theme=kkr` |
 | `debug` | No | Mock data, `1`–`5`, instead of the live API. | `?debug=1` |
-| `mode` | No | `replay` cycles through sample states. | `?mode=replay` |
+| `mode` | No | `replay` plays a whole simulated match, toss to result, through the same code a live match uses — line-up, event cards, innings break, result card. No match ID or network needed. | `?mode=replay` |
+| `speed` | No | With `mode=replay`: how fast. `5` by default (~30 min); `2` is broadcast pace (~72 min), `30` the fastest (~5 min). | `?mode=replay&speed=10` |
+| `start` | No | With `mode=replay`: begin at a phase — `pre`, `inn1`, `break`, `inn2`, `ended`. | `?mode=replay&start=break` |
+| `superover` | No | With `mode=replay`: a tied match decided by a super over. | `?mode=replay&superover=1` |
 | `quiet` | No | Turns off the event cards; bar only. | `?quiet` |
 | `logo` | No | Shows a sponsor logo. | `?logo=1` |
 | `data` | No | Draws a small machine-readable code for highlights. Off by default. | `?data=1` |
