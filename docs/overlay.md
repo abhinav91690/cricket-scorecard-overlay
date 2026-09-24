@@ -353,9 +353,13 @@ yielded blocked every view after it. A failed team 1 squad meant team 2's was ne
 the line-up went on air with *both* XIs empty. It now takes the set of views that have used their
 tries and moves past them. The simulator cannot catch this: every peek it serves succeeds first time.
 
-⚠ **Nobody has measured how long CricClubs takes to apply a view switch.** Everything assumes the
-next poll (5 s); `PEEK_ATTEMPTS` × 5 s = 15 s before a view is abandoned. CricClubs' other write
-endpoint, Link Live Stream, takes up to a minute to show in the feed.
+✅ **A view switch applies within one poll — measured.** On finished match 4631 (2026-09-24), four
+switches (1→48, back, 1→2, back) had each taken effect by the *first* read, 0.37–0.41 s after the
+request; that figure is the read's own round trip, so the switch itself is at least that fast.
+`PEEK_ATTEMPTS` × 5 s is ample, and the simulator's instant switch is realistic. The payload shape
+matched the `view` field every time. ⚠ Measured on a **finished** match; a live one could be served
+differently, so the first real break is worth watching. Link Live Stream's minute-long lag is a
+different endpoint and does not apply here. [cricclubs-api.md](./cricclubs-api.md) §2.
 
 ### 14a. 🛑 `stripPii()` runs first, on every frame
 

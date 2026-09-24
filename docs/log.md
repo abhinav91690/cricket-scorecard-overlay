@@ -1,5 +1,19 @@
 # Update Log
 
+## 2026-09-24
+
+### ✅ View-switch latency, measured: under half a second
+
+The peek design assumed CricClubs applies a view switch by the next poll, and nobody had checked.
+On finished match 4631 (own club, restored to view 1 afterwards) four switches each took effect by
+the first read, 0.37–0.41 s after the request — the read's own round trip. `PEEK_ATTEMPTS` × 5 s is
+ample and the simulator's instant switch is realistic. [cricclubs-api.md](./cricclubs-api.md) §2.
+
+Deliberately **not** measured on the live match offered for it: it belonged to another league and
+was in play, and a switch flips CricClubs' own overlay for everyone watching that match. A
+finished match of our own answers the same question with nobody affected. A live match could still
+be served differently, so the first real break is worth watching.
+
 ## 2026-09-23
 
 ### 🛑 One failed view peek blocked the next

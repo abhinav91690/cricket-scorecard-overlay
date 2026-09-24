@@ -69,6 +69,13 @@ the match ends — a live status such as `"Hutto Hippos: 142/8 (20.0/20 OVERS )"
 
 Auto-switch (`isAutoSwitchEnabled`) rotates views server-side; a manual switch is what the scorer sees too, so our overlay and CricClubs' own overlay for the same match change together.
 
+**Measured latency: under half a second.** On finished match 4631 (2026-09-24) four switches —
+1→48, 48→1, 1→2, 2→1 — each showed in the §1 feed on the very first read, 0.37–0.41 s after the
+request returned `success`. That is the read's round trip, so the switch applies at least that
+fast. The payload shape matched the reported `view` every time (48 → squad, 2 → batting card,
+1 → live fields). Not yet measured on a live match.
+
+
 ## 3. Views
 
 | viewId | CricClubs name | Extra `values` keys the payload gains |
