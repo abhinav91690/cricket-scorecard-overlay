@@ -1,4 +1,4 @@
-import { CricketAPIData } from './types';
+import type { CricketAPIData } from './types';
 export const mock_toss: CricketAPIData = {
     "view": 1,
     "values": {
@@ -693,7 +693,8 @@ export const mock_noTeamImage: CricketAPIData = {
     "isAutoSwitchEnabled": 0
 }
 
-export const mock_view_13: CricketAPIData = {   // Intro Banner
+// Intro Banner — captured live from match 2079 on 2026-09-07 (emails removed)
+export const mock_view_13: CricketAPIData = {
     "view": 13,
     "values": {
         "t1Logo": "/documentsRep/teamLogos/19e14ed0-7f91-4069-b04d-3bab43764dc6.jpg",
@@ -703,7 +704,7 @@ export const mock_view_13: CricketAPIData = {   // Intro Banner
         "t2Wickets": "8",
         "t1Total": "188",
         "t1RR": "9.40",
-        "showMsgForScoreNeeded": "\u003cspan\u003eLions\u003c/span\u003e\u003cspan class\u003d\u0027numberColorClass\u0027\u003e NEED\u003c/span\u003e 1 \u003cspan class\u003d\u0027numberColorClass\u0027\u003eFROM\u003c/span\u003e 0.0 \u003cspan class\u003d\u0027numberColorClass\u0027\u003eOVERS\u003c/span\u003e --.--\u003cspan class\u003d\u0027numberColorClass\u0027\u003e RRR\u003c/span\u003e",
+        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
         "t2RR": "9.40",
         "groundName": "LPCL-G1",
         "t1Code": "TGN",
@@ -714,23 +715,23 @@ export const mock_view_13: CricketAPIData = {   // Intro Banner
         "t2Code": "LNS",
         "isDls": false,
         "matchId": "2079",
-        "t2Logo": "/documentsRep/teamLogos/891a284d-2fa8-4fde-a26d-71d39302606d.jpg",
+        "t2Logo": "/documentsRep/teamLogos/58a2f8fe-977a-4659-a910-07b547663e92.jpg",
         "t2Total": "188",
         "revisedOvers": 0.0,
         "t1Name": "TOPGUNS UNITED",
         "displayNickNameOnOverlay": false,
-        "t1Overs": "20.0",
+        "t1Overs": "20",
         "seriesName": "2024-Fall-Champions",
         "totalOvers": 20,
         "t1Extras": "11",
         "t2ID": 476,
         "requiredRuns": "1",
         "t1ID": 493,
-        "remainingOvers": "0.0",
+        "remainingOvers": "0",
         "toss": "TOPGUNS UNITED WON THE TOSS AND ELECTED TO BAT",
         "shortResult": "Super Over.",
         "firstnamefirst": 0,
-        "t2Overs": "20.0",
+        "t2Overs": "20",
         "partnerShip": {
             "1": 14,
             "2": 21,
@@ -746,24 +747,37 @@ export const mock_view_13: CricketAPIData = {   // Intro Banner
         "oversOrBalls": "OVERS",
         "revisedTarget": 0,
         "t2Name": "Lions",
-        "liveYouTubeLink": "//www.youtube.com/embed/AIpOOFYl7g0,https://www.youtube.com/watch??rel\u003d0\u0026autoplay\u003d1\u0026mute\u003d1"
+        "liveYouTubeLink": "//www.youtube.com/embed/AIpOOFYl7g0,https://www.youtube.com/watch??rel=0&autoplay=1&mute=1"
     },
     "isSecondInningsStarted": true,
     "isSuperOver": false,
     "isSuperOverSecondInningsStarted": false,
-    "balls": [
-
-    ],
+    "balls": [],
     "is2XCricket": false,
-    "sponsorsImgPaths": [
-
-    ],
-    "isAutoSwitchEnabled": 1,
+    "sponsorsImgPaths": [],
+    "isAutoSwitchEnabled": 0,
     "displayNickNameOnOverlay": false,
-    "comments": ""
-}
+    "comments": "",
+    "overlayConfig": {
+        "id": 2420,
+        "clubId": 1089463,
+        "overlayScorebarColor": "#005fc0",
+        "logoS3Url": "https://cricclubs.com/documentsRep/photos/1089463-11-14846b01-c364-466f-b82b-0e019c26df3c.png",
+        "backgroundColorForVideo": "",
+        "cpBGSecondColor": "#295fd6",
+        "isPowredBy": true,
+        "powredByLogo1": "https://cricclubs.com/documentsRep/static/overlay/powred-by-1.png",
+        "powredByLogo2": "https://cricclubs.com/documentsRep/static/overlay/powred-by-2.png",
+        "overlayDelay": 0,
+        "overlayTheme": 1,
+        "secondaryColor": "",
+        "fontColor": "",
+        "practiseSessionTheme": 0
+    }
+};
 
-export const mock_view_1: CricketAPIData = {   // Default Score Card
+// Default Score Card — captured live from match 2079 on 2026-09-07 (emails removed)
+export const mock_view_1: CricketAPIData = {
     "view": 1,
     "values": {
         "isSecondInningsStarted": "true",
@@ -776,19 +790,17 @@ export const mock_view_1: CricketAPIData = {   // Default Score Card
         "batsman1Name": "Gautham P",
         "batsman2Runs": "0",
         "manOfTheMatchNickName": "",
-        "projectedRunRate": [
-
-        ],
+        "projectedRunRate": [],
         "seriesName": "2024-Fall-Champions",
-        "lastOutString": "\u003cspan\u003erun out \u003c/span\u003e\u003cspan class\u003d\u0027outname\u0027\u003e(Aamir K)\u003c/span\u003e ",
+        "lastOutString": "<span>run out </span><span class='outname'>(Aamir K)</span> ",
         "totalOvers": 20,
-        "batsman2OutString": "\u003cspan\u003enot out\u003c/span\u003e",
+        "batsman2OutString": "<span>not out</span>",
         "lastOUtSixers": "0",
         "toss": "TOPGUNS UNITED WON THE TOSS AND ELECTED TO BAT",
         "t1ID": 476,
         "remainingOvers": "0",
         "shortResult": "Super Over.",
-        "batsman1OutString": "\u003cspan\u003enot out\u003c/span\u003e",
+        "batsman1OutString": "<span>not out</span>",
         "rrOrRPB": "RR ",
         "tossWon": "TGN",
         "t2Name": "TOPGUNS UNITED",
@@ -813,8 +825,8 @@ export const mock_view_1: CricketAPIData = {   // Default Score Card
         "bowlerLastName": "Khan",
         "dots": 1,
         "batsman2ProfileImange": "/documentsRep/profilePics/e3c1e9ed-2d20-43c9-b4dc-37b2ffdb5c06.jpeg",
-        "requiredRuns": "-1",
-        "bowlerOvers": "1.0",
+        "requiredRuns": "0",
+        "bowlerOvers": "1",
         "parScore": "188",
         "careerProfileImage": "",
         "revisedTarget": 0,
@@ -825,13 +837,13 @@ export const mock_view_1: CricketAPIData = {   // Default Score Card
         "t1Wickets": "0",
         "t2Wickets": "1",
         "isSuperOver": "true",
-        "showScoreMsgForOpositTeam": "\u003cspan class\u003d\u0027numberColorClass\u0027\u003eLNS\u003c/span\u003e  10/0\u003cspan class\u003d\u0027numberColorClass\u0027\u003e BALLS\u003c/span\u003e 6",
+        "showScoreMsgForOpositTeam": "<span class='numberColorClass'>LNS</span>  10/0<span class='numberColorClass'> BALLS</span> 6",
         "bowlerNickName": "",
         "batsman2FirstName": "Rakesh",
         "batsman1NickName": "",
         "groundName": "LPCL-G1",
         "tWickets": "1",
-        "firstLogo": "/documentsRep/teamLogos/891a284d-2fa8-4fde-a26d-71d39302606d.jpg",
+        "firstLogo": "/documentsRep/teamLogos/58a2f8fe-977a-4659-a910-07b547663e92.jpg",
         "teamID": 0,
         "isMatchEnded": "1",
         "t2Code": "TGN",
@@ -864,7 +876,7 @@ export const mock_view_1: CricketAPIData = {   // Default Score Card
         "currentPartnershipMap": {
             "partnershipTotalRuns": "17",
             "partnershipTeamID": "493",
-            "partnershipBatsman1ProfilePic": "/documentsRep/profilePics/e4af444f-7105-49e8-9ea8-230735ce22a8.jpeg",
+            "partnershipBatsman1ProfilePic": "/documentsRep/profilePics/e3c81acd-144c-43ee-95b1-2f1f0365b1eb.jpeg",
             "partnershipBatsman1ID": "1411997",
             "partnershipBatsman1TotalRuns": "7",
             "partnershipBatsman2LastName": "Gopishetty",
@@ -884,12 +896,12 @@ export const mock_view_1: CricketAPIData = {   // Default Score Card
         },
         "t2ID": 476,
         "lastOutID": 566937,
-        "batsman1ProfileImange": "/documentsRep/profilePics/e4af444f-7105-49e8-9ea8-230735ce22a8.jpeg",
+        "batsman1ProfileImange": "/documentsRep/profilePics/e3c81acd-144c-43ee-95b1-2f1f0365b1eb.jpeg",
         "tTotal": "12",
         "batsman1ID": 1411997,
         "batsman1IsOut": "0",
         "isTestOr2x": false,
-        "liveYouTubeLink": "//www.youtube.com/embed/AIpOOFYl7g0,https://www.youtube.com/watch??rel\u003d0\u0026autoplay\u003d1\u0026mute\u003d1"
+        "liveYouTubeLink": "//www.youtube.com/embed/AIpOOFYl7g0,https://www.youtube.com/watch??rel=0&autoplay=1&mute=1"
     },
     "isSecondInningsStarted": true,
     "isSuperOver": true,
@@ -903,15 +915,30 @@ export const mock_view_1: CricketAPIData = {   // Default Score Card
         "4"
     ],
     "is2XCricket": false,
-    "sponsorsImgPaths": [
-
-    ],
-    "isAutoSwitchEnabled": 1,
+    "sponsorsImgPaths": [],
+    "isAutoSwitchEnabled": 0,
     "displayNickNameOnOverlay": false,
-    "comments": ""
-}
+    "comments": "",
+    "overlayConfig": {
+        "id": 2420,
+        "clubId": 1089463,
+        "overlayScorebarColor": "#005fc0",
+        "logoS3Url": "https://cricclubs.com/documentsRep/photos/1089463-11-14846b01-c364-466f-b82b-0e019c26df3c.png",
+        "backgroundColorForVideo": "",
+        "cpBGSecondColor": "#295fd6",
+        "isPowredBy": true,
+        "powredByLogo1": "https://cricclubs.com/documentsRep/static/overlay/powred-by-1.png",
+        "powredByLogo2": "https://cricclubs.com/documentsRep/static/overlay/powred-by-2.png",
+        "overlayDelay": 0,
+        "overlayTheme": 1,
+        "secondaryColor": "",
+        "fontColor": "",
+        "practiseSessionTheme": 0
+    }
+};
 
-export const mock_view_42: CricketAPIData = {   // Current Scenario
+// Current Scenario — captured live from match 2079 on 2026-09-07 (emails removed)
+export const mock_view_42: CricketAPIData = {
     "view": 42,
     "values": {
         "isSecondInningsStarted": "true",
@@ -924,19 +951,17 @@ export const mock_view_42: CricketAPIData = {   // Current Scenario
         "batsman1Name": "Gautham P",
         "batsman2Runs": "0",
         "manOfTheMatchNickName": "",
-        "projectedRunRate": [
-
-        ],
+        "projectedRunRate": [],
         "seriesName": "2024-Fall-Champions",
-        "lastOutString": "\u003cspan\u003erun out \u003c/span\u003e\u003cspan class\u003d\u0027outname\u0027\u003e(Aamir K)\u003c/span\u003e ",
+        "lastOutString": "<span>run out </span><span class='outname'>(Aamir K)</span> ",
         "totalOvers": 20,
-        "batsman2OutString": "\u003cspan\u003enot out\u003c/span\u003e",
+        "batsman2OutString": "<span>not out</span>",
         "lastOUtSixers": "0",
         "toss": "TOPGUNS UNITED WON THE TOSS AND ELECTED TO BAT",
         "t1ID": 476,
         "remainingOvers": "0",
         "shortResult": "Super Over.",
-        "batsman1OutString": "\u003cspan\u003enot out\u003c/span\u003e",
+        "batsman1OutString": "<span>not out</span>",
         "rrOrRPB": "RR ",
         "tossWon": "TGN",
         "t2Name": "TOPGUNS UNITED",
@@ -961,8 +986,8 @@ export const mock_view_42: CricketAPIData = {   // Current Scenario
         "bowlerLastName": "Khan",
         "dots": 1,
         "batsman2ProfileImange": "/documentsRep/profilePics/e3c1e9ed-2d20-43c9-b4dc-37b2ffdb5c06.jpeg",
-        "requiredRuns": "-1",
-        "bowlerOvers": "1.0",
+        "requiredRuns": "0",
+        "bowlerOvers": "1",
         "parScore": "188",
         "careerProfileImage": "",
         "revisedTarget": 0,
@@ -973,13 +998,13 @@ export const mock_view_42: CricketAPIData = {   // Current Scenario
         "t1Wickets": "0",
         "t2Wickets": "1",
         "isSuperOver": "true",
-        "showScoreMsgForOpositTeam": "\u003cspan class\u003d\u0027numberColorClass\u0027\u003eLNS\u003c/span\u003e  10/0\u003cspan class\u003d\u0027numberColorClass\u0027\u003e BALLS\u003c/span\u003e 6",
+        "showScoreMsgForOpositTeam": "<span class='numberColorClass'>LNS</span>  10/0<span class='numberColorClass'> BALLS</span> 6",
         "bowlerNickName": "",
         "batsman2FirstName": "Rakesh",
         "batsman1NickName": "",
         "groundName": "LPCL-G1",
         "tWickets": "1",
-        "firstLogo": "/documentsRep/teamLogos/891a284d-2fa8-4fde-a26d-71d39302606d.jpg",
+        "firstLogo": "/documentsRep/teamLogos/58a2f8fe-977a-4659-a910-07b547663e92.jpg",
         "teamID": 0,
         "isMatchEnded": "1",
         "t2Code": "TGN",
@@ -1012,7 +1037,7 @@ export const mock_view_42: CricketAPIData = {   // Current Scenario
         "currentPartnershipMap": {
             "partnershipTotalRuns": "17",
             "partnershipTeamID": "493",
-            "partnershipBatsman1ProfilePic": "/documentsRep/profilePics/e4af444f-7105-49e8-9ea8-230735ce22a8.jpeg",
+            "partnershipBatsman1ProfilePic": "/documentsRep/profilePics/e3c81acd-144c-43ee-95b1-2f1f0365b1eb.jpeg",
             "partnershipBatsman1ID": "1411997",
             "partnershipBatsman1TotalRuns": "7",
             "partnershipBatsman2LastName": "Gopishetty",
@@ -1032,12 +1057,12 @@ export const mock_view_42: CricketAPIData = {   // Current Scenario
         },
         "t2ID": 476,
         "lastOutID": 566937,
-        "batsman1ProfileImange": "/documentsRep/profilePics/e4af444f-7105-49e8-9ea8-230735ce22a8.jpeg",
+        "batsman1ProfileImange": "/documentsRep/profilePics/e3c81acd-144c-43ee-95b1-2f1f0365b1eb.jpeg",
         "tTotal": "12",
         "batsman1ID": 1411997,
         "batsman1IsOut": "0",
         "isTestOr2x": false,
-        "liveYouTubeLink": "//www.youtube.com/embed/AIpOOFYl7g0,https://www.youtube.com/watch??rel\u003d0\u0026autoplay\u003d1\u0026mute\u003d1"
+        "liveYouTubeLink": "//www.youtube.com/embed/AIpOOFYl7g0,https://www.youtube.com/watch??rel=0&autoplay=1&mute=1"
     },
     "isSecondInningsStarted": true,
     "isSuperOver": true,
@@ -1051,15 +1076,30 @@ export const mock_view_42: CricketAPIData = {   // Current Scenario
         "4"
     ],
     "is2XCricket": false,
-    "sponsorsImgPaths": [
-
-    ],
-    "isAutoSwitchEnabled": 1,
+    "sponsorsImgPaths": [],
+    "isAutoSwitchEnabled": 0,
     "displayNickNameOnOverlay": false,
-    "comments": ""
-}
+    "comments": "",
+    "overlayConfig": {
+        "id": 2420,
+        "clubId": 1089463,
+        "overlayScorebarColor": "#005fc0",
+        "logoS3Url": "https://cricclubs.com/documentsRep/photos/1089463-11-14846b01-c364-466f-b82b-0e019c26df3c.png",
+        "backgroundColorForVideo": "",
+        "cpBGSecondColor": "#295fd6",
+        "isPowredBy": true,
+        "powredByLogo1": "https://cricclubs.com/documentsRep/static/overlay/powred-by-1.png",
+        "powredByLogo2": "https://cricclubs.com/documentsRep/static/overlay/powred-by-2.png",
+        "overlayDelay": 0,
+        "overlayTheme": 1,
+        "secondaryColor": "",
+        "fontColor": "",
+        "practiseSessionTheme": 0
+    }
+};
 
-export const mock_view_54: CricketAPIData = { // L Scorecard   
+// L Scorecard — captured live from match 2079 on 2026-09-07 (emails removed)
+export const mock_view_54: CricketAPIData = {
     "view": 54,
     "values": {
         "isSecondInningsStarted": "true",
@@ -1072,19 +1112,17 @@ export const mock_view_54: CricketAPIData = { // L Scorecard
         "batsman1Name": "Gautham P",
         "batsman2Runs": "0",
         "manOfTheMatchNickName": "",
-        "projectedRunRate": [
-
-        ],
+        "projectedRunRate": [],
         "seriesName": "2024-Fall-Champions",
-        "lastOutString": "\u003cspan\u003erun out \u003c/span\u003e\u003cspan class\u003d\u0027outname\u0027\u003e(Aamir K)\u003c/span\u003e ",
+        "lastOutString": "<span>run out </span><span class='outname'>(Aamir K)</span> ",
         "totalOvers": 20,
-        "batsman2OutString": "\u003cspan\u003enot out\u003c/span\u003e",
+        "batsman2OutString": "<span>not out</span>",
         "lastOUtSixers": "0",
         "toss": "TOPGUNS UNITED WON THE TOSS AND ELECTED TO BAT",
         "t1ID": 476,
         "remainingOvers": "0",
         "shortResult": "Super Over.",
-        "batsman1OutString": "\u003cspan\u003enot out\u003c/span\u003e",
+        "batsman1OutString": "<span>not out</span>",
         "rrOrRPB": "RR ",
         "tossWon": "TGN",
         "t2Name": "TOPGUNS UNITED",
@@ -1109,8 +1147,8 @@ export const mock_view_54: CricketAPIData = { // L Scorecard
         "bowlerLastName": "Khan",
         "dots": 1,
         "batsman2ProfileImange": "/documentsRep/profilePics/e3c1e9ed-2d20-43c9-b4dc-37b2ffdb5c06.jpeg",
-        "requiredRuns": "-1",
-        "bowlerOvers": "1.0",
+        "requiredRuns": "0",
+        "bowlerOvers": "1",
         "parScore": "188",
         "careerProfileImage": "",
         "revisedTarget": 0,
@@ -1121,13 +1159,13 @@ export const mock_view_54: CricketAPIData = { // L Scorecard
         "t1Wickets": "0",
         "t2Wickets": "1",
         "isSuperOver": "true",
-        "showScoreMsgForOpositTeam": "\u003cspan class\u003d\u0027numberColorClass\u0027\u003eLNS\u003c/span\u003e  10/0\u003cspan class\u003d\u0027numberColorClass\u0027\u003e BALLS\u003c/span\u003e 6",
+        "showScoreMsgForOpositTeam": "<span class='numberColorClass'>LNS</span>  10/0<span class='numberColorClass'> BALLS</span> 6",
         "bowlerNickName": "",
         "batsman2FirstName": "Rakesh",
         "batsman1NickName": "",
         "groundName": "LPCL-G1",
         "tWickets": "1",
-        "firstLogo": "/documentsRep/teamLogos/891a284d-2fa8-4fde-a26d-71d39302606d.jpg",
+        "firstLogo": "/documentsRep/teamLogos/58a2f8fe-977a-4659-a910-07b547663e92.jpg",
         "teamID": 0,
         "isMatchEnded": "1",
         "t2Code": "TGN",
@@ -1160,7 +1198,7 @@ export const mock_view_54: CricketAPIData = { // L Scorecard
         "currentPartnershipMap": {
             "partnershipTotalRuns": "17",
             "partnershipTeamID": "493",
-            "partnershipBatsman1ProfilePic": "/documentsRep/profilePics/e4af444f-7105-49e8-9ea8-230735ce22a8.jpeg",
+            "partnershipBatsman1ProfilePic": "/documentsRep/profilePics/e3c81acd-144c-43ee-95b1-2f1f0365b1eb.jpeg",
             "partnershipBatsman1ID": "1411997",
             "partnershipBatsman1TotalRuns": "7",
             "partnershipBatsman2LastName": "Gopishetty",
@@ -1180,12 +1218,12 @@ export const mock_view_54: CricketAPIData = { // L Scorecard
         },
         "t2ID": 476,
         "lastOutID": 566937,
-        "batsman1ProfileImange": "/documentsRep/profilePics/e4af444f-7105-49e8-9ea8-230735ce22a8.jpeg",
+        "batsman1ProfileImange": "/documentsRep/profilePics/e3c81acd-144c-43ee-95b1-2f1f0365b1eb.jpeg",
         "tTotal": "12",
         "batsman1ID": 1411997,
         "batsman1IsOut": "0",
         "isTestOr2x": false,
-        "liveYouTubeLink": "//www.youtube.com/embed/AIpOOFYl7g0,https://www.youtube.com/watch??rel\u003d0\u0026autoplay\u003d1\u0026mute\u003d1"
+        "liveYouTubeLink": "//www.youtube.com/embed/AIpOOFYl7g0,https://www.youtube.com/watch??rel=0&autoplay=1&mute=1"
     },
     "isSecondInningsStarted": true,
     "isSuperOver": true,
@@ -1199,15 +1237,30 @@ export const mock_view_54: CricketAPIData = { // L Scorecard
         "4"
     ],
     "is2XCricket": false,
-    "sponsorsImgPaths": [
-
-    ],
+    "sponsorsImgPaths": [],
     "isAutoSwitchEnabled": 0,
     "displayNickNameOnOverlay": false,
-    "comments": ""
-}
+    "comments": "",
+    "overlayConfig": {
+        "id": 2420,
+        "clubId": 1089463,
+        "overlayScorebarColor": "#005fc0",
+        "logoS3Url": "https://cricclubs.com/documentsRep/photos/1089463-11-14846b01-c364-466f-b82b-0e019c26df3c.png",
+        "backgroundColorForVideo": "",
+        "cpBGSecondColor": "#295fd6",
+        "isPowredBy": true,
+        "powredByLogo1": "https://cricclubs.com/documentsRep/static/overlay/powred-by-1.png",
+        "powredByLogo2": "https://cricclubs.com/documentsRep/static/overlay/powred-by-2.png",
+        "overlayDelay": 0,
+        "overlayTheme": 1,
+        "secondaryColor": "",
+        "fontColor": "",
+        "practiseSessionTheme": 0
+    }
+};
 
-export const mock_view_45: CricketAPIData = { // Current Batters
+// Current Batters — captured live from match 2079 on 2026-09-07 (emails removed)
+export const mock_view_45: CricketAPIData = {
     "view": 45,
     "values": {
         "isSecondInningsStarted": "true",
@@ -1248,15 +1301,15 @@ export const mock_view_45: CricketAPIData = { // Current Batters
         "result": "Match tied. TGN won the super over.",
         "bowlerID": 2585420,
         "batsman1LastName": "Prasanna",
-        "revisedOvers": 0,
+        "revisedOvers": 0.0,
         "bowlerName": "Aamir K",
         "displayNickNameOnOverlay": false,
         "t1Overs": "6",
         "bowlerLastName": "Khan",
         "dots": 1,
         "batsman2ProfileImange": "/documentsRep/profilePics/e3c1e9ed-2d20-43c9-b4dc-37b2ffdb5c06.jpeg",
-        "requiredRuns": "-1",
-        "bowlerOvers": "1.0",
+        "requiredRuns": "0",
+        "bowlerOvers": "1",
         "parScore": "188",
         "careerProfileImage": "",
         "revisedTarget": 0,
@@ -1273,7 +1326,7 @@ export const mock_view_45: CricketAPIData = { // Current Batters
         "batsman1NickName": "",
         "groundName": "LPCL-G1",
         "tWickets": "1",
-        "firstLogo": "/documentsRep/teamLogos/891a284d-2fa8-4fde-a26d-71d39302606d.jpg",
+        "firstLogo": "/documentsRep/teamLogos/58a2f8fe-977a-4659-a910-07b547663e92.jpg",
         "teamID": 0,
         "isMatchEnded": "1",
         "t2Code": "TGN",
@@ -1306,7 +1359,7 @@ export const mock_view_45: CricketAPIData = { // Current Batters
         "currentPartnershipMap": {
             "partnershipTotalRuns": "17",
             "partnershipTeamID": "493",
-            "partnershipBatsman1ProfilePic": "/documentsRep/profilePics/e4af444f-7105-49e8-9ea8-230735ce22a8.jpeg",
+            "partnershipBatsman1ProfilePic": "/documentsRep/profilePics/e3c81acd-144c-43ee-95b1-2f1f0365b1eb.jpeg",
             "partnershipBatsman1ID": "1411997",
             "partnershipBatsman1TotalRuns": "7",
             "partnershipBatsman2LastName": "Gopishetty",
@@ -1326,7 +1379,7 @@ export const mock_view_45: CricketAPIData = { // Current Batters
         },
         "t2ID": 476,
         "lastOutID": 566937,
-        "batsman1ProfileImange": "/documentsRep/profilePics/e4af444f-7105-49e8-9ea8-230735ce22a8.jpeg",
+        "batsman1ProfileImange": "/documentsRep/profilePics/e3c81acd-144c-43ee-95b1-2f1f0365b1eb.jpeg",
         "tTotal": "12",
         "batsman1ID": 1411997,
         "batsman1IsOut": "0",
@@ -1348,10 +1401,27 @@ export const mock_view_45: CricketAPIData = { // Current Batters
     "sponsorsImgPaths": [],
     "isAutoSwitchEnabled": 0,
     "displayNickNameOnOverlay": false,
-    "comments": ""
-}
+    "comments": "",
+    "overlayConfig": {
+        "id": 2420,
+        "clubId": 1089463,
+        "overlayScorebarColor": "#005fc0",
+        "logoS3Url": "https://cricclubs.com/documentsRep/photos/1089463-11-14846b01-c364-466f-b82b-0e019c26df3c.png",
+        "backgroundColorForVideo": "",
+        "cpBGSecondColor": "#295fd6",
+        "isPowredBy": true,
+        "powredByLogo1": "https://cricclubs.com/documentsRep/static/overlay/powred-by-1.png",
+        "powredByLogo2": "https://cricclubs.com/documentsRep/static/overlay/powred-by-2.png",
+        "overlayDelay": 0,
+        "overlayTheme": 1,
+        "secondaryColor": "",
+        "fontColor": "",
+        "practiseSessionTheme": 0
+    }
+};
 
-export const mock_view_2: CricketAPIData = { // Batting Team 1
+// Batting Team 1 — captured live from match 2079 on 2026-09-07 (emails removed)
+export const mock_view_2: CricketAPIData = {
     "view": 2,
     "values": {
         "t1Logo": "/documentsRep/teamLogos/19e14ed0-7f91-4069-b04d-3bab43764dc6.jpg",
@@ -1360,7 +1430,7 @@ export const mock_view_2: CricketAPIData = { // Batting Team 1
         "t1Wickets": "7",
         "t1Total": "188",
         "t1RR": "9.40",
-        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0.0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
+        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
         "groundName": "LPCL-G1",
         "t1Code": "TGN",
         "result": "Super Over.",
@@ -1390,7 +1460,6 @@ export const mock_view_2: CricketAPIData = { // Batting Team 1
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "pavanpvpk@gmail.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             },
@@ -1419,7 +1488,6 @@ export const mock_view_2: CricketAPIData = { // Batting Team 1
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "abhinav91690@gmail.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Off Spin"
             },
@@ -1448,7 +1516,6 @@ export const mock_view_2: CricketAPIData = { // Batting Team 1
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "raki248@yahoo.co.in",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             },
@@ -1468,14 +1535,13 @@ export const mock_view_2: CricketAPIData = { // Batting Team 1
                 "outStringNickNamesNoLink": "not out",
                 "outStringCustomReq": "<span>not out</span>",
                 "innings": 1,
-                "profilepic_file_path": "/documentsRep/profilePics/e4af444f-7105-49e8-9ea8-230735ce22a8.jpeg",
+                "profilepic_file_path": "/documentsRep/profilePics/e3c81acd-144c-43ee-95b1-2f1f0365b1eb.jpeg",
                 "isSecondary": false,
                 "nickName": "",
                 "battingPosition": 4,
-                "battingStyle": "Right Handed Batter",
+                "battingStyle": "Right Hand Batter (Top Order)",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "gauthamp2800@gmail.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Off Spin"
             },
@@ -1500,10 +1566,9 @@ export const mock_view_2: CricketAPIData = { // Batting Team 1
                 "isSecondary": false,
                 "nickName": "Naveen",
                 "battingPosition": 5,
-                "battingStyle": "Right Handed Batter",
+                "battingStyle": "Right Hand Batter (Top Order)",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "naveenkumar7.y@gmail.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             },
@@ -1532,8 +1597,7 @@ export const mock_view_2: CricketAPIData = { // Batting Team 1
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "nandan442@gmail.com",
-                "playingRole": "Wicket Keeper",
+                "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             },
             {
@@ -1561,7 +1625,6 @@ export const mock_view_2: CricketAPIData = { // Batting Team 1
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "ranjitchetty92@gmail.com",
                 "playingRole": "Wicket Keeper",
                 "bowlingStyle": "Right Arm Medium"
             },
@@ -1589,7 +1652,6 @@ export const mock_view_2: CricketAPIData = { // Batting Team 1
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "nataraja.3.833@gmail.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             },
@@ -1616,7 +1678,6 @@ export const mock_view_2: CricketAPIData = { // Batting Team 1
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "vskchaitanya154@gmail.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             },
@@ -1641,9 +1702,8 @@ export const mock_view_2: CricketAPIData = { // Batting Team 1
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "arjun2988@gmail.com",
-                "playingRole": "All Rounder",
-                "bowlingStyle": "Right Arm Medium"
+                "playingRole": "Bowler",
+                "bowlingStyle": "Right Arm Fast"
             },
             {
                 "matchID": 2079,
@@ -1666,7 +1726,6 @@ export const mock_view_2: CricketAPIData = { // Batting Team 1
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "badrisettyanandh@gmail.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             },
@@ -1688,10 +1747,9 @@ export const mock_view_2: CricketAPIData = { // Batting Team 1
                 "isSecondary": false,
                 "nickName": "Mahee",
                 "battingPosition": 12,
-                "battingStyle": "Right Handed Batter",
+                "battingStyle": "Right Handed Batsman",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "mahesh.padimalla@gmail.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             }
@@ -1699,10 +1757,10 @@ export const mock_view_2: CricketAPIData = { // Batting Team 1
         "isMatchEnded": "1",
         "isDls": false,
         "matchId": "2079",
-        "revisedOvers": 0,
+        "revisedOvers": 0.0,
         "t1Name": "TOPGUNS UNITED",
         "displayNickNameOnOverlay": false,
-        "t1Overs": "20.0",
+        "t1Overs": "20",
         "seriesName": "2024-Fall-Champions",
         "totalOvers": 20,
         "t1Extras": "11",
@@ -1733,10 +1791,27 @@ export const mock_view_2: CricketAPIData = { // Batting Team 1
     "sponsorsImgPaths": [],
     "isAutoSwitchEnabled": 0,
     "displayNickNameOnOverlay": false,
-    "comments": ""
-}
+    "comments": "",
+    "overlayConfig": {
+        "id": 2420,
+        "clubId": 1089463,
+        "overlayScorebarColor": "#005fc0",
+        "logoS3Url": "https://cricclubs.com/documentsRep/photos/1089463-11-14846b01-c364-466f-b82b-0e019c26df3c.png",
+        "backgroundColorForVideo": "",
+        "cpBGSecondColor": "#295fd6",
+        "isPowredBy": true,
+        "powredByLogo1": "https://cricclubs.com/documentsRep/static/overlay/powred-by-1.png",
+        "powredByLogo2": "https://cricclubs.com/documentsRep/static/overlay/powred-by-2.png",
+        "overlayDelay": 0,
+        "overlayTheme": 1,
+        "secondaryColor": "",
+        "fontColor": "",
+        "practiseSessionTheme": 0
+    }
+};
 
-export const mock_view_3: CricketAPIData = { // Bowling Team 1
+// Bowling Team 1 — captured live from match 2079 on 2026-09-07 (emails removed)
+export const mock_view_3: CricketAPIData = {
     "view": 3,
     "values": {
         "isSecondInningsStarted": "true",
@@ -1744,17 +1819,17 @@ export const mock_view_3: CricketAPIData = { // Bowling Team 1
         "t1Wickets": "7",
         "t1Total": "188",
         "t1RR": "9.40",
-        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0.0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
+        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
         "groundName": "LPCL-G1",
         "result": "Super Over.",
         "isMatchEnded": "1",
         "t2Code": "LNS",
         "isDls": false,
         "matchId": "2079",
-        "t2Logo": "/documentsRep/teamLogos/891a284d-2fa8-4fde-a26d-71d39302606d.jpg",
-        "revisedOvers": 0,
+        "t2Logo": "/documentsRep/teamLogos/58a2f8fe-977a-4659-a910-07b547663e92.jpg",
+        "revisedOvers": 0.0,
         "displayNickNameOnOverlay": false,
-        "t1Overs": "20.0",
+        "t1Overs": "20",
         "t2Bowling": [
             {
                 "matchID": 2079,
@@ -1776,8 +1851,7 @@ export const mock_view_3: CricketAPIData = { // Bowling Team 1
                 "nickName": "",
                 "bowlingStyle": "Right Arm Medium",
                 "impactPlayerIn": false,
-                "impactPlayerOut": false,
-                "email": "moeed_leo_abbasi@yahoo.com"
+                "impactPlayerOut": false
             },
             {
                 "matchID": 2079,
@@ -1799,8 +1873,7 @@ export const mock_view_3: CricketAPIData = { // Bowling Team 1
                 "nickName": "",
                 "bowlingStyle": "Right Arm Medium",
                 "impactPlayerIn": false,
-                "impactPlayerOut": false,
-                "email": "sahib2221@yahoo.com"
+                "impactPlayerOut": false
             },
             {
                 "matchID": 2079,
@@ -1822,8 +1895,7 @@ export const mock_view_3: CricketAPIData = { // Bowling Team 1
                 "nickName": "",
                 "bowlingStyle": "Right Arm Medium",
                 "impactPlayerIn": false,
-                "impactPlayerOut": false,
-                "email": "sagar_ajk@yahoo.com"
+                "impactPlayerOut": false
             },
             {
                 "matchID": 2079,
@@ -1845,8 +1917,7 @@ export const mock_view_3: CricketAPIData = { // Bowling Team 1
                 "nickName": "",
                 "bowlingStyle": "Right Arm Medium",
                 "impactPlayerIn": false,
-                "impactPlayerOut": false,
-                "email": "mohammadahmed1823@gmail.com"
+                "impactPlayerOut": false
             },
             {
                 "matchID": 2079,
@@ -1868,8 +1939,7 @@ export const mock_view_3: CricketAPIData = { // Bowling Team 1
                 "nickName": "",
                 "bowlingStyle": "Right Arm Medium",
                 "impactPlayerIn": false,
-                "impactPlayerOut": false,
-                "email": "Qasimabbasi_10@yahoo.com"
+                "impactPlayerOut": false
             },
             {
                 "matchID": 2079,
@@ -1891,8 +1961,7 @@ export const mock_view_3: CricketAPIData = { // Bowling Team 1
                 "nickName": " ",
                 "bowlingStyle": "Right Arm Leg Spin",
                 "impactPlayerIn": false,
-                "impactPlayerOut": false,
-                "email": "sumeer.goel@gmail.com"
+                "impactPlayerOut": false
             }
         ],
         "seriesName": "2024-Fall-Champions",
@@ -1926,16 +1995,33 @@ export const mock_view_3: CricketAPIData = { // Bowling Team 1
     "sponsorsImgPaths": [],
     "isAutoSwitchEnabled": 0,
     "displayNickNameOnOverlay": false,
-    "comments": ""
-}
+    "comments": "",
+    "overlayConfig": {
+        "id": 2420,
+        "clubId": 1089463,
+        "overlayScorebarColor": "#005fc0",
+        "logoS3Url": "https://cricclubs.com/documentsRep/photos/1089463-11-14846b01-c364-466f-b82b-0e019c26df3c.png",
+        "backgroundColorForVideo": "",
+        "cpBGSecondColor": "#295fd6",
+        "isPowredBy": true,
+        "powredByLogo1": "https://cricclubs.com/documentsRep/static/overlay/powred-by-1.png",
+        "powredByLogo2": "https://cricclubs.com/documentsRep/static/overlay/powred-by-2.png",
+        "overlayDelay": 0,
+        "overlayTheme": 1,
+        "secondaryColor": "",
+        "fontColor": "",
+        "practiseSessionTheme": 0
+    }
+};
 
-export const mock_view_4: CricketAPIData = { // Batting Team 2
+// Batting Team 2 — captured live from match 2079 on 2026-09-07 (emails removed)
+export const mock_view_4: CricketAPIData = {
     "view": 4,
     "values": {
         "isSecondInningsStarted": "true",
         "customTextValue": "",
         "t2Wickets": "8",
-        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0.0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
+        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
         "t2RR": "9.40",
         "groundName": "LPCL-G1",
         "t2Extras": "18",
@@ -1966,7 +2052,6 @@ export const mock_view_4: CricketAPIData = { // Batting Team 2
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "as369@icloud.com",
                 "playingRole": "Wicket Keeper",
                 "bowlingStyle": "Right Arm Medium"
             },
@@ -1994,7 +2079,6 @@ export const mock_view_4: CricketAPIData = { // Batting Team 2
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "aamirrehmat226@gmail.com",
                 "playingRole": "Wicket Keeper",
                 "bowlingStyle": "Right Arm Off Spin"
             },
@@ -2023,7 +2107,6 @@ export const mock_view_4: CricketAPIData = { // Batting Team 2
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "sumeer.goel@gmail.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Leg Spin"
             },
@@ -2051,7 +2134,6 @@ export const mock_view_4: CricketAPIData = { // Batting Team 2
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "capri_abbasi@yahoo.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             },
@@ -2079,7 +2161,6 @@ export const mock_view_4: CricketAPIData = { // Batting Team 2
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "moeed_leo_abbasi@yahoo.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             },
@@ -2108,7 +2189,6 @@ export const mock_view_4: CricketAPIData = { // Batting Team 2
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "hzamir16@yahoo.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             },
@@ -2137,7 +2217,6 @@ export const mock_view_4: CricketAPIData = { // Batting Team 2
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "aasimsakhi90@gmail.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             },
@@ -2164,7 +2243,6 @@ export const mock_view_4: CricketAPIData = { // Batting Team 2
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "sahib2221@yahoo.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             },
@@ -2193,7 +2271,6 @@ export const mock_view_4: CricketAPIData = { // Batting Team 2
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "sagar_ajk@yahoo.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             },
@@ -2220,7 +2297,6 @@ export const mock_view_4: CricketAPIData = { // Batting Team 2
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "mohammadahmed1823@gmail.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             },
@@ -2245,7 +2321,6 @@ export const mock_view_4: CricketAPIData = { // Batting Team 2
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "Qasimabbasi_10@yahoo.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             }
@@ -2255,19 +2330,19 @@ export const mock_view_4: CricketAPIData = { // Batting Team 2
         "t2Code": "LNS",
         "isDls": false,
         "matchId": "2079",
-        "t2Logo": "/documentsRep/teamLogos/891a284d-2fa8-4fde-a26d-71d39302606d.jpg",
+        "t2Logo": "/documentsRep/teamLogos/58a2f8fe-977a-4659-a910-07b547663e92.jpg",
         "t2Total": "188",
-        "revisedOvers": 0,
+        "revisedOvers": 0.0,
         "displayNickNameOnOverlay": false,
         "seriesName": "2024-Fall-Champions",
         "totalOvers": 20,
         "t2ID": 476,
         "requiredRuns": "1",
         "t1ID": 493,
-        "remainingOvers": "0.0",
+        "remainingOvers": "0",
         "shortResult": "Super Over.",
         "firstnamefirst": 0,
-        "t2Overs": "20.0",
+        "t2Overs": "20",
         "partnerShip": {
             "1": 14,
             "2": 21,
@@ -2293,17 +2368,34 @@ export const mock_view_4: CricketAPIData = { // Batting Team 2
     "sponsorsImgPaths": [],
     "isAutoSwitchEnabled": 0,
     "displayNickNameOnOverlay": false,
-    "comments": ""
-}
+    "comments": "",
+    "overlayConfig": {
+        "id": 2420,
+        "clubId": 1089463,
+        "overlayScorebarColor": "#005fc0",
+        "logoS3Url": "https://cricclubs.com/documentsRep/photos/1089463-11-14846b01-c364-466f-b82b-0e019c26df3c.png",
+        "backgroundColorForVideo": "",
+        "cpBGSecondColor": "#295fd6",
+        "isPowredBy": true,
+        "powredByLogo1": "https://cricclubs.com/documentsRep/static/overlay/powred-by-1.png",
+        "powredByLogo2": "https://cricclubs.com/documentsRep/static/overlay/powred-by-2.png",
+        "overlayDelay": 0,
+        "overlayTheme": 1,
+        "secondaryColor": "",
+        "fontColor": "",
+        "practiseSessionTheme": 0
+    }
+};
 
-export const mock_view_5: CricketAPIData = { // Bowling Team 2
+// Bowling Team 2 — captured live from match 2079 on 2026-09-07 (emails removed)
+export const mock_view_5: CricketAPIData = {
     "view": 5,
     "values": {
         "t1Logo": "/documentsRep/teamLogos/19e14ed0-7f91-4069-b04d-3bab43764dc6.jpg",
         "isSecondInningsStarted": "true",
         "customTextValue": "",
         "t2Wickets": "8",
-        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0.0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
+        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
         "t2RR": "9.40",
         "groundName": "LPCL-G1",
         "t1Code": "TGN",
@@ -2314,7 +2406,7 @@ export const mock_view_5: CricketAPIData = { // Bowling Team 2
         "isDls": false,
         "matchId": "2079",
         "t2Total": "188",
-        "revisedOvers": 0,
+        "revisedOvers": 0.0,
         "t1Name": "TOPGUNS UNITED",
         "displayNickNameOnOverlay": false,
         "t1Bowling": [
@@ -2338,8 +2430,7 @@ export const mock_view_5: CricketAPIData = { // Bowling Team 2
                 "nickName": "",
                 "bowlingStyle": "Right Arm Medium",
                 "impactPlayerIn": false,
-                "impactPlayerOut": false,
-                "email": "badrisettyanandh@gmail.com"
+                "impactPlayerOut": false
             },
             {
                 "matchID": 2079,
@@ -2359,10 +2450,9 @@ export const mock_view_5: CricketAPIData = { // Bowling Team 2
                 "profilepic_file_path": "/documentsRep/profilePics/301ddf3a-25b1-4178-8163-1503bc1e9fdc.jpeg",
                 "isSecondary": false,
                 "nickName": "",
-                "bowlingStyle": "Right Arm Medium",
+                "bowlingStyle": "Right Arm Fast",
                 "impactPlayerIn": false,
-                "impactPlayerOut": false,
-                "email": "arjun2988@gmail.com"
+                "impactPlayerOut": false
             },
             {
                 "matchID": 2079,
@@ -2384,8 +2474,7 @@ export const mock_view_5: CricketAPIData = { // Bowling Team 2
                 "nickName": " ",
                 "bowlingStyle": "Right Arm Medium",
                 "impactPlayerIn": false,
-                "impactPlayerOut": false,
-                "email": "vskchaitanya154@gmail.com"
+                "impactPlayerOut": false
             },
             {
                 "matchID": 2079,
@@ -2407,8 +2496,7 @@ export const mock_view_5: CricketAPIData = { // Bowling Team 2
                 "nickName": "",
                 "bowlingStyle": "Right Arm Medium",
                 "impactPlayerIn": false,
-                "impactPlayerOut": false,
-                "email": "nataraja.3.833@gmail.com"
+                "impactPlayerOut": false
             },
             {
                 "matchID": 2079,
@@ -2425,13 +2513,12 @@ export const mock_view_5: CricketAPIData = { // Bowling Team 2
                 "firstName": "Gautham",
                 "lastName": "Prasanna",
                 "innings": 1,
-                "profilepic_file_path": "/documentsRep/profilePics/e4af444f-7105-49e8-9ea8-230735ce22a8.jpeg",
+                "profilepic_file_path": "/documentsRep/profilePics/e3c81acd-144c-43ee-95b1-2f1f0365b1eb.jpeg",
                 "isSecondary": false,
                 "nickName": "",
                 "bowlingStyle": "Right Arm Off Spin",
                 "impactPlayerIn": false,
-                "impactPlayerOut": false,
-                "email": "gauthamp2800@gmail.com"
+                "impactPlayerOut": false
             },
             {
                 "matchID": 2079,
@@ -2453,8 +2540,7 @@ export const mock_view_5: CricketAPIData = { // Bowling Team 2
                 "nickName": "",
                 "bowlingStyle": "Right Arm Medium",
                 "impactPlayerIn": false,
-                "impactPlayerOut": false,
-                "email": "ranjitchetty92@gmail.com"
+                "impactPlayerOut": false
             }
         ],
         "seriesName": "2024-Fall-Champions",
@@ -2462,10 +2548,10 @@ export const mock_view_5: CricketAPIData = { // Bowling Team 2
         "t2ID": 476,
         "requiredRuns": "1",
         "t1ID": 493,
-        "remainingOvers": "0.0",
+        "remainingOvers": "0",
         "shortResult": "Super Over.",
         "firstnamefirst": 0,
-        "t2Overs": "20.0",
+        "t2Overs": "20",
         "partnerShip": {
             "1": 14,
             "2": 21,
@@ -2490,10 +2576,27 @@ export const mock_view_5: CricketAPIData = { // Bowling Team 2
     "sponsorsImgPaths": [],
     "isAutoSwitchEnabled": 0,
     "displayNickNameOnOverlay": false,
-    "comments": ""
-}
+    "comments": "",
+    "overlayConfig": {
+        "id": 2420,
+        "clubId": 1089463,
+        "overlayScorebarColor": "#005fc0",
+        "logoS3Url": "https://cricclubs.com/documentsRep/photos/1089463-11-14846b01-c364-466f-b82b-0e019c26df3c.png",
+        "backgroundColorForVideo": "",
+        "cpBGSecondColor": "#295fd6",
+        "isPowredBy": true,
+        "powredByLogo1": "https://cricclubs.com/documentsRep/static/overlay/powred-by-1.png",
+        "powredByLogo2": "https://cricclubs.com/documentsRep/static/overlay/powred-by-2.png",
+        "overlayDelay": 0,
+        "overlayTheme": 1,
+        "secondaryColor": "",
+        "fontColor": "",
+        "practiseSessionTheme": 0
+    }
+};
 
-export const mock_view_14: CricketAPIData = { // Innings Break
+// Innings Break — captured live from match 2079 on 2026-09-07 (emails removed)
+export const mock_view_14: CricketAPIData = {
     "view": 14,
     "values": {
         "t1Logo": "/documentsRep/teamLogos/19e14ed0-7f91-4069-b04d-3bab43764dc6.jpg",
@@ -2503,7 +2606,7 @@ export const mock_view_14: CricketAPIData = { // Innings Break
         "t2Wickets": "8",
         "t1Total": "188",
         "t1RR": "9.40",
-        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0.0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
+        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
         "t2RR": "9.40",
         "groundName": "LPCL-G1",
         "t1Code": "TGN",
@@ -2514,23 +2617,23 @@ export const mock_view_14: CricketAPIData = { // Innings Break
         "t2Code": "LNS",
         "isDls": false,
         "matchId": "2079",
-        "t2Logo": "/documentsRep/teamLogos/891a284d-2fa8-4fde-a26d-71d39302606d.jpg",
+        "t2Logo": "/documentsRep/teamLogos/58a2f8fe-977a-4659-a910-07b547663e92.jpg",
         "t2Total": "188",
-        "revisedOvers": 0,
+        "revisedOvers": 0.0,
         "t1Name": "TOPGUNS UNITED",
         "displayNickNameOnOverlay": false,
-        "t1Overs": "20.0",
+        "t1Overs": "20",
         "seriesName": "2024-Fall-Champions",
         "totalOvers": 20,
         "t1Extras": "11",
         "t2ID": 476,
         "requiredRuns": "1",
         "t1ID": 493,
-        "remainingOvers": "0.0",
+        "remainingOvers": "0",
         "toss": "TOPGUNS UNITED WON THE TOSS AND ELECTED TO BAT",
         "shortResult": "Super Over.",
         "firstnamefirst": 0,
-        "t2Overs": "20.0",
+        "t2Overs": "20",
         "partnerShip": {
             "1": 14,
             "2": 21,
@@ -2556,10 +2659,27 @@ export const mock_view_14: CricketAPIData = { // Innings Break
     "sponsorsImgPaths": [],
     "isAutoSwitchEnabled": 0,
     "displayNickNameOnOverlay": false,
-    "comments": ""
-}
+    "comments": "",
+    "overlayConfig": {
+        "id": 2420,
+        "clubId": 1089463,
+        "overlayScorebarColor": "#005fc0",
+        "logoS3Url": "https://cricclubs.com/documentsRep/photos/1089463-11-14846b01-c364-466f-b82b-0e019c26df3c.png",
+        "backgroundColorForVideo": "",
+        "cpBGSecondColor": "#295fd6",
+        "isPowredBy": true,
+        "powredByLogo1": "https://cricclubs.com/documentsRep/static/overlay/powred-by-1.png",
+        "powredByLogo2": "https://cricclubs.com/documentsRep/static/overlay/powred-by-2.png",
+        "overlayDelay": 0,
+        "overlayTheme": 1,
+        "secondaryColor": "",
+        "fontColor": "",
+        "practiseSessionTheme": 0
+    }
+};
 
-export const mock_view_15: CricketAPIData = { // Drinks Break
+// Drinks Break — captured live from match 2079 on 2026-09-07 (emails removed)
+export const mock_view_15: CricketAPIData = {
     "view": 15,
     "values": {
         "t1Logo": "/documentsRep/teamLogos/19e14ed0-7f91-4069-b04d-3bab43764dc6.jpg",
@@ -2569,7 +2689,7 @@ export const mock_view_15: CricketAPIData = { // Drinks Break
         "t2Wickets": "8",
         "t1Total": "188",
         "t1RR": "9.40",
-        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0.0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
+        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
         "t2RR": "9.40",
         "groundName": "LPCL-G1",
         "t1Code": "TGN",
@@ -2580,23 +2700,23 @@ export const mock_view_15: CricketAPIData = { // Drinks Break
         "t2Code": "LNS",
         "isDls": false,
         "matchId": "2079",
-        "t2Logo": "/documentsRep/teamLogos/891a284d-2fa8-4fde-a26d-71d39302606d.jpg",
+        "t2Logo": "/documentsRep/teamLogos/58a2f8fe-977a-4659-a910-07b547663e92.jpg",
         "t2Total": "188",
-        "revisedOvers": 0,
+        "revisedOvers": 0.0,
         "t1Name": "TOPGUNS UNITED",
         "displayNickNameOnOverlay": false,
-        "t1Overs": "20.0",
+        "t1Overs": "20",
         "seriesName": "2024-Fall-Champions",
         "totalOvers": 20,
         "t1Extras": "11",
         "t2ID": 476,
         "requiredRuns": "1",
         "t1ID": 493,
-        "remainingOvers": "0.0",
+        "remainingOvers": "0",
         "toss": "TOPGUNS UNITED WON THE TOSS AND ELECTED TO BAT",
         "shortResult": "Super Over.",
         "firstnamefirst": 0,
-        "t2Overs": "20.0",
+        "t2Overs": "20",
         "partnerShip": {
             "1": 14,
             "2": 21,
@@ -2622,10 +2742,27 @@ export const mock_view_15: CricketAPIData = { // Drinks Break
     "sponsorsImgPaths": [],
     "isAutoSwitchEnabled": 0,
     "displayNickNameOnOverlay": false,
-    "comments": ""
-}
+    "comments": "",
+    "overlayConfig": {
+        "id": 2420,
+        "clubId": 1089463,
+        "overlayScorebarColor": "#005fc0",
+        "logoS3Url": "https://cricclubs.com/documentsRep/photos/1089463-11-14846b01-c364-466f-b82b-0e019c26df3c.png",
+        "backgroundColorForVideo": "",
+        "cpBGSecondColor": "#295fd6",
+        "isPowredBy": true,
+        "powredByLogo1": "https://cricclubs.com/documentsRep/static/overlay/powred-by-1.png",
+        "powredByLogo2": "https://cricclubs.com/documentsRep/static/overlay/powred-by-2.png",
+        "overlayDelay": 0,
+        "overlayTheme": 1,
+        "secondaryColor": "",
+        "fontColor": "",
+        "practiseSessionTheme": 0
+    }
+};
 
-export const mock_view_8: CricketAPIData = { // Match Summary
+// Match Summary — captured live from match 2079 on 2026-09-07 (emails removed)
+export const mock_view_8: CricketAPIData = {
     "view": 8,
     "values": {
         "t1Logo": "/documentsRep/teamLogos/19e14ed0-7f91-4069-b04d-3bab43764dc6.jpg",
@@ -2635,7 +2772,7 @@ export const mock_view_8: CricketAPIData = { // Match Summary
         "t2Wickets": "8",
         "t1Total": "188",
         "t1RR": "9.40",
-        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0.0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
+        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
         "t2RR": "9.40",
         "groundName": "LPCL-G1",
         "t1Code": "TGN",
@@ -2667,7 +2804,6 @@ export const mock_view_8: CricketAPIData = { // Match Summary
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "abhinav91690@gmail.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Off Spin"
             },
@@ -2686,15 +2822,14 @@ export const mock_view_8: CricketAPIData = { // Match Summary
                 "outStringNoLink": "not out",
                 "outStringNickNamesNoLink": "not out",
                 "innings": 1,
-                "profilepic_file_path": "/documentsRep/profilePics/e4af444f-7105-49e8-9ea8-230735ce22a8.jpeg",
+                "profilepic_file_path": "/documentsRep/profilePics/e3c81acd-144c-43ee-95b1-2f1f0365b1eb.jpeg",
                 "isSecondary": false,
                 "nickName": "",
                 "shortName": "Gautham P",
                 "battingPosition": 4,
-                "battingStyle": "Right Handed Batter",
+                "battingStyle": "Right Hand Batter (Top Order)",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "gauthamp2800@gmail.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Off Spin"
             },
@@ -2719,10 +2854,9 @@ export const mock_view_8: CricketAPIData = { // Match Summary
                 "nickName": "Naveen",
                 "shortName": "Naveen kumar Y",
                 "battingPosition": 5,
-                "battingStyle": "Right Handed Batter",
+                "battingStyle": "Right Hand Batter (Top Order)",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "naveenkumar7.y@gmail.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             }
@@ -2751,7 +2885,6 @@ export const mock_view_8: CricketAPIData = { // Match Summary
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "sahib2221@yahoo.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             },
@@ -2779,7 +2912,6 @@ export const mock_view_8: CricketAPIData = { // Match Summary
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "capri_abbasi@yahoo.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             },
@@ -2808,7 +2940,6 @@ export const mock_view_8: CricketAPIData = { // Match Summary
                 "battingStyle": "Right Handed Batter",
                 "impactPlayerIn": false,
                 "impactPlayerOut": false,
-                "email": "aasimsakhi90@gmail.com",
                 "playingRole": "All Rounder",
                 "bowlingStyle": "Right Arm Medium"
             }
@@ -2818,12 +2949,12 @@ export const mock_view_8: CricketAPIData = { // Match Summary
         "t2Code": "LNS",
         "isDls": false,
         "matchId": "2079",
-        "t2Logo": "/documentsRep/teamLogos/891a284d-2fa8-4fde-a26d-71d39302606d.jpg",
+        "t2Logo": "/documentsRep/teamLogos/58a2f8fe-977a-4659-a910-07b547663e92.jpg",
         "t2Total": "188",
-        "revisedOvers": 0,
+        "revisedOvers": 0.0,
         "t1Name": "TOPGUNS UNITED",
         "displayNickNameOnOverlay": false,
-        "t1Overs": "20.0",
+        "t1Overs": "20",
         "t2Bowling": [
             {
                 "matchID": 2079,
@@ -2846,8 +2977,7 @@ export const mock_view_8: CricketAPIData = { // Match Summary
                 "shortName": "Sumeer G",
                 "bowlingStyle": "Right Arm Leg Spin",
                 "impactPlayerIn": false,
-                "impactPlayerOut": false,
-                "email": "sumeer.goel@gmail.com"
+                "impactPlayerOut": false
             },
             {
                 "matchID": 2079,
@@ -2870,8 +3000,7 @@ export const mock_view_8: CricketAPIData = { // Match Summary
                 "shortName": "Qasim A",
                 "bowlingStyle": "Right Arm Medium",
                 "impactPlayerIn": false,
-                "impactPlayerOut": false,
-                "email": "Qasimabbasi_10@yahoo.com"
+                "impactPlayerOut": false
             },
             {
                 "matchID": 2079,
@@ -2894,8 +3023,7 @@ export const mock_view_8: CricketAPIData = { // Match Summary
                 "shortName": "Moeed A",
                 "bowlingStyle": "Right Arm Medium",
                 "impactPlayerIn": false,
-                "impactPlayerOut": false,
-                "email": "moeed_leo_abbasi@yahoo.com"
+                "impactPlayerOut": false
             }
         ],
         "t1Bowling": [
@@ -2920,8 +3048,7 @@ export const mock_view_8: CricketAPIData = { // Match Summary
                 "shortName": "Anand Babu B",
                 "bowlingStyle": "Right Arm Medium",
                 "impactPlayerIn": false,
-                "impactPlayerOut": false,
-                "email": "badrisettyanandh@gmail.com"
+                "impactPlayerOut": false
             },
             {
                 "matchID": 2079,
@@ -2944,8 +3071,7 @@ export const mock_view_8: CricketAPIData = { // Match Summary
                 "shortName": "Nataraja G",
                 "bowlingStyle": "Right Arm Medium",
                 "impactPlayerIn": false,
-                "impactPlayerOut": false,
-                "email": "nataraja.3.833@gmail.com"
+                "impactPlayerOut": false
             },
             {
                 "matchID": 2079,
@@ -2966,10 +3092,9 @@ export const mock_view_8: CricketAPIData = { // Match Summary
                 "isSecondary": false,
                 "nickName": "",
                 "shortName": "Arjun O",
-                "bowlingStyle": "Right Arm Medium",
+                "bowlingStyle": "Right Arm Fast",
                 "impactPlayerIn": false,
-                "impactPlayerOut": false,
-                "email": "arjun2988@gmail.com"
+                "impactPlayerOut": false
             }
         ],
         "seriesName": "2024-Fall-Champions",
@@ -2978,11 +3103,11 @@ export const mock_view_8: CricketAPIData = { // Match Summary
         "t2ID": 476,
         "requiredRuns": "1",
         "t1ID": 493,
-        "remainingOvers": "0.0",
+        "remainingOvers": "0",
         "toss": "TOPGUNS UNITED WON THE TOSS AND ELECTED TO BAT",
         "shortResult": "Super Over.",
         "firstnamefirst": 0,
-        "t2Overs": "20.0",
+        "t2Overs": "20",
         "partnerShip": {
             "1": 14,
             "2": 21,
@@ -3008,10 +3133,27 @@ export const mock_view_8: CricketAPIData = { // Match Summary
     "sponsorsImgPaths": [],
     "isAutoSwitchEnabled": 0,
     "displayNickNameOnOverlay": false,
-    "comments": ""
-}
+    "comments": "",
+    "overlayConfig": {
+        "id": 2420,
+        "clubId": 1089463,
+        "overlayScorebarColor": "#005fc0",
+        "logoS3Url": "https://cricclubs.com/documentsRep/photos/1089463-11-14846b01-c364-466f-b82b-0e019c26df3c.png",
+        "backgroundColorForVideo": "",
+        "cpBGSecondColor": "#295fd6",
+        "isPowredBy": true,
+        "powredByLogo1": "https://cricclubs.com/documentsRep/static/overlay/powred-by-1.png",
+        "powredByLogo2": "https://cricclubs.com/documentsRep/static/overlay/powred-by-2.png",
+        "overlayDelay": 0,
+        "overlayTheme": 1,
+        "secondaryColor": "",
+        "fontColor": "",
+        "practiseSessionTheme": 0
+    }
+};
 
-export const mock_view_48: CricketAPIData = { // Team 1 Info
+// Team 1 Info — captured live from match 2079 on 2026-09-07 (emails removed)
+export const mock_view_48: CricketAPIData = {
     "view": 48,
     "values": {
         "t1Logo": "/documentsRep/teamLogos/19e14ed0-7f91-4069-b04d-3bab43764dc6.jpg",
@@ -3021,7 +3163,7 @@ export const mock_view_48: CricketAPIData = { // Team 1 Info
             "/documentsRep/profilePics/04f9083c-bc51-423e-a2f2-fe45e9909977.jpeg",
             "/documentsRep/profilePics/024d210d-c0b0-476c-8eda-fb7b34bb58e2.jpeg",
             "/documentsRep/profilePics/e3c1e9ed-2d20-43c9-b4dc-37b2ffdb5c06.jpeg",
-            "/documentsRep/profilePics/e4af444f-7105-49e8-9ea8-230735ce22a8.jpeg",
+            "/documentsRep/profilePics/e3c81acd-144c-43ee-95b1-2f1f0365b1eb.jpeg",
             "/documentsRep/profilePics/4de036f3-71b9-4133-90c6-3e9edba5bf10.jpeg",
             "/documentsRep/profilePics/e8a6015e-ad61-4e58-bd77-3d89cada6e6f.jpg",
             "/documentsRep/profilePics/c11dc6f5-d649-45f6-8b82-c9f35ea39153.jpeg",
@@ -3031,7 +3173,7 @@ export const mock_view_48: CricketAPIData = { // Team 1 Info
             "/documentsRep/profilePics/f5a880a5-1230-4a81-b641-dc07442b0dd3.jpeg",
             "/documentsRep/profilePics/b54da520-8c2b-4296-9f1b-12900142c839.jpeg"
         ],
-        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0.0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
+        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
         "groundName": "LPCL-G1",
         "t1Code": "TGN",
         "result": "Super Over.",
@@ -3052,7 +3194,7 @@ export const mock_view_48: CricketAPIData = { // Team 1 Info
         ],
         "isDls": false,
         "matchId": "2079",
-        "revisedOvers": 0,
+        "revisedOvers": 0.0,
         "t1Name": "TOPGUNS UNITED",
         "displayNickNameOnOverlay": false,
         "seriesName": "2024-Fall-Champions",
@@ -3094,9 +3236,9 @@ export const mock_view_48: CricketAPIData = { // Team 1 Info
                 "playerID": 1411997,
                 "firstName": "Gautham",
                 "lastName": "Prasanna",
-                "profilepic_file_path": "/documentsRep/profilePics/e4af444f-7105-49e8-9ea8-230735ce22a8.jpeg",
+                "profilepic_file_path": "/documentsRep/profilePics/e3c81acd-144c-43ee-95b1-2f1f0365b1eb.jpeg",
                 "playingRole": "All Rounder",
-                "battingStyle": "Right Handed Batter",
+                "battingStyle": "Right Hand Batter (Top Order)",
                 "bowlingStyle": "Right Arm Off Spin"
             },
             {
@@ -3105,7 +3247,7 @@ export const mock_view_48: CricketAPIData = { // Team 1 Info
                 "lastName": "Yellaboina",
                 "profilepic_file_path": "/documentsRep/profilePics/4de036f3-71b9-4133-90c6-3e9edba5bf10.jpeg",
                 "playingRole": "All Rounder",
-                "battingStyle": "Right Handed Batter",
+                "battingStyle": "Right Hand Batter (Top Order)",
                 "bowlingStyle": "Right Arm Medium"
             },
             {
@@ -3113,7 +3255,7 @@ export const mock_view_48: CricketAPIData = { // Team 1 Info
                 "firstName": "Nandan",
                 "lastName": "Patibandla",
                 "profilepic_file_path": "/documentsRep/profilePics/e8a6015e-ad61-4e58-bd77-3d89cada6e6f.jpg",
-                "playingRole": "Wicket Keeper",
+                "playingRole": "All Rounder",
                 "battingStyle": "Right Handed Batter",
                 "bowlingStyle": "Right Arm Medium"
             },
@@ -3149,9 +3291,9 @@ export const mock_view_48: CricketAPIData = { // Team 1 Info
                 "firstName": "Arjun",
                 "lastName": "Okkath",
                 "profilepic_file_path": "/documentsRep/profilePics/301ddf3a-25b1-4178-8163-1503bc1e9fdc.jpeg",
-                "playingRole": "All Rounder",
+                "playingRole": "Bowler",
                 "battingStyle": "Right Handed Batter",
-                "bowlingStyle": "Right Arm Medium"
+                "bowlingStyle": "Right Arm Fast"
             },
             {
                 "playerID": 2010490,
@@ -3168,7 +3310,7 @@ export const mock_view_48: CricketAPIData = { // Team 1 Info
                 "lastName": "Padimalla",
                 "profilepic_file_path": "/documentsRep/profilePics/b54da520-8c2b-4296-9f1b-12900142c839.jpeg",
                 "playingRole": "All Rounder",
-                "battingStyle": "Right Handed Batter",
+                "battingStyle": "Right Handed Batsman",
                 "bowlingStyle": "Right Arm Medium"
             }
         ],
@@ -3186,15 +3328,32 @@ export const mock_view_48: CricketAPIData = { // Team 1 Info
     "sponsorsImgPaths": [],
     "isAutoSwitchEnabled": 0,
     "displayNickNameOnOverlay": false,
-    "comments": ""
-}
+    "comments": "",
+    "overlayConfig": {
+        "id": 2420,
+        "clubId": 1089463,
+        "overlayScorebarColor": "#005fc0",
+        "logoS3Url": "https://cricclubs.com/documentsRep/photos/1089463-11-14846b01-c364-466f-b82b-0e019c26df3c.png",
+        "backgroundColorForVideo": "",
+        "cpBGSecondColor": "#295fd6",
+        "isPowredBy": true,
+        "powredByLogo1": "https://cricclubs.com/documentsRep/static/overlay/powred-by-1.png",
+        "powredByLogo2": "https://cricclubs.com/documentsRep/static/overlay/powred-by-2.png",
+        "overlayDelay": 0,
+        "overlayTheme": 1,
+        "secondaryColor": "",
+        "fontColor": "",
+        "practiseSessionTheme": 0
+    }
+};
 
-export const mock_view_49: CricketAPIData = { // Team 2 Info
+// Team 2 Info — captured live from match 2079 on 2026-09-07 (emails removed)
+export const mock_view_49: CricketAPIData = {
     "view": 49,
     "values": {
         "isSecondInningsStarted": "true",
         "customTextValue": "",
-        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0.0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
+        "showMsgForScoreNeeded": "<span>Lions</span><span class='numberColorClass'> NEED</span> 1 <span class='numberColorClass'>FROM</span> 0 <span class='numberColorClass'>OVERS</span> --.--<span class='numberColorClass'> RRR</span>",
         "groundName": "LPCL-G1",
         "result": "Super Over.",
         "isMatchEnded": "1",
@@ -3214,8 +3373,8 @@ export const mock_view_49: CricketAPIData = { // Team 2 Info
             "Mohammed Ahmed",
             "Qasim Abbasi"
         ],
-        "t2Logo": "/documentsRep/teamLogos/891a284d-2fa8-4fde-a26d-71d39302606d.jpg",
-        "revisedOvers": 0,
+        "t2Logo": "/documentsRep/teamLogos/58a2f8fe-977a-4659-a910-07b547663e92.jpg",
+        "revisedOvers": 0.0,
         "displayNickNameOnOverlay": false,
         "t2PlayersList": [
             {
@@ -3353,5 +3512,21 @@ export const mock_view_49: CricketAPIData = { // Team 2 Info
     "sponsorsImgPaths": [],
     "isAutoSwitchEnabled": 0,
     "displayNickNameOnOverlay": false,
-    "comments": ""
-}
+    "comments": "",
+    "overlayConfig": {
+        "id": 2420,
+        "clubId": 1089463,
+        "overlayScorebarColor": "#005fc0",
+        "logoS3Url": "https://cricclubs.com/documentsRep/photos/1089463-11-14846b01-c364-466f-b82b-0e019c26df3c.png",
+        "backgroundColorForVideo": "",
+        "cpBGSecondColor": "#295fd6",
+        "isPowredBy": true,
+        "powredByLogo1": "https://cricclubs.com/documentsRep/static/overlay/powred-by-1.png",
+        "powredByLogo2": "https://cricclubs.com/documentsRep/static/overlay/powred-by-2.png",
+        "overlayDelay": 0,
+        "overlayTheme": 1,
+        "secondaryColor": "",
+        "fontColor": "",
+        "practiseSessionTheme": 0
+    }
+};

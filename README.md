@@ -79,6 +79,19 @@ derived by diffing one poll against the previous one, so nothing extra is reques
 | Four / Six | the newest ball is a boundary off the bat | 2 s |
 | 50 / 100 partnership | the current stand crosses 50 or 100 | 6 s |
 
+Cards queue and play one at a time; a wicket suppresses the boundary flash on the same ball, and the wicket card shows the fall of wicket ("3rd wkt · 84/3"). **Two rules always hold**: every card is timed, and any change to the score dismisses whatever is showing. `?quiet` disables them. In debug mode, `&card=wicket` (or `milestone`, `partnership`, `boundary`) holds a sample card so you can position it in OBS.
+
+### Panels between the action
+While nothing can happen the overlay fills the gap by itself, using richer CricClubs data it fetches by switching the match's overlay view for a single poll (see [docs/cricclubs-api.md](docs/cricclubs-api.md)):
+
+| Match state | Panel above the bar |
+| :--- | :--- |
+| Before the first ball | Line-up card: series, ground and overs on top, both crests, the toss as a callout ("Topguns United elected to bat"), then each XI in two columns of headshots with a Batting / Fielding tag worked out from the toss |
+| Innings break | First-innings summary: the batting side with its total large on the right, tiles for run rate, boundaries, extras and the target, then top scorers and best bowling with headshots, fall of wickets beneath |
+| Match over | Result card: the result as the headline, then a card per side with its score, top two batters and best bowler (the winner's card accented), then a strip of the match's top performers — led by CricClubs' player of the match when one is named |
+
+Panels rotate on timers and disappear the moment a ball is bowled. The overlay never leaves the live scorebar view while play is possible; it peeks at the squads before the match, team 1's cards at the break and team 2's at the end, one poll each. `&panel=lineup` (or `innings-summary`, `match-summary`) with `?debug=` holds a sample.
+
 ### Machine-readable data code
 
 `?data=1` draws a 66 × 66 px code in the top-left corner carrying the current bar state, so a
@@ -142,6 +155,11 @@ cd worker              # the analytics Worker
 npm run dev            # local Worker + local D1
 npm run test:run
 npm run typecheck
+```
+
+```bash
+# Play a whole simulated match through the real overlay, headless, and grade it
+npm run sim:run
 ```
 
 `npm run build` fails on type errors **and** test failures, so run it before opening a PR.

@@ -23,9 +23,8 @@ any file here. See [analytics.md](./analytics.md) §6 and §7.
 - [The overlay](./overlay.md) - The poll loop and mode switch, DOM update discipline, the
   import-time `dom.ts` trap, the 17-theme token system, the event-card queue and its palette
   contract, and why Link Live Stream must stay a popup.
-- [CricClubs API](./cricclubs-api.md) - The endpoints, the `view` mechanism, per-view payload
-  shapes and probing recipes. ⚠ **Arrives with PR 13** (`feature/cricclubs-views`); this link is
-  broken until that merges.
+- [CricClubs API](./cricclubs-api.md) - The endpoints, the `view` mechanism and what it costs,
+  per-view payload shapes, club branding, and the probing recipes to re-verify any of it.
 
 ## Highlights
 

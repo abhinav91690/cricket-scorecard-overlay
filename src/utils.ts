@@ -15,6 +15,7 @@ export function getQueryParams() {
         mode: urlParams.get('mode'),
         quiet: urlParams.has('quiet'),
         card: urlParams.get('card'),
+        panel: urlParams.get('panel'),
         // ?data=1 draws the machine-readable code for highlights/. Off by default, so a
         // normal browser source never shows it.
         data: urlParams.has('data') && urlParams.get('data') !== '0',
@@ -85,3 +86,42 @@ export function getBallStyleClass(ballOutcome: string): string {
     return 'ball-default';
 }
 
+/**
+ * Whether the side batting now is the one that batted second. The single place this is decided:
+ * the bar, event detection, the dismiss-on-score rule and the ?data=1 code all ask here.
+ *
+ * 🛑 During a super over CricClubs tracks its innings with `isSuperOverSecondInningsStarted`. The one
+ * super-over capture (match 2079, after the result) is consistent with `isSecondInningsStarted`
+ * staying the MAIN match's flag — "true" — all the way through, in which case reading it names the
+ * wrong side for the whole first super-over innings: the bar shows the side not batting, its wickets
+ * go unseen, and the data code carries the wrong total. Preferring the super-over flag is right
+ * under that reading and changes nothing under the other (a flag that follows the super over),
+ * because then the two agree. A live super-over capture would settle which it is.
+ */
+export function battingSecond(v: { isSecondInningsStarted?: unknown; isSuperOver?: unknown; isSuperOverSecondInningsStarted?: unknown }): boolean {
+    const on = (x: unknown) => String(x) === 'true';
+    return on(v.isSuperOver) ? on(v.isSuperOverSecondInningsStarted) : on(v.isSecondInningsStarted);
+}
+
+/**
+ * A team's overs in cricket notation ("0.3").
+ *
+ * 🛑 In a super over CricClubs sends a BALL COUNT: match 2079's capture has `t1Overs` "6" for a
+ * completed one-over super over. Shown as-is, three balls in reads "3 ov", the this-over strip
+ * miscounts balls left, and the ?data=1 code turns "3" into 18 balls. A value that already has a
+ * decimal point is overs notation and passes through, so this is right in either form.
+ *
+ * ⚠ Team overs only. There is no evidence for a bowler's figure in a super over, and a plain "1"
+ * there could mean an over or a ball, so bowler overs are left exactly as sent.
+ */
+export function teamOvers(v: { isSuperOver?: unknown }, raw: string | undefined): string {
+    const s = (raw ?? '').trim();
+    if (!s || String(v.isSuperOver) !== 'true' || s.includes('.')) return s;
+    const balls = parseInt(s, 10);
+    return Number.isFinite(balls) ? `${Math.floor(balls / 6)}.${balls % 6}` : s;
+}
+
+/** The length of the innings being played, in overs: one in a super over. */
+export function matchOvers(v: { isSuperOver?: unknown; totalOvers?: number }): number | undefined {
+    return String(v.isSuperOver) === 'true' ? 1 : v.totalOvers;
+}

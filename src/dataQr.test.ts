@@ -103,6 +103,23 @@ describe('outcomeCode', () => {
     });
 });
 
+describe('buildFields in a super over', () => {
+    it('encodes the runs of the side batting in the first super-over innings', () => {
+        // highlights/ reads teamRuns and innings off every frame; the wrong side's total would make
+        // every super-over ball in the first innings look like nothing happened.
+        const f = buildFields(frame({ isSuperOver: 'true', isSuperOverSecondInningsStarted: 'false', isSecondInningsStarted: 'true', t1Total: '8', t1Wickets: '1', t1Overs: '6', t2Total: '0', t2Wickets: '0', t2Overs: '0' } as any), 0);
+        expect(f.teamRuns).toBe(8);
+        expect(f.innings).toBe(0);
+        expect(f.wickets).toBe(1);
+    });
+
+    it('numbers super-over balls from the ball count, not as whole overs', () => {
+        // oversToBalls("3") is 18: every super-over delivery would carry the wrong ball number.
+        const f = buildFields(frame({ isSuperOver: 'true', isSuperOverSecondInningsStarted: 'false', isSecondInningsStarted: 'true', t1Total: '7', t1Wickets: '0', t1Overs: '3', t2Total: '0', t2Overs: '0' } as any), 0);
+        expect(f.ballsBowled).toBe(3);
+    });
+});
+
 describe('buildFields', () => {
     it('reads the first-innings side, matching what the bar shows', () => {
         const f = buildFields(frame(), 0);

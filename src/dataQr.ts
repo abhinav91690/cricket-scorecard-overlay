@@ -16,7 +16,7 @@
  * 60 random payloads byte-exactly even from perfect uncompressed images.
  */
 import { OUTCOME, packPayload, type DataFields } from './dataCode';
-import { runsOffBat } from './utils';
+import { battingSecond, runsOffBat, teamOvers } from './utils';
 import type { CricketAPIData } from './types';
 
 /** Pinned. See the note above — these are load-bearing, not preferences. */
@@ -78,7 +78,7 @@ export function outcomeCode(raw: string | undefined): number {
  */
 export function buildFields(data: CricketAPIData, sequence: number): DataFields {
     const v = data.values;
-    const second = v.isSecondInningsStarted === 'true';
+    const second = battingSecond(v);
     const balls = data.balls ?? [];
 
     return {
@@ -88,7 +88,7 @@ export function buildFields(data: CricketAPIData, sequence: number): DataFields 
         innings: second ? 1 : 0,
         teamRuns: num(second ? v.t2Total : v.t1Total),
         wickets: num(second ? v.t2Wickets : v.t1Wickets),
-        ballsBowled: oversToBalls(second ? v.t2Overs : v.t1Overs),
+        ballsBowled: oversToBalls(teamOvers(v, second ? v.t2Overs : v.t1Overs)),
         // What the bar itself shows as the target: the first innings total plus one.
         target: second ? num(v.t1Total) + 1 : 0,
         outcome: outcomeCode(balls[balls.length - 1]),

@@ -1,5 +1,129 @@
 # Update Log
 
+## 2026-09-24
+
+### ⚠ A fifth over is legal in CricClubs — the simulator no longer forbids it
+
+A correction to the entry below. The simulator's fifth over was reported as a bug, "a T20 caps a
+bowler at four", and the fix enforced that cap and failed any run that broke it. But **CricClubs
+lets the scorer override the limit and give a fifth over**, and leagues use it, so the simulator was
+stricter than the thing it simulates.
+
+The cap is now a preference: the scheduling fix stays (most overs left goes next, which is how a
+captain avoids needing an override), and when nobody else is under the limit the least-used bowler
+gets an extra over instead of the match stopping. Checked directly: 20 overs from four bowlers gives
+five each, spread evenly, never two in a row — the old code would have thrown. The grader's
+over-limit check is gone and each report states the busiest bowler and any overrides instead.
+
+The overlay itself never had a limit, and the `?data=1` code has room for 21 overs from one bowler.
+
+### The simulator plays super overs and respects the over limit — and found four bugs
+
+`npm run sim:run -- --super-over [--seed N]` ties the main match by construction and decides it with
+a super over; the grader now has 21 checks in that scenario and 18 in the ordinary one.
+[overlay.md](./overlay.md) §13.
+
+🛑 **A bowler bowled five overs.** When the recorded quotas ran out, the generator took any bowler
+who had not just bowled, with no limit. It now picks whoever has the most overs left and enforces a
+fifth of the overs; graded every run.
+
+What the super-over scenario found, all in the first super-over innings:
+
+- 🛑 **The bar named the side not batting** — 6 of 6 samples. `ui.ts` read `isSecondInningsStarted`,
+  which the one capture allows to stay the main match's flag through a super over.
+- 🛑 **Its wickets went undetected**, and the dismiss-on-score rule and the `?data=1` code read the
+  wrong side the same way. The simulator's first super over had no wickets, so the wicket check had
+  passed *vacuously*; a seed with wickets in both innings, then the fix reverted, gave 14 cards for 15.
+- 🛑 **Overs showed as a ball count** — "3 ov" three balls in, and 18 balls in the data code. That
+  one is fact, not assumption: the capture has `t1Overs` "6" for a completed super over.
+
+All four modules now ask `battingSecond()` and `teamOvers()` in `utils.ts`. Tests written first and
+seen failing; the two new grader checks were each checked by reverting their fix.
+
+⚠ **Still unverified:** what `isSecondInningsStarted` holds during a live super over. The fix is right
+under either reading, but only a live capture would say which is true. And the data code has no
+super-over marker, so `highlights/` cannot tell a super-over ball apart
+([highlights.md](./highlights.md) §9).
+
+### The overlay reads straight after a view switch, not a whole refresh later
+
+With switches applying in under half a second, waiting the full 5 s refresh before reading a
+peeked view was pure cost: CricClubs' own overlay sat on the squad or scorecard view for that whole
+time. `switchView()` now resolves when CricClubs answers, and the next poll follows 300 ms later.
+Measured on 4631: **1.47 s** on the data view per peek instead of **6.16 s**, about 9 s a match
+instead of 37, and the early read still collected the squad. [overlay.md](./overlay.md) §14.
+
+🛑 Coming home is not attempt-limited, so the fast follow-up is capped at `MAX_FAST_POLLS` in a row
+before falling back to the old cadence. The test for that was checked by removing the cap.
+
+### ✅ View-switch latency, measured: under half a second
+
+The peek design assumed CricClubs applies a view switch by the next poll, and nobody had checked.
+On finished match 4631 (own club, restored to view 1 afterwards) four switches each took effect by
+the first read, 0.37–0.41 s after the request — the read's own round trip. `PEEK_ATTEMPTS` × 5 s is
+ample and the simulator's instant switch is realistic. [cricclubs-api.md](./cricclubs-api.md) §2.
+
+Deliberately **not** measured on the live match offered for it: it belonged to another league and
+was in play, and a switch flips CricClubs' own overlay for everyone watching that match. A
+finished match of our own answers the same question with nobody affected. A live match could still
+be served differently, so the first real break is worth watching.
+
+## 2026-09-23
+
+### 🛑 One failed view peek blocked the next
+
+`desiredView()` asked for the first missing piece of a phase unconditionally. When a view never
+yielded, `steerView()` stopped asking after `PEEK_ATTEMPTS` but never moved on, so the next view
+was never requested: a failed team 1 squad meant team 2's was never fetched, and the line-up
+showed with **both** XIs empty. The same at the break (view 2 blocked 3) and the end (4 blocked 5).
+It now skips views that have used their tries. [overlay.md](./overlay.md) §14.
+
+The fix broke an existing test, `gives up on a view that never yields and shows the panel anyway`,
+and the test was the thing that was wrong: it waited six polls for the line-up, which was only
+enough *because* team 2's squad was never asked for. It now waits seven and asserts both views
+got their three tries. The simulator cannot see any of this — every peek it serves succeeds.
+
+### The result card, rebuilt to a broadcast layout
+
+The match-summary panel now follows a reference result card: the result as the headline over a
+rule, a card per side with its score, its two top batters and its best bowler, then an inverted
+strip of the match's top performers. Built in the overlay's own tokens, so every theme styles it.
+[overlay.md](./overlay.md) §14c.
+
+🛑 **Each card now holds that side's own players.** The previous panel paired a side's batters with
+the *opposition* bowler who bowled at them — an innings view that read as if the bowler belonged
+to the team named above him. The reference mock-up had the same mix-up in a plainer form, with one
+team's players under the other's name. A test fails if either comes back; it was checked by putting
+the opposition bowler back and watching it fail.
+
+⚠ **The winner is read from free text, by name or by code.** CricClubs writes both
+`"TOPGUNS UNITED won by 5 Wickets"` and, after a tie, `"Match tied. TGN won the super over."`. The
+first version of the parser anchored at the start and captured `"Match tied. TGN"` across the full
+stop, so no winner was found; the test built from the real 2079 wording caught it.
+
+⚠ **Team codes are cached from the data views, next to the names**, because the scorebar swaps
+sides during a super over and would put the wrong badge on each card.
+
+✅ **`manOfTheMatch` is real data**, filled in after a match ends — [cricclubs-api.md](./cricclubs-api.md)
+had it listed as empty in practice, which was wrong. It now leads the performers strip.
+
+### 🛑 The simulator leaked a real match's data a second time
+
+The first light-theme run named *Anand Babu B* player of the match on 1-43 — the award from real
+match 2079, inherited by `sim/match.ts` through the capture its scorebar is built from, and handed
+to whoever that player happened to be in a different, simulated match. Exactly the class of leak
+`isSuperOver` was. The sim now publishes its own award, the way CricClubs does: its top scorer,
+only once the match has ended.
+
+Two of these is a pattern, so it is now a `CLAUDE.md` tripwire: every field the simulator does not
+set explicitly is a value from a real, different match.
+
+### Also
+
+- The stale `setDisplay` line in `overlay.md` §3 is gone; this branch deleted the helper.
+- `overlay.md` §14's subsections are back in order (14a, 14b, 14c).
+- Both themes screenshotted: `topguns-dark` and `topguns-light`, each 17/17 in the simulator.
+
 ## 2026-09-22
 
 ### Instagram: the hosting half is built, and §8 rewritten from measurements
@@ -42,6 +166,83 @@ partial requests before pulling the file.
   YouTube's equivalent trap only costs a browser round trip.
 - **Instagram has no private-first option.** The YouTube model of upload-private-then-flip has
   no equivalent, so `--confirm` is load-bearing and publishing stays manual-trigger only.
+
+### 🛑 A live super over was being shown as an innings break
+
+`matchPhase()` read the scorebar's overs and balls, and the scorebar **swaps to the super-over
+sides and totals**, so the gap between the two super-over innings was indistinguishable from an
+innings break. The overlay put the **main match's** first innings on air, labelled "1st innings",
+while a super over was being bowled. It now returns `play` while `isSuperOver` is set, below the
+`isMatchEnded` check so a finished super over still gets its match summary.
+[overlay.md](./overlay.md) §14b.
+
+⚠ **`isSuperOver` and `isSuperOverSecondInningsStarted` were typed in `types.ts` and read
+nowhere.** The flag that disambiguates this existed in the payload the whole time.
+
+⚠ **No fixture could have caught it.** Match 2079 — the source of every fixture in
+`mockData.ts` — *is* a super-over tie, but it was captured after the match ended, so
+`isMatchEnded` is `'1'` and the real frame short-circuits to `ended`. The test winds that capture
+back to mid-super-over, and was checked by running it before the fix: `expected 'break' to be
+'play'`.
+
+### 🛑 The simulator was claiming a super over on every frame of a normal match
+
+Fixing the above immediately broke **6 of the simulator's 17 checks** — no line-up panel, no
+innings summary, no pre-match or break peeks. The cause was in `sim/match.ts`, not in the fix:
+`const base = v(mock_view_1)` inherits the real 2079 capture, which carries
+`isSuperOver: "true"` for the whole match, and the overrides never reset it. Every simulated
+frame was asserting a live super over.
+
+The intent had always been otherwise — `isSuperOver: false` was being set on the returned data
+object, but **not inside `values`**, which is where the overlay reads it. One line, in the right
+place, and all 17 checks pass again.
+
+🛑 **A fixture built from a real match inherits that match's quirks.** This one sat inert because
+nothing read the flag; the moment something did, it silently disabled two whole phases of the
+harness. Worth remembering for any fixture derived from a live capture.
+
+### `stripPii()` walks the payload instead of trusting a key list
+
+It deleted `email` from six hardcoded keys — correct for every view in
+[cricclubs-api.md](./cricclubs-api.md) §3, but a new CricClubs view with a new row-bearing key
+would have leaked emails **silently onto a public broadcast**, and nobody would notice until
+someone paused the stream. It now walks the whole object, with a `WeakSet` so a cyclic payload
+cannot hang the poll loop. Verified the leak test fails first.
+
+
+### Merged `main` into the views branch (PR 13)
+
+`main` had moved 26 commits ahead while this branch sat open, including the OKF conversion that
+**deleted `architecture.md` and the root `feature-ideas.md`** — both of which this branch had
+edited. Nine conflicts, resolved rather than discarded:
+
+| File | Resolution |
+|---|---|
+| `src/utils.ts`, `src/events.ts` | additive on both sides — `panel` param beside `data`, `wicketFallText` beside `runsOffBat` |
+| `src/cards.ts` | kept this branch's panel types and `fow`, grafted on `main`'s `four`/`six` aliases |
+| `src/app.ts` | combined the view/panel machinery with the `?data=1` code (see below) |
+| `CLAUDE.md` | took `main`'s tripwire structure; re-added the `sim` commands and two new tripwires |
+| `README.md` | `main`'s structure, keeping this branch's user-facing panel documentation |
+| `.gitignore` | additive |
+| `architecture.md`, root `feature-ideas.md` | took the deletion, **after porting this branch's edits** into `docs/overlay.md` (§11 tree, §13 simulator, new §14) and `docs/feature-ideas.md` (idea 11) |
+
+🛑 **The one resolution that was a real decision, not a mechanical merge:** `setDataCode()` now
+sits *below* the `isFullFrame()` guard in `renderFrame()`. A view peek carries no live fields, so
+encoding one would hand `highlights/` a **CRC-valid payload of nonsense** — the CRC cannot catch
+it, because the bytes are honestly what we encoded. Naive conflict resolution would have put the
+call where `main` had it, above the guard, and nothing would have looked wrong.
+
+⚠ Pinned by `never encodes a view peek into the ?data=1 code` in `app.test.ts`, and the test was
+checked by bypassing the guard: it reports "expected 1 times, but got 2 times". A test for this
+that cannot fail would be worse than none.
+
+`docs/cricclubs-api.md` arrived from this branch predating the bundle, so it gained OKF
+frontmatter, and the "arrives with PR 13" caveats in `docs/index.md` and `CLAUDE.md` are gone.
+
+✅ Verified after the merge: `npm run build` clean (197 tests), `okflint` conformant, and
+`npm run sim:run` played a full simulated match with **all 17 checks passing** — peeks only while
+idle and never repeated, panels waiting for their peeks, every card timed, all 62 dismissals
+explained by a score change. That harness guards exactly the files this merge touched.
 
 ## 2026-09-21
 

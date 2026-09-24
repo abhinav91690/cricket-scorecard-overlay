@@ -51,7 +51,7 @@ every field of the (large) type in `types.ts`.
 ## 3. Rendering discipline
 
 `src/ui.ts` owns the DOM. `updateScoreboard()` picks team 1 vs team 2 fields from
-`values.isSecondInningsStarted === "true"`, then writes through `setText`/`setDisplay` helpers
+`values.isSecondInningsStarted === "true"`, then writes through the `setText` helper
 that only touch the DOM when a value actually changed, to avoid layout thrash.
 
 ⚠ **API booleans are strings.** `isSecondInningsStarted` is `"true"`, and `isMatchEnded` is
@@ -124,6 +124,12 @@ over the batter/bowler slots.
 | Fifty / Hundred | a batter crosses 50 or 100 | 8 s |
 | Four / Six | the newest ball is a boundary off the bat | 2 s |
 | 50 / 100 partnership | the current stand crosses 50 or 100 | 6 s |
+| Line-up (panel) | before the toss / pre-match phase | 16 s |
+| Innings summary (panel) | the innings break | 15 s |
+| Match summary (panel) | the match ends | 15 s |
+
+The last three render on a **second surface above the bar** and are built from CricClubs' data
+views rather than from poll diffs — see §14.
 
 Hold times live in `HOLD_MS`. ⚠ **The exit transition length is duplicated** between `cards.ts`
 (`TRANSITION_MS`) and the `.event-card` CSS — keep them equal.
@@ -238,13 +244,15 @@ cricket-scorecard-overlay/
 │   ├── migrations/     # D1 schema
 │   └── wrangler.toml   # routes, D1 binding, Access vars
 ├── highlights/         # reads a recording, cuts reels (Python)
+├── sim/                # simulated match: generator, fake CricClubs, headless e2e runner
 ├── src/
 │   ├── script.ts       # entry: fonts/CSS, then app.ts
 │   ├── app.ts          # pollLoop(), updateScore() mode switch, renderFrame()
 │   ├── api.ts          # fetchScoreData()
 │   ├── ui.ts           # updateScoreboard() / updateBallByBall() / updateTeamLogos()
 │   ├── events.ts       # detectEvents(prev, next) — pure poll diff
-│   ├── cards.ts        # event-card queue, copy, hold times, sample cards
+│   ├── cards.ts        # timed cards on two surfaces (in-bar events, panels above the bar)
+│   ├── views.ts        # CricClubs view peeks, ViewCache, match phase, panels, PII strip
 │   ├── dataCode.ts     # 🛑 the ?data=1 wire format (see data-code.md)
 │   ├── dataQr.ts       # packs the payload and draws the QR
 │   ├── theme.ts        # applyTheme() / updateLogo()
@@ -301,6 +309,174 @@ timed, every dismissal explained by a score change. **Run it after any change to
 `cards.ts`, `events.ts` or `app.ts`**; unit tests did not catch the three bugs it found on its
 first runs.
 
-⚠ **It currently exists only on the `feature/cricclubs-views` branch (PR 13)**, so it cannot be
-run from `main` or from `feature/highlight-markers`. The overlay hooks it relies on (`?api=`,
-`?refresh=`, `?e2e` in `src/e2e.ts`) only work on localhost.
+```sh
+npm run sim                                     # serve the fake CricClubs
+npm run sim:run                                 # an ordinary match, graded (18 checks)
+npm run sim:run -- --super-over                 # a tie decided by a super over (21 checks)
+npm run sim:run -- --super-over --seed 1        # one whose super over has wickets in both innings
+```
+
+⚠ **zsh does not word-split a variable**, so `npm run sim:run -- $args` with
+`args="--super-over --seed 1"` passes one argument that matches neither flag, and quietly runs the
+*ordinary* match. Spell the flags out.
+
+**The super-over scenario ties the main match by construction.** A random chase rarely finishes
+level, and this simulator's chasing side reliably falls ~20 short (a not-out batter's replayed card
+runs out with nobody out to bring the next one in), so no seed search finds one. Instead each
+innings draws from its own random stream and both are capped at the lower side's natural total;
+separate streams matter, because with one shared stream capping the first innings shifts every
+draw after it. The super over itself is one over each, three batters, the fielding side's most
+successful bowler, redrawn if it ties again.
+
+⚠ **It models the super-over scorebar on the one capture there is**, match 2079 after the result:
+sides swapped, super-over totals, overs as a ball count, and `isSecondInningsStarted` left as the
+main match's flag with the super over on `isSuperOverSecondInningsStarted`. That last part is an
+assumption — see §14b.
+
+**The over limit is a preference, not a rule.** A bowler is normally held to a fifth of the overs,
+but ⚠ **CricClubs lets the scorer override it and give a fifth over**, and leagues do. The overlay
+has no limit of its own — it shows whatever CricClubs sends, and the `?data=1` code has 7 bits for a
+bowler's balls (127, against 30 for a five-over spell). So the generator schedules within the usual
+limit — whoever has the most overs left goes next, which is how a captain avoids the last over
+belonging to the previous over's bowler — and when nobody else is under it, gives the least-used
+bowler an extra over, as a scorer would. The report states each run's busiest bowler and any
+overrides; it does not fail on them.
+
+⚠ The overlay hooks it relies on — `?api=`, `?refresh=`, `?e2e` in `src/e2e.ts` — are
+**localhost-only**, so none of this changes production behaviour.
+
+## 14. Views and panels (`src/views.ts`)
+
+CricClubs serves the same match through numbered **views**, and the extra data in each comes at
+a price: 🛑 **a data view drops the live score fields.** So the overlay stays on the scorebar
+view while the ball is live and only *peeks* at another view when nothing can be missed.
+
+| Phase | Peeked for |
+|---|---|
+| pre-match | both squads |
+| innings break | team 1's batting and bowling cards |
+| ended | team 2's cards too |
+
+`desiredView()` decides what is still wanted, `switchView()` (`api.ts`) asks for it via
+`matchOverlayConfig.do?viewId=` — write, CORS-allowed, unauthenticated — and the next poll
+returns that view. Full endpoint reference in [cricclubs-api.md](./cricclubs-api.md).
+
+🛑 **`isFullFrame()` keeps a peek off the bar.** A peek frame has no live fields, so rendering
+it would blank the score, and counting it as a score change would dismiss a card that had only
+just appeared. It also must not reach the `?data=1` code: encoding a peek would hand
+`highlights/` a CRC-valid frame of nonsense, which is why `setDataCode()` sits below that guard
+in `renderFrame()`.
+
+`mergeCache()` accumulates what the peeks return — cards, squads, extras, fall of wickets, filed
+by the view's own team — because each peek sees only part of the match. `matchPhase()`
+(pre / play / break / ended) then drives `phasePanels()`.
+
+⚠ **Panels wait for their phase's peeks to land** (or to be given up on after `PEEK_ATTEMPTS`)
+and only render while the panel surface `isIdle()`, so a panel never appears half-empty and
+never interrupts one already showing.
+
+🛑 **A view that has used its tries is skipped, not retried.** `desiredView()` asks for the first
+missing piece of the phase, and it used to do that unconditionally — so one view that never
+yielded blocked every view after it. A failed team 1 squad meant team 2's was never requested, and
+the line-up went on air with *both* XIs empty. It now takes the set of views that have used their
+tries and moves past them. The simulator cannot catch this: every peek it serves succeeds first time.
+
+✅ **After a switch the overlay reads again almost at once.** `switchView()` resolves when CricClubs
+answers (with a `SWITCH_TIMEOUT_MS` ceiling, never rejecting), and a poll that asked for a switch is
+followed by one `PEEK_FOLLOW_MS` (300 ms) later instead of a full refresh. Measured on match 4631,
+CricClubs' own overlay sat on the data view for **1.47 s per peek instead of 6.16 s** — about 9 s a
+match instead of 37 — and the 300 ms read still collected the squad. It is the same single timeout
+chain, so polls never overlap. 🛑 Coming home is not attempt-limited, so `MAX_FAST_POLLS`
+consecutive fast reads fall back to the normal cadence; without the cap a feed stuck on a data view
+would fast-poll forever. ⚠ The simulator already polls every 250 ms, below the follow-up, so it
+cannot show this gain — the unit tests pin it instead.
+
+✅ **A view switch applies within one poll — measured.** On finished match 4631 (2026-09-24), four
+switches (1→48, back, 1→2, back) had each taken effect by the *first* read, 0.37–0.41 s after the
+request; that figure is the read's own round trip, so the switch itself is at least that fast.
+`PEEK_ATTEMPTS` × 5 s is ample, and the simulator's instant switch is realistic. The payload shape
+matched the `view` field every time. ⚠ Measured on a **finished** match; a live one could be served
+differently, so the first real break is worth watching. Link Live Stream's minute-long lag is a
+different endpoint and does not apply here. [cricclubs-api.md](./cricclubs-api.md) §2.
+
+### 14a. 🛑 `stripPii()` runs first, on every frame
+
+Player rows in the CricClubs card views carry **email addresses**. `stripPii()` deletes them the
+moment a frame arrives, before anything renders, caches or logs it — so no email can reach the
+DOM, the view cache, a screenshot or a committed fixture. The fixtures in `mockData.ts` were
+captured live with the emails removed.
+
+🛑 **It walks the whole payload rather than a list of known keys.** The list version was correct
+for every view in [cricclubs-api.md](./cricclubs-api.md) §3, but a new CricClubs view with a new
+row-bearing key would have leaked emails **silently onto a public broadcast**, and nobody would
+notice until someone paused the stream. A walk cannot be outrun by a payload shape we have not
+seen. It carries a `WeakSet` so a cyclic payload cannot hang the poll loop.
+
+This is a ground rule, not a nicety: the overlay is composited into a public broadcast and this
+repository is public.
+
+### 14b. 🛑 A live super over is not an innings break
+
+The scorebar **swaps to the super-over sides and totals** ([cricclubs-api.md](./cricclubs-api.md)
+§3), so the gap between the two super-over innings is indistinguishable from an innings break by
+overs and balls alone: the chase has started, the "second" side has no overs, nothing is in hand.
+
+Read as `break`, that puts the **main match's** first innings on air — stale, and labelled
+"1st innings" — while a super over is actually being bowled. `matchPhase()` therefore returns
+`play` whenever `isSuperOver` is set, checked *after* `isMatchEnded`, so a **finished** super over
+is still `ended` and still gets its match summary.
+
+⚠ **Match 2079, the source of every fixture in `mockData.ts`, is a super-over tie** — but it was
+captured *after* the match ended, so `isMatchEnded` is `'1'` and the real frame short-circuits to
+`ended`. The broken window never appeared in any fixture, which is why nothing caught it. The
+test winds that capture back to mid-super-over.
+
+⚠ **`isSuperOver` stays true for the rest of the match once a super over happens**, so it is not
+a "right now" flag on its own — it only means "live super over" *below* the `isMatchEnded` check.
+
+🛑 **Which side is batting is decided in one place: `battingSecond()` in `utils.ts`.** Four modules
+used to read `isSecondInningsStarted` each on their own — the bar, event detection, the
+dismiss-on-score rule and the `?data=1` code. If that flag stays the *main* match's all through a
+super over, as the one capture allows, every one of them names the wrong side for the whole first
+super-over innings: the bar shows the side not batting, its wickets go undetected, and the data
+code carries the wrong total. The simulator found it — 6 of 6 samples showed the wrong team — and
+proved the wicket half by failing with the fix reverted (14 cards for 15 wickets).
+`battingSecond()` prefers `isSuperOverSecondInningsStarted` while `isSuperOver` is set. That is right
+if the flag stays the main match's, and changes nothing if it follows the super over instead,
+because then the two agree. **A live super-over capture would settle which it is.**
+
+🛑 **Super-over overs arrive as a ball count** — this part is fact: the capture has `t1Overs` `"6"`
+for a completed one-over super over. `teamOvers()` turns it into overs notation for the bar, the
+this-over strip, the chase line and the data code, all of which showed "3 ov" or counted 18 balls
+before. `matchOvers()` makes the chase count down from one over, not twenty. ⚠ Team overs only:
+there is no evidence for a bowler's figure in a super over, and a bare "1" there could be an over
+or a ball, so bowler overs are left as sent.
+
+### 14c. The result card
+
+The match-summary panel follows a broadcast result card: the result as the headline over a rule,
+one card per side in batting order, then an inverted strip of top performers.
+
+- 🛑 **Each card holds that side's own players** — its two top batters and its own best bowler.
+  The earlier version paired a side's batters with the *opposition* bowler who bowled at them,
+  an innings view that read as if the bowler belonged to the team named above him.
+- **The winner's card carries the brand-accent edge**; the other gets the divider colour.
+  `resultWinner()` reads the winner from the result text by full name *or* team code, because
+  CricClubs writes both — `"TOPGUNS UNITED won by 5 Wickets"` and, after a tie,
+  `"Match tied. TGN won the super over."`. ⚠ The capture must not cross a full stop, or that second
+  form yields `"Match tied. TGN"` and no winner. Wording it cannot pin to a side marks **no** winner,
+  never a guessed one.
+- `resultHeadline()` title-cases team names, expands a winner's code to its name and lower-cases
+  `"5 Wickets"`. Anything it does not recognise passes through unchanged.
+- ⚠ **Team codes are cached from the data views, with the names.** The scorebar carries them too,
+  but it swaps sides during a super over (§14b), so pairing its `t1Code` with a data view's
+  `t1Name` puts the wrong badge on each card.
+- The crest is shown when there is one; otherwise the team code in a square badge.
+- **Top performers**: CricClubs' own `manOfTheMatch` first when it is set, then the match's top
+  scorer, its best bowling, and the other side's top scorer, with nobody listed twice. ⚠ The award
+  is a full name with no player id, so it is matched to the cards by first and last name; an award
+  that matches no card is still shown, under the name CricClubs gave.
+- ⚠ **A player can appear twice on one card** — once as a batter and again as the best bowler.
+  That is an all-rounder, not a duplication bug.
+- The strip reuses the inverted surface of the innings summary's Target tile, so it is dark on a
+  light theme and light on a dark one. Neither piece needs a theme file to know it exists.

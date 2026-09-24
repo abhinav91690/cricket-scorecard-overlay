@@ -401,7 +401,27 @@ export interface CricketAPIValues {
 }
 
 // Top-level API Data Structure
+/** The club's overlay branding, present in every liveScoreOverlayData response. */
+export interface OverlayConfig {
+    id?: number;
+    clubId?: number;
+    overlayScorebarColor?: string;
+    cpBGSecondColor?: string;
+    secondaryColor?: string;
+    fontColor?: string;
+    logoS3Url?: string;
+    isPowredBy?: boolean;
+    powredByLogo1?: string;
+    powredByLogo2?: string;
+    overlayDelay?: number;
+    overlayTheme?: number;
+    practiseSessionTheme?: number;
+    backgroundColorForVideo?: string;
+}
+
 export interface CricketAPIData {
+    /** Club overlay settings (colours, club logo). */
+    overlayConfig?: OverlayConfig;
     /** The view ID determining the overlay layout */
     view?: number;
     /** The core data values for the overlay */
@@ -430,10 +450,18 @@ export interface CricketAPIData {
 export interface Config {
     /** Refresh rate for polling the API (in milliseconds) */
     REFRESH_RATE: number;
+    /** Delay before reading again after a view switch; a switch applies in under half a second. */
+    PEEK_FOLLOW_MS: number;
+    /** Consecutive fast reads allowed before falling back to REFRESH_RATE (a feed stuck on a data view). */
+    MAX_FAST_POLLS: number;
+    /** Longest the poll loop waits for CricClubs to answer a view switch. */
+    SWITCH_TIMEOUT_MS: number;
     /** Default CricClubs club ID */
     DEFAULT_CLUB_ID: string;
     /** Map of team names/codes to logo URLs */
     LOGO_MAP: { [key: string]: string };
     /** Same-origin endpoint of the analytics Worker (see worker/) */
     ANALYTICS_ENDPOINT: string;
+    /** CricClubs origin; overridable on localhost with ?api= for simulated matches */
+    API_BASE: string;
 }

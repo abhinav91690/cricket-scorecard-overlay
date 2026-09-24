@@ -50,6 +50,10 @@ npx tsc                # typecheck only
 npx vitest run src/utils.test.ts            # one file
 npx vitest run -t "should return wicket"    # one test
 
+npm run sim            # fake CricClubs serving a simulated match (view switching included)
+npm run sim:run        # headless end-to-end run of a whole match; report in sim/out/
+npm run sim:run -- --super-over [--seed 1]    # a tie decided by a super over
+
 cd worker && npm run dev | test:run | typecheck | db:migrate | deploy
 cd highlights && .venv/bin/python qrscan.py "<video>" -o events.json
 ```
@@ -65,7 +69,7 @@ cd highlights && .venv/bin/python qrscan.py "<video>" -o events.json
 | **`docs/analytics.md`** | anything under `worker/` or `src/analytics.ts` |
 | **`docs/deployment.md`** | deploying, or debugging a TLS failure on this machine |
 | **`docs/feature-ideas.md`** | designing a new overlay feature — the data may already be arriving |
-| **`docs/cricclubs-api.md`** | anything that fetches. ⚠ **Arrives with PR 13**; not on `main` yet |
+| **`docs/cricclubs-api.md`** | anything that fetches — endpoints, the `view` mechanism, per-view payload shapes |
 | **`docs/log.md`** | what changed and when |
 
 ## Tripwires
@@ -150,9 +154,31 @@ not that the network is broken. Homebrew is unusable through the same proxy. →
 only thing that knows the scorer's graphic lags the ball (a six by ~5 s, a wicket by ~35 s), so
 a hand-rolled `-ss` produces a clip of the batter waiting. → `highlights.md` §6
 
+🛑 **Every field `sim/match.ts` does not set explicitly comes from a real, different match.** Its
+scorebar spreads the match 2079 capture, so an unset field carries 2079's value into the simulated
+game. It has happened twice — a live super over on every frame, then 2079's player of the match.
+→ `docs/log.md` 2026-09-23
+
 ⚠ **Run `sim/` after any change to `views.ts`, `cards.ts`, `events.ts` or `app.ts`** — unit tests
-did not catch the three bugs it found on its first runs. 🛑 It exists only on
-`feature/cricclubs-views`, so it cannot be run from `main`. → `overlay.md` §13
+did not catch the three bugs it found on its first runs. → `overlay.md` §13
+
+🛑 **Decide which side is batting with `battingSecond()`, never `isSecondInningsStarted` directly.**
+During a super over that flag may stay the main match's, and four modules reading it on their own
+named the wrong side for the whole first super-over innings. Super-over overs are also a ball count —
+use `teamOvers()`. → `overlay.md` §14b
+
+🛑 **A live super over looks exactly like an innings break.** The scorebar swaps to the
+super-over sides and totals, so `matchPhase()` must return `play` while `isSuperOver` is set, or
+the main match's first innings goes on air mid-super-over. Match 2079 — every fixture's source —
+is a super-over tie captured *after* it ended, so no fixture contains the broken window.
+→ `overlay.md` §14b
+
+🛑 **A CricClubs data view drops the live score fields**, so the overlay only *peeks* at one
+between balls and `isFullFrame()` keeps a peek off the bar — and out of the `?data=1` code, which
+would otherwise carry a CRC-valid frame of nonsense. → `overlay.md` §14
+
+🛑 **Switching a view also switches CricClubs' own overlay for that match.** The club owner has
+accepted this; do not widen the peeks without asking. → `cricclubs-api.md` §3
 
 ⚠ **`vite.config.ts` sets `base: './'` for relative overlay paths. Don't change it.**
 

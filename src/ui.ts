@@ -1,5 +1,5 @@
 import { DOM } from './dom';
-import { loadImage, getBallStyleClass } from './utils';
+import { battingSecond, matchOvers, teamOvers, loadImage, getBallStyleClass } from './utils';
 import { CricketAPIData } from './types';
 
 interface LogoSlot {
@@ -104,17 +104,6 @@ function setText(element: HTMLElement | null, text: string) {
     }
 }
 
-/**
- * Updates the display style of a DOM element only if it has changed.
- * @param element - The DOM element to update.
- * @param display - The new display value (e.g. 'none', 'block', 'flex').
- */
-function setDisplay(element: HTMLElement | null, display: string) {
-    if (element && element.style.display !== display) {
-        element.style.display = display;
-    }
-}
-
 const RATE = /^\d+(\.\d+)?$/;
 
 export interface StatusText {
@@ -136,7 +125,7 @@ export function statusText(values: CricketAPIData['values'], isSecondInnings: bo
     const need = target - (parseInt(values.t2Total || '0', 10) || 0);
     const parts: string[] = [];
     if (need > 0) {
-        const oversLeft = oversRemaining(values.totalOvers, values.t2Overs);
+        const oversLeft = oversRemaining(matchOvers(values), teamOvers(values, values.t2Overs));
         parts.push(oversLeft !== null ? `Need ${need} off ${oversLeft} ov` : `Need ${need}`);
     }
     if (values.RRR && RATE.test(values.RRR)) parts.push(`RRR ${values.RRR}`);
@@ -161,24 +150,24 @@ export function updateScoreboard(data: CricketAPIData) {
     const { values } = data;
 
     // Batsman Info
-    setText(DOM.batsman1Name, values.batsman1Name || 'Batsman 1');
+    setText(DOM.batsman1Name, values.batsman1Name || '');
     setText(DOM.batsman1RunsBalls, `${values.batsman1Runs || '0'} (${values.batsman1Balls || '0'})`);
-    setText(DOM.batsman2Name, values.batsman2Name || 'Batsman 2');
+    setText(DOM.batsman2Name, values.batsman2Name || '');
     setText(DOM.batsman2RunsBalls, `${values.batsman2Runs || '0'} (${values.batsman2Balls || '0'})`);
 
     // Bowler Info
-    setText(DOM.bowlerName, values.bowlerName || 'Bowler Name');
+    setText(DOM.bowlerName, values.bowlerName || '');
     setText(DOM.bowlerWicketsRuns, `${values.bowlerWickets || '0'}-${values.bowlerRuns || '0'}`);
     setText(DOM.bowlerOvers, `${values.bowlerOvers || '0.0'}`);
 
-    const isSecondInnings = values.isSecondInningsStarted === "true";
+    const isSecondInnings = battingSecond(values);
     const isMatchEnded = values.isMatchEnded === "1";
 
     // The batting side: team 2 in a chase, team 1 otherwise
     const currentTeamName = isSecondInnings ? values.t2Name : values.t1Name;
     const currentTeamScore = isSecondInnings ? values.t2Total : values.t1Total;
     const currentTeamWickets = isSecondInnings ? values.t2Wickets : values.t1Wickets;
-    const currentTeamOvers = isSecondInnings ? values.t2Overs : values.t1Overs;
+    const currentTeamOvers = teamOvers(values, isSecondInnings ? values.t2Overs : values.t1Overs);
 
     setText(DOM.teamName, currentTeamName || 'Team 1');
     setText(DOM.teamScore, currentTeamScore || '0');
@@ -187,11 +176,6 @@ export function updateScoreboard(data: CricketAPIData) {
     const status = isMatchEnded ? { inline: '', line: '' } : statusText(values, isSecondInnings);
     setText(DOM.statusInline, status.inline);
     setText(DOM.statusLine, status.line);
-
-    setDisplay(DOM.result, isMatchEnded ? 'flex' : 'none');
-    if (isMatchEnded) {
-        setText(DOM.matchResult, values.result || 'Match Result');
-    }
 
     updateBallByBall(data.balls || [], currentTeamOvers || '0.0');
 }

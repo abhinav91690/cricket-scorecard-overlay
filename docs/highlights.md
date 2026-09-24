@@ -218,6 +218,10 @@ assumption was what failed. The QR code solved the underlying problem properly.
   removes it without having to find it first.
 - **The recording profile matters.** These numbers assume the browser source rendered
   full-frame at 1920 and upscaled ~2× into 4K.
+- ⚠ **The `?data=1` code has no super-over marker.** Its `innings` bit and totals follow whichever
+  innings is being bowled, so `highlights/` cannot tell a super-over ball from a main-match one, and a
+  per-player reel attributed by `--batting-innings` could pick up super-over balls. Ties are rare
+  enough that this is recorded rather than fixed; the overlay side is correct (overlay.md §14b).
 
 ## 10. Verified against
 
