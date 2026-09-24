@@ -1,7 +1,7 @@
 /**
  * Drives the real overlay through an entire simulated match in headless Chrome and grades it.
  *
- *   node sim/run.ts [--speed 60] [--theme topguns-dark] [--refresh 250] [--out sim/out]
+ *   node sim/run.ts [--speed 60] [--theme topguns-dark] [--refresh 250] [--out sim/out] [--super-over] [--seed 7]
  *
  * Needs the Vite dev server (started automatically if :5173 is not answering) and Google Chrome.
  * Output: sim/out/<timestamp>/report.md, events.json and PNGs of every phase and card.
@@ -9,6 +9,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { startServer, type SimEvent } from './server.ts';
+import { SUPER_OVER_PHASES, bowlerCap, teamNames, type Phase } from './match.ts';
 
 const arg = (k: string, d: string) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
 const SPEED = Number(arg('speed', '60'));
@@ -17,6 +18,8 @@ const REFRESH = Number(arg('refresh', '250'));
 const OUT = `${arg('out', 'sim/out')}/${new Date().toISOString().replace(/[:.]/g, '-')}`;
 const CHROME = arg('chrome', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
 const SIM_PORT = 8788, DEV = 'http://localhost:5173', CDP_PORT = 9333;
+const SUPER_OVER = process.argv.includes('--super-over');
+const SEED = Number(arg('seed', '7'));
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 const reachable = async (url: string) => { try { const r = await fetch(url); return r.ok || r.status < 500; } catch { return false; } };
@@ -36,7 +39,7 @@ class Cdp {
 
 async function main() {
     mkdirSync(OUT, { recursive: true });
-    const sim = startServer({ port: SIM_PORT, speed: SPEED });
+    const sim = startServer({ port: SIM_PORT, speed: SPEED, config: { superOver: SUPER_OVER, seed: SEED } });
     const end = sim.timeline[sim.timeline.length - 1].t;
     console.log(`sim server ${sim.url}, match ends at sim ${end}s (~${Math.round(end / SPEED)}s real at x${SPEED})`);
 
@@ -60,6 +63,12 @@ async function main() {
     console.log('overlay:', url);
 
     const shots: { name: string; sim: number }[] = [];
+    const evaluate = async (expression: string) => (await cdp.send('Runtime.evaluate', { expression, returnByValue: true })).result?.value;
+    // What the bar says is batting, sampled through each super-over innings once it has settled.
+    const barSamples: { phase: string; team: string; overs: string }[] = [];
+    // What the result card said when it went on air.
+    const resultCards: { headline: string; teams: string[]; runs: string[] }[] = [];
+    let phaseSince = Date.now();
     const shoot = async (name: string) => {
         const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
         const file = `${String(shots.length + 1).padStart(2, '0')}-${name}.png`;
@@ -72,7 +81,12 @@ async function main() {
     const deadline = Date.now() + (end / SPEED) * 1000 + 60_000;
     while (Date.now() < deadline) {
         const state = await (await fetch(`${sim.url}/sim/state`)).json() as { phase: string; sim: number };
-        if (state.phase !== lastPhase) { lastPhase = state.phase; await sleep(1200); await shoot(`phase-${state.phase}`); console.log(`  phase ${state.phase} at sim ${state.sim}s`); if (state.phase === 'ended') endedAt = Date.now(); }
+        if (state.phase !== lastPhase) { lastPhase = state.phase; phaseSince = Date.now(); await sleep(1200); await shoot(`phase-${state.phase}`); console.log(`  phase ${state.phase} at sim ${state.sim}s`); if (state.phase === 'ended') endedAt = Date.now(); }
+        if ((state.phase === 'so1' || state.phase === 'so2') && Date.now() - phaseSince > 1500) {
+            barSamples.push({ phase: state.phase,
+                team: String(await evaluate(`document.getElementById('team-name')?.textContent ?? ''`)).trim(),
+                overs: String(await evaluate(`document.getElementById('team-overs')?.textContent ?? ''`)).trim() });
+        }
         const { events } = await (await fetch(`${sim.url}/sim/events`)).json() as { events: SimEvent[] };
         for (const e of events.slice(seenEvents)) {
             const d = e.detail as any;
@@ -80,6 +94,10 @@ async function main() {
                 const key = `${d.detail.surface}-${d.detail.type}`;
                 const n = (cardShots.get(key) ?? 0) + 1; cardShots.set(key, n);
                 if (n <= 2) { await sleep(400); await shoot(`card-${d.detail.type}${n > 1 ? `-${n}` : ''}`); }
+                if (d.detail.type === 'match-summary') resultCards.push(await evaluate(`({
+                    headline: document.getElementById('panel-headline')?.textContent ?? '',
+                    teams: [...document.querySelectorAll('.result-card .panel-team-name')].map(e => e.textContent),
+                    runs: [...document.querySelectorAll('.result-card .panel-score-runs')].map(e => e.textContent) })`));
             }
         }
         seenEvents = events.length;
@@ -103,8 +121,10 @@ async function main() {
     const check = (name: string, pass: boolean, detail: string) => checks.push({ name, pass, detail });
 
     const sw = switches.map(s => `${phaseAt(s.sim)}:${s.from}>${s.to}`);
+    // A super over is live cricket from the tie to its last ball: no peek, no panel, at any point of it.
+    const busy = (p: string) => p === 'inn1' || p === 'inn2' || SUPER_OVER_PHASES.has(p as Phase);
     // returning to view 1 is always allowed; only outgoing peeks must avoid play
-    check('Peeks only while idle: none requested during play', !switches.some(s => s.to !== 1 && ['inn1', 'inn2'].includes(phaseAt(s.sim))), sw.join(' '));
+    check('Peeks only while idle: none requested during play or a super over', !switches.some(s => s.to !== 1 && busy(phaseAt(s.sim))), sw.join(' '));
     check('Pre-match peeks: squads (48, 49) each followed by a return to view 1', /pre:1>48 pre:48>1 pre:1>49 pre:49>1/.test(sw.join(' ')), sw.filter(x => x.startsWith('pre')).join(' '));
     check('Break peeks team 1 cards (2, 3); end peeks team 2 cards (4, 5); each comes home', ['break:1>2', 'break:2>1', 'break:1>3', 'break:3>1', 'ended:1>4', 'ended:4>1', 'ended:1>5', 'ended:5>1'].every(x => sw.includes(x)), sw.filter(x => !x.startsWith('pre')).join(' '));
     const outgoing = switches.filter(s => s.to !== 1).map(s => `${phaseAt(s.sim)}:${s.to}`);
@@ -113,14 +133,39 @@ async function main() {
     const longPeeks = frames.reduce((acc, f, i) => (!f.full && frames[i - 1] && !frames[i - 1].full && frames[i - 2] && !frames[i - 2].full ? acc + 1 : acc), 0);
     check('Bar never stale: no run of more than two non-live frames', longPeeks === 0, `${frames.length} frames, ${peekRuns} peeks, ${longPeeks} long runs`);
 
-    const wickets = (timeline.at(-1)!.w1 ?? 0) + (timeline.at(-1)!.w2 ?? 0);
+    const final = sim.timeline.at(-1)!;
+    const innings = [final.inn1, final.inn2, final.so1, final.so2].filter(Boolean) as NonNullable<typeof final.inn2>[];
+    const wickets = innings.reduce((n, i) => n + i.wickets, 0);
     const wicketShows = shows.filter(s => s.type === 'wicket').length;
     check('Every wicket produced a wicket card', wicketShows === wickets, `${wicketShows} cards for ${wickets} wickets`);
     check('Boundary flashes appeared', shows.some(s => s.type === 'boundary'), `${shows.filter(s => s.type === 'boundary').length} flashes`);
     check('Line-up panel shown before the first ball', shows.some(s => s.type === 'lineup' && phaseAt(s.sim) === 'pre'), '');
     check('Innings summary shown at the break', shows.some(s => s.type === 'innings-summary' && phaseAt(s.sim) === 'break'), '');
     check('Match summary shown after the result', shows.some(s => s.type === 'match-summary' && phaseAt(s.sim) === 'ended'), '');
-    check('No panel during play', !shows.some(s => s.surface === 'panel' && ['inn1', 'inn2'].includes(phaseAt(s.sim))), '');
+    check('No panel during play or a super over', !shows.some(s => s.surface === 'panel' && busy(phaseAt(s.sim))), '');
+    // A bowler may bowl a fifth of the overs: 4 in a T20, 1 in a super over.
+    const over = innings.flatMap((inn, k) => inn.bowlers.filter(b => b.balls > bowlerCap(k < 2 ? 20 : 1) * 6)
+        .map(b => `${b.row.firstName} ${Math.floor(b.balls / 6)}.${b.balls % 6} ov`));
+    check('No bowler past the over limit (a fifth of the overs)', over.length === 0, over.join(', ') || `most: ${Math.max(...innings.slice(0, 2).flatMap(i => i.bowlers.map(b => b.balls))) / 6} overs`);
+    if (SUPER_OVER) {
+        const [main1, main2] = teamNames();
+        // The side that batted second bats first in the super over.
+        const expect = { so1: main2, so2: main1 } as Record<string, string>;
+        const wrong = barSamples.filter(b => b.team.toLowerCase() !== expect[b.phase].toLowerCase());
+        check('Super over: the bar names the side actually batting', barSamples.length > 0 && wrong.length === 0,
+            barSamples.length ? `${barSamples.length} samples, ${wrong.length} wrong${wrong[0] ? ` (e.g. ${wrong[0].phase} showed ${wrong[0].team}, batting: ${expect[wrong[0].phase]})` : ''}` : 'no samples taken');
+        // CricClubs sends super-over overs as a ball count ("6" when complete); on air they must
+        // read as overs, and never past one.
+        const badOvers = barSamples.filter(b => !/^(0\.[0-5]|1\.0)$/.test(b.overs));
+        check('Super over: the bar shows overs, not a raw ball count', barSamples.length > 0 && badOvers.length === 0,
+            barSamples.length ? `${[...new Set(barSamples.map(b => b.overs))].join(', ')}${badOvers[0] ? ` — "${badOvers[0].overs}" is not overs notation` : ''}` : 'no samples taken');
+        const card = resultCards.at(-1);
+        const tie = String(final.inn1.total);
+        check('Super over: result card shows the tied main match and names the super-over winner',
+            !!card && /won the super over/i.test(card.headline) && card.runs.length === 2 && card.runs.every(r => r === tie)
+                && card.teams.map(t => (t ?? '').toLowerCase()).join('|') === [main1, main2].map(t => t.toLowerCase()).join('|'),
+            card ? `"${card.headline}" · ${card.teams.map((t, i) => `${t} ${card.runs[i]}`).join(' v ')} (main match ${tie} all)` : 'no result card seen');
+    }
 
     const firstShow = (type: string) => shows.find(s => s.type === type);
     const lastPeekFrame = (view: number, before: number) => frames.filter(f => f.view === view && !f.full && f.t < before).at(-1);
@@ -146,7 +191,7 @@ async function main() {
     const badDismiss = dismissals.filter(d => { const before = frames.filter(f => f.t <= d.t).slice(-2); return !(before.length === 2 && (scoreOf(before[0]) !== scoreOf(before[1]) || before[0].balls !== before[1].balls)); });
     check('Every dismissal followed a score change', badDismiss.length === 0, `${dismissals.length} dismissals, ${badDismiss.length} unexplained`);
 
-    const report = [`# Simulated match run`, ``, `- theme: ${THEME}, speed x${SPEED}, poll ${REFRESH}ms, ${pollCount} polls, ${frames.length} frames logged`, `- result: ${timeline.at(-1) ? `${timeline.at(-1)!.t1}/${timeline.at(-1)!.w1} v ${timeline.at(-1)!.t2}/${timeline.at(-1)!.w2}` : ''}`, `- cards shown: ${[...cardShots].map(([k, v]) => `${k}×${v}`).join(', ')}`, `- view switches: ${sw.join(' ')}`, ``, `| check | result | detail |`, `|---|---|---|`,
+    const report = [`# Simulated match run`, ``, `- scenario: ${SUPER_OVER ? 'tie decided by a super over' : 'ordinary match'}, seed ${SEED}`, `- theme: ${THEME}, speed x${SPEED}, poll ${REFRESH}ms, ${pollCount} polls, ${frames.length} frames logged`, `- result: ${final.inn1.total}/${final.inn1.wickets} v ${final.inn2?.total}/${final.inn2?.wickets}${final.so1 ? `, super over ${final.so1.total}/${final.so1.wickets} v ${final.so2?.total}/${final.so2?.wickets}` : ''} — ${final.result}`, `- cards shown: ${[...cardShots].map(([k, v]) => `${k}×${v}`).join(', ')}`, `- view switches: ${sw.join(' ')}`, ``, `| check | result | detail |`, `|---|---|---|`,
         ...checks.map(c => `| ${c.name} | ${c.pass ? 'PASS' : 'FAIL'} | ${c.detail} |`), ``, `## Screenshots`, ...shots.map(s => `- ${s.name} (sim ${s.sim}s)`)].join('\n');
     writeFileSync(`${OUT}/report.md`, report);
     console.log(report);

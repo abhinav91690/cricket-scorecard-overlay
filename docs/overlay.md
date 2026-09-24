@@ -310,9 +310,34 @@ timed, every dismissal explained by a score change. **Run it after any change to
 first runs.
 
 ```sh
-npm run sim         # serve the fake CricClubs and open the overlay against it
-npm run sim:run     # play a whole match headless, grade the rules, write sim/out/
+npm run sim                                     # serve the fake CricClubs
+npm run sim:run                                 # an ordinary match, graded (18 checks)
+npm run sim:run -- --super-over                 # a tie decided by a super over (21 checks)
+npm run sim:run -- --super-over --seed 1        # one whose super over has wickets in both innings
 ```
+
+⚠ **zsh does not word-split a variable**, so `npm run sim:run -- $args` with
+`args="--super-over --seed 1"` passes one argument that matches neither flag, and quietly runs the
+*ordinary* match. Spell the flags out.
+
+**The super-over scenario ties the main match by construction.** A random chase rarely finishes
+level, and this simulator's chasing side reliably falls ~20 short (a not-out batter's replayed card
+runs out with nobody out to bring the next one in), so no seed search finds one. Instead each
+innings draws from its own random stream and both are capped at the lower side's natural total;
+separate streams matter, because with one shared stream capping the first innings shifts every
+draw after it. The super over itself is one over each, three batters, the fielding side's most
+successful bowler, redrawn if it ties again.
+
+⚠ **It models the super-over scorebar on the one capture there is**, match 2079 after the result:
+sides swapped, super-over totals, overs as a ball count, and `isSecondInningsStarted` left as the
+main match's flag with the super over on `isSuperOverSecondInningsStarted`. That last part is an
+assumption — see §14b.
+
+🛑 **A bowler may bowl at most a fifth of the overs**, and the generator now enforces it. It used to
+fall back to any bowler who had not just bowled once the recorded quotas ran out, which gave a
+fifth over to someone already on four whenever the last overs belonged to the previous over's
+bowler. It picks whoever has the most overs left, as a captain would, and throws rather than break
+the Laws. Graded on every run.
 
 ⚠ The overlay hooks it relies on — `?api=`, `?refresh=`, `?e2e` in `src/e2e.ts` — are
 **localhost-only**, so none of this changes production behaviour.
@@ -405,6 +430,24 @@ test winds that capture back to mid-super-over.
 
 ⚠ **`isSuperOver` stays true for the rest of the match once a super over happens**, so it is not
 a "right now" flag on its own — it only means "live super over" *below* the `isMatchEnded` check.
+
+🛑 **Which side is batting is decided in one place: `battingSecond()` in `utils.ts`.** Four modules
+used to read `isSecondInningsStarted` each on their own — the bar, event detection, the
+dismiss-on-score rule and the `?data=1` code. If that flag stays the *main* match's all through a
+super over, as the one capture allows, every one of them names the wrong side for the whole first
+super-over innings: the bar shows the side not batting, its wickets go undetected, and the data
+code carries the wrong total. The simulator found it — 6 of 6 samples showed the wrong team — and
+proved the wicket half by failing with the fix reverted (14 cards for 15 wickets).
+`battingSecond()` prefers `isSuperOverSecondInningsStarted` while `isSuperOver` is set. That is right
+if the flag stays the main match's, and changes nothing if it follows the super over instead,
+because then the two agree. **A live super-over capture would settle which it is.**
+
+🛑 **Super-over overs arrive as a ball count** — this part is fact: the capture has `t1Overs` `"6"`
+for a completed one-over super over. `teamOvers()` turns it into overs notation for the bar, the
+this-over strip, the chase line and the data code, all of which showed "3 ov" or counted 18 balls
+before. `matchOvers()` makes the chase count down from one over, not twenty. ⚠ Team overs only:
+there is no evidence for a bowler's figure in a super over, and a bare "1" there could be an over
+or a ball, so bowler overs are left as sent.
 
 ### 14c. The result card
 

@@ -140,6 +140,31 @@ describe('updateScoreboard', () => {
     });
 });
 
+describe('updateScoreboard in a super over', () => {
+    it('names the side batting in the first super-over innings, not the main match\'s chasers', () => {
+        // Found by the simulator's super-over scenario: 6 of 6 samples showed the wrong team.
+        updateScoreboard({ values: { isSuperOver: 'true', isSuperOverSecondInningsStarted: 'false', isSecondInningsStarted: 'true',
+            t1Name: 'Lions', t1Total: '8', t1Wickets: '0', t1Overs: '6',
+            t2Name: 'TOPGUNS UNITED', t2Total: '0', t2Wickets: '0', t2Overs: '0' }, balls: ['4'] } as any);
+        expect(DOM.teamName.textContent).toBe('Lions');
+        expect(DOM.teamScore.textContent).toBe('8');
+    });
+
+    it('shows super-over overs in overs notation, not the raw ball count', () => {
+        // Found in the simulator's so1 frame: "3 ov" three balls in.
+        updateScoreboard({ values: { isSuperOver: 'true', isSuperOverSecondInningsStarted: 'false', isSecondInningsStarted: 'true', totalOvers: 20,
+            t1Name: 'Lions', t1Total: '7', t1Wickets: '0', t1Overs: '3',
+            t2Name: 'TOPGUNS UNITED', t2Total: '0', t2Wickets: '0', t2Overs: '0' }, balls: ['1', '6', '.'] } as any);
+        expect(DOM.teamOvers.textContent).toBe('0.3');
+    });
+
+    it('counts the chase down from one over, not twenty', () => {
+        const status = statusText({ isSuperOver: 'true', isSuperOverSecondInningsStarted: 'true', isSecondInningsStarted: 'true', totalOvers: 20,
+            t1Total: '8', t2Total: '5', t2Overs: '3' } as any, true);
+        expect(status.line).toBe('Need 4 off 0.3 ov');
+    });
+});
+
 describe('updateScoreboard edge cases', () => {
     const base = { isSecondInningsStarted: 'false', t1Name: 'India', t1Total: '100', t1Wickets: '2', t1Overs: '10.0' };
 

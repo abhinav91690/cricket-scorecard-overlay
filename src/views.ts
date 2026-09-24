@@ -1,4 +1,5 @@
 import { BattingStats, BowlingStats, CricketAPIData, CricketAPIValues, Player } from './types';
+import { battingSecond } from './utils';
 
 /**
  * CricClubs "views": the server-side setting that decides which extra data rides along with the
@@ -155,6 +156,8 @@ export function mergeCache(cache: ViewCache, data: CricketAPIData): ViewCache {
     // summary/break views carry the latest innings.
     if (v.partnerShip && Object.keys(v.partnerShip).length) {
         const view = data.view ?? 0;
+        // Deliberately the main match's flag, not battingSecond(): only data views carry
+        // partnerShip, and data views keep the main match's order even during a super over.
         const team1 = view === VIEW.batting1 || view === VIEW.bowling1 || (!isTrue(v.isSecondInningsStarted));
         if (team1) next.fow1 = v.partnerShip; else next.fow2 = v.partnerShip;
     }
@@ -166,7 +169,7 @@ export function scoreChanged(prev: CricketAPIData | null, next: CricketAPIData):
     if (!prev) return false;
     const a = prev.values, b = next.values;
     if (JSON.stringify(prev.balls ?? []) !== JSON.stringify(next.balls ?? [])) return true;
-    const chaseA = isTrue(a.isSecondInningsStarted), chaseB = isTrue(b.isSecondInningsStarted);
+    const chaseA = battingSecond(a), chaseB = battingSecond(b);
     if (chaseA !== chaseB) return true;
     const pick = (v: CricketAPIValues, chase: boolean) => chase ? [v.t2Total, v.t2Wickets, v.t2Overs] : [v.t1Total, v.t1Wickets, v.t1Overs];
     return pick(a, chaseA).join('|') !== pick(b, chaseB).join('|');

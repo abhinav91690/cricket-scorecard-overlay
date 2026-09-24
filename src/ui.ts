@@ -1,5 +1,5 @@
 import { DOM } from './dom';
-import { loadImage, getBallStyleClass } from './utils';
+import { battingSecond, matchOvers, teamOvers, loadImage, getBallStyleClass } from './utils';
 import { CricketAPIData } from './types';
 
 interface LogoSlot {
@@ -125,7 +125,7 @@ export function statusText(values: CricketAPIData['values'], isSecondInnings: bo
     const need = target - (parseInt(values.t2Total || '0', 10) || 0);
     const parts: string[] = [];
     if (need > 0) {
-        const oversLeft = oversRemaining(values.totalOvers, values.t2Overs);
+        const oversLeft = oversRemaining(matchOvers(values), teamOvers(values, values.t2Overs));
         parts.push(oversLeft !== null ? `Need ${need} off ${oversLeft} ov` : `Need ${need}`);
     }
     if (values.RRR && RATE.test(values.RRR)) parts.push(`RRR ${values.RRR}`);
@@ -160,14 +160,14 @@ export function updateScoreboard(data: CricketAPIData) {
     setText(DOM.bowlerWicketsRuns, `${values.bowlerWickets || '0'}-${values.bowlerRuns || '0'}`);
     setText(DOM.bowlerOvers, `${values.bowlerOvers || '0.0'}`);
 
-    const isSecondInnings = values.isSecondInningsStarted === "true";
+    const isSecondInnings = battingSecond(values);
     const isMatchEnded = values.isMatchEnded === "1";
 
     // The batting side: team 2 in a chase, team 1 otherwise
     const currentTeamName = isSecondInnings ? values.t2Name : values.t1Name;
     const currentTeamScore = isSecondInnings ? values.t2Total : values.t1Total;
     const currentTeamWickets = isSecondInnings ? values.t2Wickets : values.t1Wickets;
-    const currentTeamOvers = isSecondInnings ? values.t2Overs : values.t1Overs;
+    const currentTeamOvers = teamOvers(values, isSecondInnings ? values.t2Overs : values.t1Overs);
 
     setText(DOM.teamName, currentTeamName || 'Team 1');
     setText(DOM.teamScore, currentTeamScore || '0');

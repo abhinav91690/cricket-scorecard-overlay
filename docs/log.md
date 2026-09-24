@@ -2,6 +2,34 @@
 
 ## 2026-09-24
 
+### The simulator plays super overs and respects the over limit — and found four bugs
+
+`npm run sim:run -- --super-over [--seed N]` ties the main match by construction and decides it with
+a super over; the grader now has 21 checks in that scenario and 18 in the ordinary one.
+[overlay.md](./overlay.md) §13.
+
+🛑 **A bowler bowled five overs.** When the recorded quotas ran out, the generator took any bowler
+who had not just bowled, with no limit. It now picks whoever has the most overs left and enforces a
+fifth of the overs; graded every run.
+
+What the super-over scenario found, all in the first super-over innings:
+
+- 🛑 **The bar named the side not batting** — 6 of 6 samples. `ui.ts` read `isSecondInningsStarted`,
+  which the one capture allows to stay the main match's flag through a super over.
+- 🛑 **Its wickets went undetected**, and the dismiss-on-score rule and the `?data=1` code read the
+  wrong side the same way. The simulator's first super over had no wickets, so the wicket check had
+  passed *vacuously*; a seed with wickets in both innings, then the fix reverted, gave 14 cards for 15.
+- 🛑 **Overs showed as a ball count** — "3 ov" three balls in, and 18 balls in the data code. That
+  one is fact, not assumption: the capture has `t1Overs` "6" for a completed super over.
+
+All four modules now ask `battingSecond()` and `teamOvers()` in `utils.ts`. Tests written first and
+seen failing; the two new grader checks were each checked by reverting their fix.
+
+⚠ **Still unverified:** what `isSecondInningsStarted` holds during a live super over. The fix is right
+under either reading, but only a live capture would say which is true. And the data code has no
+super-over marker, so `highlights/` cannot tell a super-over ball apart
+([highlights.md](./highlights.md) §9).
+
 ### The overlay reads straight after a view switch, not a whole refresh later
 
 With switches applying in under half a second, waiting the full 5 s refresh before reading a

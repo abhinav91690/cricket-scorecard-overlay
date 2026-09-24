@@ -1,6 +1,6 @@
 import { CricketAPIData, CricketAPIValues } from './types';
 import { wicketFallText } from './views';
-import { runsOffBat } from './utils';
+import { battingSecond, runsOffBat } from './utils';
 
 /**
  * Match events derived by diffing one poll against the previous one. Pure functions; the
@@ -17,7 +17,7 @@ const num = (v: unknown): number => {
     return Number.isFinite(n) ? n : 0;
 };
 
-const isChase = (v: CricketAPIValues) => String(v.isSecondInningsStarted) === 'true';
+const isChase = (v: CricketAPIValues) => battingSecond(v);
 const battingWickets = (v: CricketAPIValues) => num(isChase(v) ? v.t2Wickets : v.t1Wickets);
 
 /**

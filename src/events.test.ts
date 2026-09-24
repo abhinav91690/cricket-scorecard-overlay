@@ -92,3 +92,14 @@ describe('detectEvents', () => {
         expect(detectEvents(first(), first({ isMatchEnded: '1', t1Wickets: '5' }))).toEqual([]);
     });
 });
+
+describe('detectEvents in a super over', () => {
+    it('sees a wicket in the first super-over innings', () => {
+        // With the main match's flag still "true", the old check watched t2Wickets — the side not
+        // batting — and missed every first-innings super-over wicket.
+        const so = (w: string) => state({ isSuperOver: 'true', isSuperOverSecondInningsStarted: 'false', isSecondInningsStarted: 'true', t1Wickets: w, t2Wickets: '0', t1Total: '6', t2Total: '0',
+            batsman1ID: 11, batsman1Name: 'A', batsman1Runs: '6', batsman1Balls: '3', batsman2ID: 22, batsman2Name: 'B' });
+        const events = detectEvents(so('0'), so('1'));
+        expect(events.map(e => e.type)).toContain('wicket');
+    });
+});

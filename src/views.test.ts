@@ -163,6 +163,14 @@ describe('mergeCache', () => {
     });
 });
 
+describe('scoreChanged in a super over', () => {
+    it('sees runs in the first super-over innings', () => {
+        // Otherwise the dismiss-on-score rule watches the side not batting and never fires.
+        const so = (runs: string) => frame({ isSuperOver: 'true', isSuperOverSecondInningsStarted: 'false', isSecondInningsStarted: 'true', t1Total: runs, t1Wickets: '0', t1Overs: '2', t2Total: '0', t2Wickets: '0', t2Overs: '0' }, ['1']);
+        expect(scoreChanged(so('4'), so('5'))).toBe(true);
+    });
+});
+
 describe('scoreChanged', () => {
     const base = { isSecondInningsStarted: 'false', t1Total: '70', t1Wickets: '1', t1Overs: '5.0' };
     it('is false on the first frame and for unrelated changes', () => {

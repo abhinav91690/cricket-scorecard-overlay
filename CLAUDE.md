@@ -52,6 +52,7 @@ npx vitest run -t "should return wicket"    # one test
 
 npm run sim            # fake CricClubs serving a simulated match (view switching included)
 npm run sim:run        # headless end-to-end run of a whole match; report in sim/out/
+npm run sim:run -- --super-over [--seed 1]    # a tie decided by a super over
 
 cd worker && npm run dev | test:run | typecheck | db:migrate | deploy
 cd highlights && .venv/bin/python qrscan.py "<video>" -o events.json
@@ -160,6 +161,11 @@ game. It has happened twice — a live super over on every frame, then 2079's pl
 
 ⚠ **Run `sim/` after any change to `views.ts`, `cards.ts`, `events.ts` or `app.ts`** — unit tests
 did not catch the three bugs it found on its first runs. → `overlay.md` §13
+
+🛑 **Decide which side is batting with `battingSecond()`, never `isSecondInningsStarted` directly.**
+During a super over that flag may stay the main match's, and four modules reading it on their own
+named the wrong side for the whole first super-over innings. Super-over overs are also a ball count —
+use `teamOvers()`. → `overlay.md` §14b
 
 🛑 **A live super over looks exactly like an innings break.** The scorebar swaps to the
 super-over sides and totals, so `matchPhase()` must return `play` while `isSuperOver` is set, or

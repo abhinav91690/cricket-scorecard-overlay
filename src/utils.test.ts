@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { getBallStyleClass, getQueryParams, loadImage, runsOffBat } from './utils';
+import { battingSecond, matchOvers, teamOvers, getBallStyleClass, getQueryParams, loadImage, runsOffBat } from './utils';
 
 describe('getBallStyleClass', () => {
     it('should return wicket for "W" or "w"', () => {
@@ -181,5 +181,60 @@ describe('runsOffBat', () => {
         expect(runsOffBat('nb')).toBe(0);
         expect(runsOffBat('')).toBe(0);
         expect(runsOffBat('xyz')).toBe(0);
+    });
+});
+
+describe('battingSecond', () => {
+    it('follows the innings flag in an ordinary match', () => {
+        expect(battingSecond({ isSecondInningsStarted: 'false' })).toBe(false);
+        expect(battingSecond({ isSecondInningsStarted: 'true' })).toBe(true);
+        expect(battingSecond({ isSecondInningsStarted: 'true', isSuperOver: 'false' })).toBe(true);
+    });
+
+    it('follows the super over\'s own flag during a super over', () => {
+        // 🛑 The one capture is consistent with isSecondInningsStarted staying the MAIN match's flag
+        // ("true") all through a super over; reading it would name the wrong side for the whole
+        // first super-over innings.
+        expect(battingSecond({ isSecondInningsStarted: 'true', isSuperOver: 'true', isSuperOverSecondInningsStarted: 'false' })).toBe(false);
+        expect(battingSecond({ isSecondInningsStarted: 'true', isSuperOver: 'true', isSuperOverSecondInningsStarted: 'true' })).toBe(true);
+    });
+
+    it('gives the same answer if the innings flag follows the super over instead', () => {
+        // The other reading of the capture: then both flags agree and the answer is unchanged.
+        expect(battingSecond({ isSecondInningsStarted: 'false', isSuperOver: 'true', isSuperOverSecondInningsStarted: 'false' })).toBe(false);
+        expect(battingSecond({ isSecondInningsStarted: 'true', isSuperOver: 'true', isSuperOverSecondInningsStarted: 'true' })).toBe(true);
+    });
+
+    it('accepts the boolean forms types.ts allows', () => {
+        expect(battingSecond({ isSecondInningsStarted: 'true', isSuperOver: true, isSuperOverSecondInningsStarted: false })).toBe(false);
+    });
+});
+
+describe('teamOvers', () => {
+    it('passes ordinary overs through untouched', () => {
+        expect(teamOvers({ isSuperOver: 'false' }, '10.2')).toBe('10.2');
+        expect(teamOvers({}, '20')).toBe('20');                  // a full innings, as CricClubs writes it
+        expect(teamOvers({}, undefined)).toBe('');
+    });
+
+    it('reads a super over\'s overs as the ball count CricClubs sends', () => {
+        // 🛑 Match 2079's capture has t1Overs "6" for a completed one-over super over: a ball count.
+        // Shown as-is, three balls in reads "3 ov".
+        const so = { isSuperOver: 'true' };
+        expect(teamOvers(so, '3')).toBe('0.3');
+        expect(teamOvers(so, '6')).toBe('1.0');
+        expect(teamOvers(so, '0')).toBe('0.0');
+    });
+
+    it('leaves a super-over value that is already in overs notation alone', () => {
+        expect(teamOvers({ isSuperOver: 'true' }, '0.3')).toBe('0.3');
+    });
+});
+
+describe('matchOvers', () => {
+    it('is one over in a super over, the match length otherwise', () => {
+        expect(matchOvers({ isSuperOver: 'true', totalOvers: 20 })).toBe(1);
+        expect(matchOvers({ isSuperOver: 'false', totalOvers: 20 })).toBe(20);
+        expect(matchOvers({})).toBeUndefined();
     });
 });
