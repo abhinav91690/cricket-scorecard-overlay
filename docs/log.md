@@ -2,6 +2,19 @@
 
 ## 2026-09-23
 
+### 🛑 One failed view peek blocked the next
+
+`desiredView()` asked for the first missing piece of a phase unconditionally. When a view never
+yielded, `steerView()` stopped asking after `PEEK_ATTEMPTS` but never moved on, so the next view
+was never requested: a failed team 1 squad meant team 2's was never fetched, and the line-up
+showed with **both** XIs empty. The same at the break (view 2 blocked 3) and the end (4 blocked 5).
+It now skips views that have used their tries. [overlay.md](./overlay.md) §14.
+
+The fix broke an existing test, `gives up on a view that never yields and shows the panel anyway`,
+and the test was the thing that was wrong: it waited six polls for the line-up, which was only
+enough *because* team 2's squad was never asked for. It now waits seven and asserts both views
+got their three tries. The simulator cannot see any of this — every peek it serves succeeds.
+
 ### The result card, rebuilt to a broadcast layout
 
 The match-summary panel now follows a reference result card: the result as the headline over a

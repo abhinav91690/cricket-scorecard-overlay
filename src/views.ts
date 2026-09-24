@@ -50,28 +50,31 @@ export function isFullFrame(data: CricketAPIData): boolean {
  * - Pre-match: peek the two squads once.
  * - Innings break: peek team 1's batting and bowling cards once (views 2, 3). Match over: team 2's as well (4, 5).
  * - In play: never leave the scorebar.
+ * - A view in `gaveUp` has used all its tries and is skipped, so the next one is asked for.
  */
-export function desiredView(data: CricketAPIData, phase: MatchPhase, cache: ViewCache): number | null {
+export function desiredView(data: CricketAPIData, phase: MatchPhase, cache: ViewCache, gaveUp: ReadonlySet<number> = NONE): number | null {
     const current = data.view ?? VIEW.scorebar;
     if (!isFullFrame(data)) return current === VIEW.scorebar ? null : VIEW.scorebar;
-    if (phase === 'pre') {
-        if (!cache.t1PlayersList) return VIEW.team1;
-        if (!cache.t2PlayersList) return VIEW.team2;
-        return null;
-    }
+    // 🛑 The first piece still missing — but skipping any view that has already used its tries.
+    // Asking for the first missing piece unconditionally meant one view that never yielded
+    // blocked every view after it in the phase: a failed team 1 squad meant team 2's was never
+    // requested, and the line-up showed with both XIs empty.
+    const first = (...steps: [missing: boolean, view: number][]) => steps.find(([missing, v]) => missing && !gaveUp.has(v))?.[1] ?? null;
+    if (phase === 'pre') return first([!cache.t1PlayersList, VIEW.team1], [!cache.t2PlayersList, VIEW.team2]);
     // The full card views carry each side's fall of wickets; the summary view (8) only has the
     // latest innings', so the break peeks team 1's cards and the end peeks team 2's.
     if (phase === 'break' || phase === 'ended') {
-        if (!cache.t1Batting) return VIEW.batting1;   // team 1 batted first
-        if (!cache.t2Bowling) return VIEW.bowling1;   // team 2 bowled first
-        if (phase === 'ended') {
-            if (!cache.t2Batting) return VIEW.batting2;
-            if (!cache.t1Bowling) return VIEW.bowling2;
-        }
-        return null;
+        const steps: [boolean, number][] = [
+            [!cache.t1Batting, VIEW.batting1],   // team 1 batted first
+            [!cache.t2Bowling, VIEW.bowling1],   // team 2 bowled first
+        ];
+        if (phase === 'ended') steps.push([!cache.t2Batting, VIEW.batting2], [!cache.t1Bowling, VIEW.bowling2]);
+        return first(...steps);
     }
     return null;
 }
+
+const NONE: ReadonlySet<number> = new Set();
 
 /** Field names deleted from anywhere in a payload. Player rows carry `email`. */
 const PII_KEYS = ['email'] as const;

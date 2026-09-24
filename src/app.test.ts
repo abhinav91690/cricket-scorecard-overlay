@@ -198,6 +198,21 @@ describe('views: peeks, dismissal and panels', () => {
         expect(renderDataCode).toHaveBeenCalledTimes(1);      // still 1, not 2
     });
 
+    it('moves on to the next view when one never yields, instead of blocking it', async () => {
+        // 🛑 The squad view never arrives (the switch is ignored, every poll is the scorebar).
+        // It used to stop asking for 48 after three tries but never move on: 49 was never
+        // requested, and the line-up showed with BOTH XIs empty.
+        setSearch('?matchId=2079&clubId=1089463');
+        vi.mocked(fetchScoreData).mockResolvedValue(pre);
+        const lineups = () => vi.mocked(enqueueCards).mock.calls.flat(2).filter((c: any) => c?.type === 'lineup');
+        for (let i = 0; i < 4; i++) await updateScore();
+        expect(vi.mocked(switchView).mock.calls.map(c => c[2])).toEqual([48, 48, 48, 49]);
+        expect(lineups()).toHaveLength(0);          // still waiting: team 2's squad has not had its tries
+        for (let i = 0; i < 3; i++) await updateScore();
+        expect(vi.mocked(switchView).mock.calls.map(c => c[2])).toEqual([48, 48, 48, 49, 49, 49]);
+        expect(lineups()).toHaveLength(1);          // every view has had its tries: show what there is
+    });
+
     it('never switches views during play or in debug mode', async () => {
         setSearch('?matchId=1');
         vi.mocked(fetchScoreData).mockResolvedValue(live);
@@ -241,9 +256,12 @@ describe('views: peeks, dismissal and panels', () => {
     it('gives up on a view that never yields and shows the panel anyway', async () => {
         setSearch('?matchId=2079&clubId=1');
         vi.mocked(fetchScoreData).mockResolvedValue(pre); // the peek never lands: every poll is the scorebar
-        for (let i = 0; i < 6; i++) await updateScore();
-        const asks = vi.mocked(switchView).mock.calls.filter(c => c[2] === 48).length;
-        expect(asks).toBe(3);
+        // Seven polls, not six: each squad view gets its three tries in turn. The six this used to
+        // wait was only enough because team 2's squad was never asked for at all.
+        for (let i = 0; i < 7; i++) await updateScore();
+        const asks = (view: number) => vi.mocked(switchView).mock.calls.filter(c => c[2] === view).length;
+        expect(asks(48)).toBe(3);
+        expect(asks(49)).toBe(3);
         expect(vi.mocked(enqueueCards).mock.calls.flat(2).filter((c: any) => c.type === 'lineup').length).toBeGreaterThan(0);
     });
 

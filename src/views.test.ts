@@ -82,6 +82,18 @@ describe('desiredView', () => {
         expect(desiredView(full({}), 'ended', { ...firstInnings, t2Batting: [{}] as any })).toBe(VIEW.bowling2);
         expect(desiredView(full({}), 'ended', { ...firstInnings, t2Batting: [{}] as any, t1Bowling: [{}] as any })).toBeNull();
     });
+
+    it('skips a view that has used its tries and asks for the next one', () => {
+        // 🛑 It always asked for the FIRST missing piece, so a view that never yielded blocked
+        // every view after it in the phase.
+        const gaveUp = new Set([VIEW.team1]);
+        expect(desiredView(full({}), 'pre', {}, gaveUp)).toBe(VIEW.team2);
+        expect(desiredView(full({}), 'pre', {}, new Set([VIEW.team1, VIEW.team2]))).toBeNull();
+        expect(desiredView(full({}), 'break', {}, new Set([VIEW.batting1]))).toBe(VIEW.bowling1);
+        expect(desiredView(full({}), 'ended', {}, new Set([VIEW.batting1, VIEW.bowling1, VIEW.batting2]))).toBe(VIEW.bowling2);
+        // coming home after a peek is never skipped
+        expect(desiredView(mock_view_48 as CricketAPIData, 'pre', {}, gaveUp)).toBe(VIEW.scorebar);
+    });
 });
 
 describe('stripPii', () => {

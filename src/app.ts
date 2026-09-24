@@ -32,6 +32,8 @@ let viewCache: ViewCache = {};
 /** How many times each data view has been requested; after PEEK_ATTEMPTS we stop waiting for it. */
 let peekAttempts: Record<number, number> = {};
 const PEEK_ATTEMPTS = 3;
+/** Views that have used all their tries. Skipped rather than retried, so they cannot block the views after them. */
+const gaveUp = () => new Set(Object.entries(peekAttempts).filter(([, n]) => n >= PEEK_ATTEMPTS).map(([v]) => Number(v)));
 
 /** Test hook: forget replay position, last frame and whether a frame has rendered. */
 export function resetAppStateForTests() {
@@ -66,8 +68,7 @@ function renderFrame(data: CricketAPIData, quiet: boolean, showData = false) {
         enqueueCards(detectEvents(lastData, data));
         const phase = matchPhase(data);
         // Panels wait until the phase's peeks have landed (or been given up on), so they never render half-empty.
-        const pending = desiredView(data, phase, viewCache);
-        const dataReady = pending === null || (peekAttempts[pending] ?? 0) >= PEEK_ATTEMPTS;
+        const dataReady = desiredView(data, phase, viewCache, gaveUp()) === null;
         if (phase !== 'play' && dataReady && isIdle('panel')) enqueueCards(phasePanels(phase, data.values, viewCache));
     }
     lastData = data;
@@ -99,12 +100,10 @@ function samplePanel(type: string): PanelEvent | null {
 
 /** Ask CricClubs for the next view we want, if any (live matches only). */
 function steerView(data: CricketAPIData, clubId: string, matchId: string) {
-    const want = desiredView(data, isFullFrame(data) ? matchPhase(data) : (lastData ? matchPhase(lastData) : 'play'), viewCache);
+    const want = desiredView(data, isFullFrame(data) ? matchPhase(data) : (lastData ? matchPhase(lastData) : 'play'), viewCache, gaveUp());
     if (want !== null && want !== (data.view ?? 1)) {
-        if (want !== 1) {
-            peekAttempts[want] = (peekAttempts[want] ?? 0) + 1;
-            if (peekAttempts[want] > PEEK_ATTEMPTS) return; // this view never yields; stop asking
-        }
+        // desiredView() never returns a view that has used its tries, so this cannot run away.
+        if (want !== 1) peekAttempts[want] = (peekAttempts[want] ?? 0) + 1;
         e2eLog('switch', { from: data.view ?? 1, to: want });
         switchView(clubId, matchId, want, apiBase());
     }

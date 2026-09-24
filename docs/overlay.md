@@ -347,6 +347,16 @@ by the view's own team — because each peek sees only part of the match. `match
 and only render while the panel surface `isIdle()`, so a panel never appears half-empty and
 never interrupts one already showing.
 
+🛑 **A view that has used its tries is skipped, not retried.** `desiredView()` asks for the first
+missing piece of the phase, and it used to do that unconditionally — so one view that never
+yielded blocked every view after it. A failed team 1 squad meant team 2's was never requested, and
+the line-up went on air with *both* XIs empty. It now takes the set of views that have used their
+tries and moves past them. The simulator cannot catch this: every peek it serves succeeds first time.
+
+⚠ **Nobody has measured how long CricClubs takes to apply a view switch.** Everything assumes the
+next poll (5 s); `PEEK_ATTEMPTS` × 5 s = 15 s before a view is abandoned. CricClubs' other write
+endpoint, Link Live Stream, takes up to a minute to show in the feed.
+
 ### 14a. 🛑 `stripPii()` runs first, on every frame
 
 Player rows in the CricClubs card views carry **email addresses**. `stripPii()` deletes them the
