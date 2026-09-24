@@ -104,18 +104,22 @@ function startInnings(team: TeamData, bowlingTeam: TeamData, rand: () => number)
     return { battingTeam: team.name === teams()[0].name ? 0 : 1, total: 0, wickets: 0, legalBalls: 0, overBalls: [], batters, strikerIdx: 0, nonStrikerIdx: 1, nextIdx: 2, bowlers, bowlerIdx: 0, prevBowlerIdx: -1, fow: {}, extras: 0, partnership: { runs: 0, balls: 0, a: 0, b: 1 }, complete: false };
 }
 
-/** A bowler may bowl at most a fifth of the overs: 4 in a T20, 1 in a super over. */
+/** The usual per-bowler limit, a fifth of the overs: 4 in a T20, 1 in a super over. */
 export const bowlerCap = (totalOvers: number) => Math.max(1, Math.ceil(totalOvers / 5));
 
 /**
- * Chooses the next over's bowler: never the one who bowled the last over, never past the cap.
+ * Chooses the next over's bowler: never the one who bowled the last over.
  *
- * 🛑 It used to take the first bowler with recorded overs left and, failing that, ANY bowler who had
- * not just bowled — with no limit. When the only overs left belonged to the previous over's bowler,
- * that fallback gave a fifth over to someone already on four. Picking whoever has the most overs
- * left is how a captain avoids that corner, and the cap is now enforced rather than hoped for.
+ * It schedules within the usual limit — whoever has the most overs left goes next, which is how a
+ * captain avoids the last over belonging to the previous over's bowler. An earlier version took
+ * the first bowler with overs left instead, and painted itself into exactly that corner.
+ *
+ * ⚠ The limit is a preference, not a law here. CricClubs lets the scorer override it and give a
+ * bowler a fifth over, and leagues do, so when nobody else is under it the least-used bowler gets
+ * the extra over — as a scorer would — rather than the match stopping. The overlay has no limit of
+ * its own and shows whatever CricClubs sends.
  */
-function pickBowler(inn: InningsState, cfg: SimConfig) {
+export function pickBowler(inn: InningsState, cfg: SimConfig) {
     const cap = bowlerCap(cfg.totalOvers);
     const done = (b: BowlerState) => Math.floor(b.balls / 6);
     const recorded = (b: BowlerState) => Math.min(cap, Math.max(1, Math.round((b.row.balls ?? 24) / 6)));
@@ -123,9 +127,9 @@ function pickBowler(inn: InningsState, cfg: SimConfig) {
     const most = (limit: (b: BowlerState) => number) => free
         .filter(({ b }) => done(b) < limit(b))
         .sort((x, y) => (limit(y.b) - done(y.b)) - (limit(x.b) - done(x.b)) || x.i - y.i)[0];
-    const pick = most(recorded) ?? most(() => cap);
-    if (!pick) throw new Error(`no bowler can legally bowl the next over: ${inn.bowlers.length} bowlers, ${cap}-over cap`);
-    inn.bowlerIdx = pick.i;
+    // Everyone else past the limit: the override CricClubs allows, to whoever has bowled least.
+    const override = () => [...free].sort((x, y) => done(x.b) - done(y.b) || x.i - y.i)[0];
+    inn.bowlerIdx = (most(recorded) ?? most(() => cap) ?? override() ?? { i: 0 }).i;
 }
 
 /** Advances one delivery (legal or wide). Returns false when the innings is over. */

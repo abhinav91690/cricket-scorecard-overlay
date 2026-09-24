@@ -143,10 +143,10 @@ async function main() {
     check('Innings summary shown at the break', shows.some(s => s.type === 'innings-summary' && phaseAt(s.sim) === 'break'), '');
     check('Match summary shown after the result', shows.some(s => s.type === 'match-summary' && phaseAt(s.sim) === 'ended'), '');
     check('No panel during play or a super over', !shows.some(s => s.surface === 'panel' && busy(phaseAt(s.sim))), '');
-    // A bowler may bowl a fifth of the overs: 4 in a T20, 1 in a super over.
-    const over = innings.flatMap((inn, k) => inn.bowlers.filter(b => b.balls > bowlerCap(k < 2 ? 20 : 1) * 6)
+    // Overs past the usual fifth are a legal CricClubs override, so they are reported, not failed.
+    const overrides = innings.flatMap((inn, k) => inn.bowlers.filter(b => b.balls > bowlerCap(k < 2 ? 20 : 1) * 6)
         .map(b => `${b.row.firstName} ${Math.floor(b.balls / 6)}.${b.balls % 6} ov`));
-    check('No bowler past the over limit (a fifth of the overs)', over.length === 0, over.join(', ') || `most: ${Math.max(...innings.slice(0, 2).flatMap(i => i.bowlers.map(b => b.balls))) / 6} overs`);
+    const mostOvers = Math.max(...innings.slice(0, 2).flatMap(i => i.bowlers.map(b => b.balls))) / 6;
     if (SUPER_OVER) {
         const [main1, main2] = teamNames();
         // The side that batted second bats first in the super over.
@@ -191,7 +191,7 @@ async function main() {
     const badDismiss = dismissals.filter(d => { const before = frames.filter(f => f.t <= d.t).slice(-2); return !(before.length === 2 && (scoreOf(before[0]) !== scoreOf(before[1]) || before[0].balls !== before[1].balls)); });
     check('Every dismissal followed a score change', badDismiss.length === 0, `${dismissals.length} dismissals, ${badDismiss.length} unexplained`);
 
-    const report = [`# Simulated match run`, ``, `- scenario: ${SUPER_OVER ? 'tie decided by a super over' : 'ordinary match'}, seed ${SEED}`, `- theme: ${THEME}, speed x${SPEED}, poll ${REFRESH}ms, ${pollCount} polls, ${frames.length} frames logged`, `- result: ${final.inn1.total}/${final.inn1.wickets} v ${final.inn2?.total}/${final.inn2?.wickets}${final.so1 ? `, super over ${final.so1.total}/${final.so1.wickets} v ${final.so2?.total}/${final.so2?.wickets}` : ''} — ${final.result}`, `- cards shown: ${[...cardShots].map(([k, v]) => `${k}×${v}`).join(', ')}`, `- view switches: ${sw.join(' ')}`, ``, `| check | result | detail |`, `|---|---|---|`,
+    const report = [`# Simulated match run`, ``, `- scenario: ${SUPER_OVER ? 'tie decided by a super over' : 'ordinary match'}, seed ${SEED}`, `- theme: ${THEME}, speed x${SPEED}, poll ${REFRESH}ms, ${pollCount} polls, ${frames.length} frames logged`, `- result: ${final.inn1.total}/${final.inn1.wickets} v ${final.inn2?.total}/${final.inn2?.wickets}${final.so1 ? `, super over ${final.so1.total}/${final.so1.wickets} v ${final.so2?.total}/${final.so2?.wickets}` : ''} — ${final.result}`, `- cards shown: ${[...cardShots].map(([k, v]) => `${k}×${v}`).join(', ')}`, `- bowling: most ${mostOvers} overs by one bowler; fifth-over overrides: ${overrides.join(', ') || 'none'}`, `- view switches: ${sw.join(' ')}`, ``, `| check | result | detail |`, `|---|---|---|`,
         ...checks.map(c => `| ${c.name} | ${c.pass ? 'PASS' : 'FAIL'} | ${c.detail} |`), ``, `## Screenshots`, ...shots.map(s => `- ${s.name} (sim ${s.sim}s)`)].join('\n');
     writeFileSync(`${OUT}/report.md`, report);
     console.log(report);

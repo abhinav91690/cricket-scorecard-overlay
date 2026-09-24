@@ -333,11 +333,14 @@ sides swapped, super-over totals, overs as a ball count, and `isSecondInningsSta
 main match's flag with the super over on `isSuperOverSecondInningsStarted`. That last part is an
 assumption — see §14b.
 
-🛑 **A bowler may bowl at most a fifth of the overs**, and the generator now enforces it. It used to
-fall back to any bowler who had not just bowled once the recorded quotas ran out, which gave a
-fifth over to someone already on four whenever the last overs belonged to the previous over's
-bowler. It picks whoever has the most overs left, as a captain would, and throws rather than break
-the Laws. Graded on every run.
+**The over limit is a preference, not a rule.** A bowler is normally held to a fifth of the overs,
+but ⚠ **CricClubs lets the scorer override it and give a fifth over**, and leagues do. The overlay
+has no limit of its own — it shows whatever CricClubs sends, and the `?data=1` code has 7 bits for a
+bowler's balls (127, against 30 for a five-over spell). So the generator schedules within the usual
+limit — whoever has the most overs left goes next, which is how a captain avoids the last over
+belonging to the previous over's bowler — and when nobody else is under it, gives the least-used
+bowler an extra over, as a scorer would. The report states each run's busiest bowler and any
+overrides; it does not fail on them.
 
 ⚠ The overlay hooks it relies on — `?api=`, `?refresh=`, `?e2e` in `src/e2e.ts` — are
 **localhost-only**, so none of this changes production behaviour.

@@ -2,6 +2,21 @@
 
 ## 2026-09-24
 
+### ⚠ A fifth over is legal in CricClubs — the simulator no longer forbids it
+
+A correction to the entry below. The simulator's fifth over was reported as a bug, "a T20 caps a
+bowler at four", and the fix enforced that cap and failed any run that broke it. But **CricClubs
+lets the scorer override the limit and give a fifth over**, and leagues use it, so the simulator was
+stricter than the thing it simulates.
+
+The cap is now a preference: the scheduling fix stays (most overs left goes next, which is how a
+captain avoids needing an override), and when nobody else is under the limit the least-used bowler
+gets an extra over instead of the match stopping. Checked directly: 20 overs from four bowlers gives
+five each, spread evenly, never two in a row — the old code would have thrown. The grader's
+over-limit check is gone and each report states the busiest bowler and any overrides instead.
+
+The overlay itself never had a limit, and the `?data=1` code has room for 21 overs from one bowler.
+
 ### The simulator plays super overs and respects the over limit — and found four bugs
 
 `npm run sim:run -- --super-over [--seed N]` ties the main match by construction and decides it with
