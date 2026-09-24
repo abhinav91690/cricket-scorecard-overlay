@@ -4,7 +4,7 @@
  * Deterministic for a given seed. No dependencies; runs on Node's native TypeScript support.
  */
 import type { BattingStats, BowlingStats, CricketAPIData, Player } from '../src/types.ts';
-import { mock_view_1, mock_view_2, mock_view_3, mock_view_4, mock_view_5, mock_view_8, mock_view_48, mock_view_49 } from '../src/mockData.ts';
+import { mock_view_1, mock_view_2, mock_view_3, mock_view_4, mock_view_5, mock_view_48, mock_view_49 } from '../src/mockData.ts';
 
 export interface SimConfig {
     /** simulated seconds before the first ball */
@@ -31,8 +31,11 @@ interface TeamData { name: string; code: string; logo: string; players: Player[]
 function teams(): [TeamData, TeamData] {
     // Data views keep main-match order: team 1 = TOPGUNS UNITED, team 2 = Lions.
     return [
-        { name: v(mock_view_8).t1Name, code: v(mock_view_8).t1Code, logo: v(mock_view_8).t1Logo, players: v(mock_view_48).t1PlayersList, batting: v(mock_view_2).t1Batting, bowling: v(mock_view_5).t1Bowling },
-        { name: v(mock_view_8).t2Name, code: v(mock_view_8).t2Code, logo: v(mock_view_8).t2Logo, players: v(mock_view_49).t2PlayersList, batting: v(mock_view_4).t2Batting, bowling: v(mock_view_3).t2Bowling },
+        // Name, code and crest from each side's own batting-card view (2, 4), which carry them
+        // exactly as the summary view (8) does. ⚠ Not view 8: the page imports this file in replay
+        // mode, and view 8 is 8 kB of fixture the live bundle would otherwise have to ship.
+        { name: v(mock_view_2).t1Name, code: v(mock_view_2).t1Code, logo: v(mock_view_2).t1Logo, players: v(mock_view_48).t1PlayersList, batting: v(mock_view_2).t1Batting, bowling: v(mock_view_5).t1Bowling },
+        { name: v(mock_view_4).t2Name, code: v(mock_view_4).t2Code, logo: v(mock_view_4).t2Logo, players: v(mock_view_49).t2PlayersList, batting: v(mock_view_4).t2Batting, bowling: v(mock_view_3).t2Bowling },
     ];
 }
 

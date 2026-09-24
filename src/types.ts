@@ -456,6 +456,11 @@ export interface Config {
     MAX_FAST_POLLS: number;
     /** Longest the poll loop waits for CricClubs to answer a view switch. */
     SWITCH_TIMEOUT_MS: number;
+    /** Replay: how often the page reads its simulated match (no network, so it can be fast). */
+    REPLAY_REFRESH_MS: number;
+    /** Replay: default and maximum speed, in simulated seconds per real second. */
+    REPLAY_SPEED: number;
+    REPLAY_MAX_SPEED: number;
     /** Default CricClubs club ID */
     DEFAULT_CLUB_ID: string;
     /** Map of team names/codes to logo URLs */

@@ -4,7 +4,6 @@
  * so it can be unit-tested.
  */
 import { mock_1stInnings, mock_2ndInnings, mock_matchEnded, mock_toss, mock_noTeamImage, mock_view_1, mock_view_2, mock_view_3, mock_view_4, mock_view_5, mock_view_48, mock_view_49 } from './mockData';
-import { sampleReplayData } from './replayData';
 import { CONFIG } from './config';
 import { DOM } from './dom';
 import { getQueryParams } from './utils';
@@ -21,7 +20,6 @@ import { enqueueCards, showSampleCard, dismissAll, isIdle, PanelEvent } from './
 import { apiBase, refreshMs, e2eLog } from './e2e';
 import { ViewCache, desiredView, isFullFrame, matchPhase, mergeCache, phasePanels, scoreChanged, stripPii, lineupPanel, inningsSummaryPanel, matchSummaryPanel } from './views';
 
-let replayIndex = 0;
 /** True once the overlay has painted at least one successful frame of live/mock data. */
 let hasRenderedScore = false;
 /** The previous frame, so events (wicket, fifty, boundary, target) can be derived from the diff. */
@@ -33,6 +31,43 @@ let viewCache: ViewCache = {};
 let peekAttempts: Record<number, number> = {};
 const PEEK_ATTEMPTS = 3;
 /** Views that have used all their tries. Skipped rather than retried, so they cannot block the views after them. */
+/**
+ * Where frames come from, and where view switches go. Live, that is CricClubs. In replay it is a
+ * whole simulated match played inside the page (sim/match.ts), so ?mode=replay runs the very same
+ * render, peek and panel code a live match does — the only difference is the feed.
+ */
+interface Feed { read(): Promise<CricketAPIData>; switchTo(view: number): Promise<void>; }
+
+function liveFeed(clubId: string, matchId: string): Feed {
+    return {
+        read: () => fetchScoreData(`${apiBase()}/liveScoreOverlayData.do?clubId=${clubId}&matchId=${matchId}`),
+        switchTo: view => switchView(clubId, matchId, view, apiBase()),
+    };
+}
+
+/** The replay feed, built once on the first replay poll and kept for the page's life. */
+let replay: Promise<Feed> | null = null;
+
+/**
+ * A simulated CricClubs for ?mode=replay: toss to result, at ?speed= (default CONFIG.REPLAY_SPEED),
+ * optionally from ?start=<phase> and as a tie decided by a super over with ?superover=1.
+ * Loaded on demand, so a live overlay never downloads the simulator.
+ */
+async function replayFeed(p: ReturnType<typeof getQueryParams>): Promise<Feed> {
+    const sim = await import('../sim/match.ts');
+    const cfg = { ...sim.DEFAULT_CONFIG, superOver: p.superOver, ...(Number.isFinite(p.seed) ? { seed: p.seed as number } : {}) };
+    const timeline = sim.buildTimeline(cfg);
+    const speed = Math.min(CONFIG.REPLAY_MAX_SPEED, Math.max(1, Number.isFinite(p.speed) && p.speed! > 0 ? p.speed! : CONFIG.REPLAY_SPEED));
+    const from = (p.start && timeline.find(x => x.phase === p.start)?.t) || 0;
+    const began = Date.now();
+    let view = 1;
+    const now = () => from + ((Date.now() - began) / 1000) * speed;
+    return {
+        read: async () => sim.render(sim.snapshotAt(timeline, now()), view, cfg),
+        switchTo: async next => { view = next; },
+    };
+}
+
 /** Set when a poll asked CricClubs to switch view, so the next read comes almost at once. */
 let peekFollowUp = false;
 /** Fast reads in a row; capped so a feed stuck on a data view cannot fast-poll forever. */
@@ -41,7 +76,7 @@ const gaveUp = () => new Set(Object.entries(peekAttempts).filter(([, n]) => n >=
 
 /** Test hook: forget replay position, last frame and whether a frame has rendered. */
 export function resetAppStateForTests() {
-    replayIndex = 0;
+    replay = null;
     hasRenderedScore = false;
     lastData = null;
     sampleCardShown = false;
@@ -106,13 +141,13 @@ function samplePanel(type: string): PanelEvent | null {
 
 /** Ask CricClubs for the next view we want, if any (live matches only). */
 /** Asks for the next view the phase needs; true when it asked, so the caller reads again soon. */
-async function steerView(data: CricketAPIData, clubId: string, matchId: string): Promise<boolean> {
+async function steerView(data: CricketAPIData, feed: Feed): Promise<boolean> {
     const want = desiredView(data, isFullFrame(data) ? matchPhase(data) : (lastData ? matchPhase(lastData) : 'play'), viewCache, gaveUp());
     if (want !== null && want !== (data.view ?? 1)) {
         // desiredView() never returns a view that has used its tries, so this cannot run away.
         if (want !== 1) peekAttempts[want] = (peekAttempts[want] ?? 0) + 1;
         e2eLog('switch', { from: data.view ?? 1, to: want });
-        await switchView(clubId, matchId, want, apiBase());
+        await feed.switchTo(want);
         return true;
     }
     return false;
@@ -194,19 +229,14 @@ export async function updateScore() {
     // Pull in the QR encoder only for streams that asked for the data code.
     if (params.data) await ensureDataQr();
 
-    if (params.mode === 'replay') {
-        const data = sampleReplayData[replayIndex] as unknown as CricketAPIData;
-        renderFrame(data, params.quiet, params.data);
-        replayIndex = (replayIndex + 1) % sampleReplayData.length;
-        return;
-    }
-
-    if (!params.matchId && !params.debug) {
+    const replaying = params.mode === 'replay';
+    if (!params.matchId && !params.debug && !replaying) {
         return;
     }
 
     try {
         let data: CricketAPIData;
+        let feed: Feed | null = null;
         if (params.debug) {
             // Mock Data Logic
             switch (params.debug) {
@@ -237,15 +267,19 @@ export async function updateScore() {
                     if (panel) enqueueCards([panel], 60 * 60 * 1000);
                 }
             }
+        } else if (replaying) {
+            feed = await (replay ??= replayFeed(params));
+            data = await feed.read();
         } else {
             trackOnce('overlay_start', { clubId: params.clubId, matchId: params.matchId, theme: params.theme, logo: params.logo });
-            const apiUrl = `${apiBase()}/liveScoreOverlayData.do?clubId=${params.clubId}&matchId=${params.matchId}`;
-            data = await fetchScoreData(apiUrl);
+            feed = liveFeed(params.clubId, params.matchId!);
+            data = await feed.read();
         }
 
         if (isFullFrame(data)) await updateTeamLogos(data);
         renderFrame(data, params.quiet, params.data);
-        if (!params.debug) peekFollowUp = await steerView(data, params.clubId, params.matchId!);
+        // Debug has no feed, so it never switches views.
+        if (feed) peekFollowUp = await steerView(data, feed);
         hasRenderedScore = true;
 
     } catch (error) {
@@ -279,7 +313,7 @@ export async function pollLoop() {
  * peek instead of a whole refresh. Still one timeout chain, so polls never overlap.
  */
 function nextDelay(): number {
-    const normal = refreshMs();
+    const normal = getQueryParams().mode === 'replay' ? CONFIG.REPLAY_REFRESH_MS : refreshMs();
     if (!peekFollowUp) { fastPolls = 0; return normal; }
     peekFollowUp = false;
     // 🛑 Coming home to the scorebar is not attempt-limited, so a feed stuck on a data view would

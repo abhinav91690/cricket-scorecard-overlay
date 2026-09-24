@@ -14,6 +14,9 @@
         "isolatedModules": true,
         "esModuleInterop": true,
         "noEmit": true,
+        // sim/match.ts is imported by replay mode and written for Node's type stripping, which
+        // needs explicit .ts import paths. Only legal with noEmit, which this project always is.
+        "allowImportingTsExtensions": true,
         "noUnusedLocals": true,
         "noImplicitReturns": true,
         "skipLibCheck": true

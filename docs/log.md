@@ -1,5 +1,32 @@
 # Update Log
 
+## 2026-09-25
+
+### Replay mode plays a whole match, toss to result
+
+`?mode=replay` used to cycle a handful of fixed states. It now plays a complete simulated match —
+pre-match line-up, both innings with every event card, the innings-break summary, the result card,
+and a super over with `?superover=1` — at `?speed=` (default ×5, about 30 minutes), optionally from
+`?start=<phase>`. [overlay.md](./overlay.md) §2a.
+
+It is the simulator from `sim/` running inside the page behind a `Feed`: frames come from the
+simulated match and view switches go to it, so the overlay runs its **live** code path unchanged.
+That is the point — it is a rehearsal of Saturday, not a demo of it. Verified in a real browser on
+the production build: the line-up on air within 2 s, `?data=1` decoding with a valid CRC, the
+result card, and a super over with the right batting side and overs.
+
+Three things worth keeping:
+
+- ⚠ **tsc had never type-checked `sim/`.** Node runs it with types stripped and it uses `.ts`
+  import paths; importing it from `src/` needed `allowImportingTsExtensions` (legal with `noEmit`).
+  It passed clean, and is checked from now on.
+- ⚠ **A shared fixture cannot be tree-shaken per importer.** The simulator read team names from
+  the 8 kB summary view `mock_view_8`, which the live app never used; once the page imported the
+  simulator, that fixture landed in the *main* bundle, +5 kB for every live overlay. Views 2 and 4
+  carry the same fields, and the main bundle ended up 1.6 kB smaller than production.
+- The speed is capped at ×30 and the replay reads every second, so every simulated ball still gets
+  a read of its own.
+
 ## 2026-09-24
 
 ### ⚠ A fifth over is legal in CricClubs — the simulator no longer forbids it

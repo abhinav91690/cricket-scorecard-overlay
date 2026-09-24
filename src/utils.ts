@@ -19,6 +19,11 @@ export function getQueryParams() {
         // ?data=1 draws the machine-readable code for highlights/. Off by default, so a
         // normal browser source never shows it.
         data: urlParams.has('data') && urlParams.get('data') !== '0',
+        // ?mode=replay: a whole simulated match, toss to result, played in the page.
+        speed: urlParams.has('speed') ? Number(urlParams.get('speed')) : null,
+        start: urlParams.get('start'),
+        superOver: urlParams.has('superover') && urlParams.get('superover') !== '0',
+        seed: urlParams.has('seed') ? Number(urlParams.get('seed')) : null,
     };
 }
 
