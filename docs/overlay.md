@@ -151,11 +151,18 @@ over the batter/bowler slots.
 |---|---|---|
 | Wicket | the batting side's wicket count rises | 8 s |
 | Fifty / Hundred | a batter crosses 50 or 100 | 8 s |
+| 5-wicket haul | the same bowler reaches five wickets | 8 s (a milestone card) |
 | Four / Six | the newest ball is a boundary off the bat | 2 s |
 | 50 / 100 partnership | the current stand crosses 50 or 100 | 6 s |
 | Line-up (panel) | before the first ball, once | 60 s, or until both openers are in |
 | Innings summary (panel) | the first innings is complete, once | 2 min, or until the chase begins |
 | Match summary (panel) | the match ends, once | for good (drawn again when the award is named) |
+
+🛑 **One ball's cards play in a fixed order: the ball's own card first.** The wicket, or the four
+or six, then what it led to — a bowler's haul after the wicket; a fifty, hundred or partnership
+after the boundary that brought it up. The bar plays first come, first served, so this is the
+order `detectEvents()` returns them in. The haul is a milestone card on purpose: it carries the
+milestone accent, so `highlights/` needs no change to the palette contract (§6a).
 
 The last three render on a **second surface above the bar** and are built from CricClubs' data
 views rather than from poll diffs — see §14.

@@ -51,6 +51,7 @@ export function cardCopy(e: OverlayEvent): CardCopy {
         case 'wicket':
             return { eyebrow: 'Wicket', headline: e.name, detail: [e.dismissal, `${e.runs} (${e.balls})`, e.fow].filter(Boolean).join(' · ') };
         case 'milestone':
+            if ('haul' in e) return { eyebrow: '5-wicket haul', headline: e.name, detail: [e.figures, e.overs && `${e.overs} ov`].filter(Boolean).join(' · ') };
             return { eyebrow: e.mark === 100 ? 'Hundred' : 'Fifty', headline: e.name, detail: `${e.runs} (${e.balls}) · ${e.fours}×4 · ${e.sixes}×6` };
         case 'partnership':
             return { eyebrow: `${e.mark} partnership`, headline: e.names, detail: `${e.runs} (${e.balls})` };
@@ -70,6 +71,7 @@ export function enqueueCards(cards: AnyCard[], hold?: number): void {
         const s = state[surfaceOf(card)];
         if (card.type === 'boundary' && s.queue.some(q => q.card.type === 'boundary')) continue;
         s.queue.push({ card, hold: hold ?? HOLD_MS[card.type] });
+        e2eLog('card:queue', { surface: surfaceOf(card), type: card.type, ...(card.type === 'milestone' ? { mark: card.mark } : {}) });
     }
     pump('bar');
     pump('panel');
@@ -332,7 +334,7 @@ function pump(surface: Surface) {
     s.current = card.type;
     if (surface === 'bar') renderBar(card as OverlayEvent); else renderPanel(card as PanelEvent);
     element(surface).classList.add('is-visible');
-    e2eLog('card:show', { surface, type: card.type, hold });
+    e2eLog('card:show', { surface, type: card.type, hold, ...(card.type === 'milestone' ? { mark: card.mark } : {}) });
     s.timer = setTimeout(() => {
         element(surface).classList.remove('is-visible');
         e2eLog('card:hide', { surface, type: card.type });

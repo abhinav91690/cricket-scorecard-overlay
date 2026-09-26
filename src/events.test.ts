@@ -75,6 +75,23 @@ describe('detectEvents', () => {
         expect(detectEvents(first(), first({ batsman1ID: 22, batsman1Runs: '7', batsman2ID: 11, batsman2Runs: '43' }))).toEqual([]);
     });
 
+    it('puts the ball\'s own card first: the four before the fifty and the partnership it brought up', () => {
+        const next = first({ batsman1Runs: '50', t1Total: '104', currentPartnershipMap: { ...first().values.currentPartnershipMap, partnershipTotalRuns: '52' } }, ['1', '4']);
+        expect(detectEvents(first({}, ['1']), next).map(e => e.type)).toEqual(['boundary', 'milestone', 'partnership']);
+    });
+
+    it('detects a five-wicket haul, after the wicket that completed it', () => {
+        const bowl = (w: string, extra: Record<string, unknown> = {}) => first({ bowlerID: 77, bowlerName: 'Siva K', bowlerWickets: w, bowlerRuns: '24', bowlerOvers: '3.4', ...extra });
+        const out = { t1Wickets: '2', lastOutName: 'X Y', lastOutRuns: '3', lastOutBalls: '4', lastOutString: '<span>b </span><span class=\'outname\'>Siva K</span>' };
+        expect(detectEvents(bowl('4'), bowl('5', out))).toEqual([
+            expect.objectContaining({ type: 'wicket', name: 'X Y' }),
+            { type: 'milestone', mark: 5, haul: true, name: 'Siva K', figures: '5-24', overs: '3.4' },
+        ]);
+        expect(detectEvents(bowl('5'), bowl('6', out)).map(e => e.type)).toEqual(['wicket']);                 // only the fifth
+        expect(detectEvents(bowl('4', { bowlerID: 12 }), bowl('5', out)).map(e => e.type)).toEqual(['wicket']);  // a different bowler's four
+        expect(detectEvents(bowl('4', { bowlerID: 0, bowlerName: 'Siva K' }), bowl('5', { ...out, bowlerID: 0 })).map(e => e.type)).toEqual(['wicket', 'milestone']);   // no ID: matched by name
+    });
+
     it('detects a partnership milestone for the same pair', () => {
         const next = first({ currentPartnershipMap: { partnershipBatsman1ID: '11', partnershipBatsman2ID: '22', partnershipBatsman1FirstName: 'Abhinav', partnershipBatsman2FirstName: 'Raja', partnershipTotalRuns: '52', partnershipTotalBalls: '36' } });
         expect(detectEvents(first(), next)).toEqual([{ type: 'partnership', mark: 50, names: 'Abhinav & Raja', runs: '52', balls: '36' }]);

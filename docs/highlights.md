@@ -83,7 +83,8 @@ wrong data reach a reel.
 
 ### 4a. One ball can raise two cards
 
-A four that brings up a fifty shows the boundary card and then the milestone card, and
+A four that brings up a fifty shows the boundary card and then the milestone card (and a wicket
+that completes a five-wicket haul shows the wicket and then a milestone card), and
 `cards.ts` plays them one at a time, so the second begins as the first retires. Cutting a clip
 per card would put the same footage in the reel twice.
 

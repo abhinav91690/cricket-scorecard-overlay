@@ -93,6 +93,10 @@ describe('card queue', () => {
         expect(isIdle('panel')).toBe(true);               // the queued innings summary was dropped
     });
 
+    it('writes a five-wicket haul as a milestone card', () => {
+        expect(cardCopy({ type: 'milestone', mark: 5, haul: true, name: 'Siva K', figures: '5-24', overs: '3.4' })).toEqual({ eyebrow: '5-wicket haul', headline: 'Siva K', detail: '5-24 · 3.4 ov' });
+    });
+
     it('does not double the XI on a team whose name already ends in it', () => {
         enqueueCards([{ type: 'lineup', toss: '', series: '', ground: '', matchOvers: '', teams: [
             { name: 'AVV XI', role: 'Batting', players: [] }, { name: 'Vertex Vikings', role: 'Fielding', players: [] }] }]);

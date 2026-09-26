@@ -15,6 +15,13 @@
 - **The result had no player of the match** until CricClubs named one; the slot now reads
   "Awaiting", and the panel is redrawn when the award arrives.
 
+**A five-wicket haul gets a card**, a milestone card after the wicket that completed it. **One
+ball's cards now play in a fixed order**: the wicket or boundary first, then the haul, fifty or
+partnership it led to. The overlay used to queue the milestone ahead of the four that brought it
+up, though `highlights.md` §4a had always described the other order. The simulator's grader now
+counts milestones as they are queued, since at x60 a ball lands every half second and clears a
+card waiting behind a 2 s boundary card; live, balls are ~30 s apart.
+
 The line-up before the toss now says "Toss pending". The simulator's break now matches what
 CricClubs was seen to send, and its grader treats the ball that ends the first innings as the start
 of the break.
