@@ -188,7 +188,13 @@ async function main() {
     check('Every page log entry reached the harness', lost === 0, lost ? `${lost} of ${seqs.size + lost} lost` : `${seqs.size} entries`);
     // every dismissal was caused by a score change on the poll right before it
     const scoreOf = (f: any) => f.score;
-    const badDismiss = dismissals.filter(d => { const before = frames.filter(f => f.t <= d.t).slice(-2); return !(before.length === 2 && (scoreOf(before[0]) !== scoreOf(before[1]) || before[0].balls !== before[1].balls)); });
+    // The exceptions: the line-up and the innings summary come off early once both openers are in.
+    const earlyOff = (d: any) => (d.type === 'lineup' && phaseAt(d.sim) === 'pre') || (d.type === 'innings-summary' && phaseAt(d.sim) === 'break');
+    const badDismiss = dismissals.filter(d => !earlyOff(d)).filter(d => { const before = frames.filter(f => f.t <= d.t).slice(-2); return !(before.length === 2 && (scoreOf(before[0]) !== scoreOf(before[1]) || before[0].balls !== before[1].balls)); });
+    for (const [type, phase, label] of [['lineup', 'pre', 'Line-up'], ['innings-summary', 'break', 'Innings summary']] as const) {
+        const off = dismissals.filter(d => (d as any).type === type);
+        check(`${label} came off once, when the openers were in`, off.length === 1 && phaseAt(off[0].sim) === phase, `${off.length} early dismissals`);
+    }
     check('Every dismissal followed a score change', badDismiss.length === 0, `${dismissals.length} dismissals, ${badDismiss.length} unexplained`);
 
     const report = [`# Simulated match run`, ``, `- scenario: ${SUPER_OVER ? 'tie decided by a super over' : 'ordinary match'}, seed ${SEED}`, `- theme: ${THEME}, speed x${SPEED}, poll ${REFRESH}ms, ${pollCount} polls, ${frames.length} frames logged`, `- result: ${final.inn1.total}/${final.inn1.wickets} v ${final.inn2?.total}/${final.inn2?.wickets}${final.so1 ? `, super over ${final.so1.total}/${final.so1.wickets} v ${final.so2?.total}/${final.so2?.wickets}` : ''} — ${final.result}`, `- cards shown: ${[...cardShots].map(([k, v]) => `${k}×${v}`).join(', ')}`, `- bowling: most ${mostOvers} overs by one bowler; fifth-over overrides: ${overrides.join(', ') || 'none'}`, `- view switches: ${sw.join(' ')}`, ``, `| check | result | detail |`, `|---|---|---|`,

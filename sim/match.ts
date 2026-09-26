@@ -87,7 +87,10 @@ export interface InningsState {
 export type Phase = 'pre' | 'inn1' | 'break' | 'inn2' | 'soGap' | 'so1' | 'soBreak' | 'so2' | 'ended';
 /** The super over, from the tie to its last ball. */
 export const SUPER_OVER_PHASES: ReadonlySet<Phase> = new Set<Phase>(['soGap', 'so1', 'soBreak', 'so2']);
-export interface Snapshot { t: number; phase: Phase; inn1: InningsState; inn2: InningsState | null; so1?: InningsState | null; so2?: InningsState | null; result: string; }
+/** `openersIn`: before the first ball, whether the scorer has picked both openers yet. Until then
+ *  CricClubs sends the batter names empty (seen live on match 4651), and the line-up waits on it.
+ *  The break is modelled the same way. */
+export interface Snapshot { t: number; phase: Phase; openersIn?: boolean; inn1: InningsState; inn2: InningsState | null; so1?: InningsState | null; so2?: InningsState | null; result: string; }
 
 const clone = <T,>(x: T): T => structuredClone(x);
 
@@ -252,11 +255,15 @@ function playMatch(cfg: SimConfig, seed: number, tie: boolean) {
     let t = 0;
     const inn1 = startInnings(t1, t2, rand);
     snaps.push({ t: 0, phase: 'pre', inn1: clone(inn1), inn2: null, result: '' });
+    // The openers are picked a couple of minutes before the first ball, as a scorer does.
+    snaps.push({ t: Math.max(1, cfg.preMatchSec - 120), phase: 'pre', openersIn: true, inn1: clone(inn1), inn2: null, result: '' });
     t = cfg.preMatchSec;
     const wides1 = { left: cfg.extrasPerInnings };
     while (deliver(inn1, cfg, rand, wides1, level)) { snaps.push({ t, phase: 'inn1', inn1: clone(inn1), inn2: null, result: '' }); t += cfg.ballIntervalSec; }
     const inn2 = startInnings(t2, t1, rand2);
     snaps.push({ t, phase: 'break', inn1: clone(inn1), inn2: clone(inn2), result: '' });
+    // As before the first ball, the chasing side's openers are picked shortly before play resumes.
+    snaps.push({ t: t + Math.max(1, cfg.breakSec - 120), phase: 'break', openersIn: true, inn1: clone(inn1), inn2: clone(inn2), result: '' });
     t += cfg.breakSec;
     const wides2 = { left: cfg.extrasPerInnings };
     const target = inn1.total + 1;
@@ -379,6 +386,9 @@ export function fullFrame(s: Snapshot, cfg: SimConfig = DEFAULT_CONFIG): Cricket
     const striker = inn.batters[inn.strikerIdx]; const non = inn.batters[inn.nonStrikerIdx]; const bowler = inn.bowlers[inn.bowlerIdx];
     const target = first.total + 1;
     const award = simAward(s);
+    // ⚠ Unverified for the break: what CricClubs sends in the batter fields between innings has not
+    // been seen live. Modelled like the pre-match, blank until picked; app.ts copes either way.
+    const noOpeners = (s.phase === 'pre' || s.phase === 'break') && !s.openersIn;
     const values: V = {
         ...base,
         t1Name: side1.name, t2Name: side2.name, t1Code: side1.code, t2Code: side2.code,
@@ -395,8 +405,8 @@ export function fullFrame(s: Snapshot, cfg: SimConfig = DEFAULT_CONFIG): Cricket
         isSuperOver: so ? 'true' : 'false', isSuperOverSecondInningsStarted: so && chase ? 'true' : 'false',
         manOfTheMatch: award.name, manOfTheMatchNickName: '', momImagePath: award.pic,
         totalOvers: cfg.totalOvers, toss: base.toss, seriesName: base.seriesName, groundName: base.groundName,
-        batsman1Name: name(striker.row), batsman1Runs: String(striker.runs), batsman1Balls: String(striker.balls), batsman1Fours: String(striker.fours), batsman1Sixers: String(striker.sixes), batsman1ID: striker.row.playerID,
-        batsman2Name: name(non.row), batsman2Runs: String(non.runs), batsman2Balls: String(non.balls), batsman2Fours: String(non.fours), batsman2Sixers: String(non.sixes), batsman2ID: non.row.playerID,
+        batsman1Name: noOpeners ? '' : name(striker.row), batsman1Runs: String(striker.runs), batsman1Balls: String(striker.balls), batsman1Fours: String(striker.fours), batsman1Sixers: String(striker.sixes), batsman1ID: striker.row.playerID,
+        batsman2Name: noOpeners ? '' : name(non.row), batsman2Runs: String(non.runs), batsman2Balls: String(non.balls), batsman2Fours: String(non.fours), batsman2Sixers: String(non.sixes), batsman2ID: non.row.playerID,
         bowlerName: live ? name(bowler.row) : '', bowlerRuns: String(bowler.runs), bowlerWickets: String(bowler.wickets), bowlerOvers: overs(bowler.balls), bowlerMaidens: String(bowler.maidens),
         lastOutName: inn.lastOut ? name(inn.lastOut.row) : '', lastOutRuns: inn.lastOut ? String(inn.lastOut.runs) : '', lastOutBalls: inn.lastOut ? String(inn.lastOut.balls) : '', lastOutString: inn.lastOut ? inn.lastOut.outHtml : '',
         currentPartnershipMap: { partnershipTotalRuns: String(inn.partnership.runs), partnershipTotalBalls: String(inn.partnership.balls), partnershipBatsman1ID: String(inn.batters[inn.partnership.a].row.playerID), partnershipBatsman2ID: String(inn.batters[inn.partnership.b].row.playerID), partnershipBatsman1FirstName: inn.batters[inn.partnership.a].row.firstName, partnershipBatsman2FirstName: inn.batters[inn.partnership.b].row.firstName },
