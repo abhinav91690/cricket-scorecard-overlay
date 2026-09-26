@@ -263,8 +263,12 @@ export interface TossInfo { headline: string; batting?: 1 | 2; }
 /** "TOPGUNS UNITED" → "Topguns United"; names that already carry case are left alone. */
 export function tidyName(name: string): string {
     if (name !== name.toUpperCase() || !/[A-Z]/.test(name)) return name;
-    return name.replace(/\S+/g, w => w.charAt(0) + w.slice(1).toLowerCase());
+    // Initials and numerals stay capitals: "AVV XI" once went on air as "Avv Xi" (match 4651).
+    // A short real word ("MOB") stays capitals too — acceptable, as only all-caps names get here.
+    const keep = (w: string) => /^[IVXLC]+$/.test(w) || (w.length <= 3 && !COMMON.has(w));
+    return name.replace(/\S+/g, w => keep(w) ? w : w.charAt(0) + w.slice(1).toLowerCase());
 }
+const COMMON = new Set(['THE', 'AND', 'OF']);
 
 /**
  * Turns CricClubs' "X WON THE TOSS AND ELECTED TO BAT" into a short headline and works out

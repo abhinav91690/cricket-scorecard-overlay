@@ -283,6 +283,10 @@ describe('tossInfo', () => {
     });
     it('title-cases only all-caps names', () => {
         expect(tidyName('TOPGUNS UNITED')).toBe('Topguns United');
+        expect(tidyName('AVV XI')).toBe('AVV XI');                   // initials and numerals stay (match 4651)
+        expect(tidyName('SA CAPITALS')).toBe('SA Capitals');
+        expect(tidyName('ATX PANTHERS')).toBe('ATX Panthers');
+        expect(resultHeadline('AVV XI won by 2 Runs', [{ name: 'AVV XI' }, { name: 'Vertex Vikings' }])).toBe('AVV XI won by 2 runs');
         expect(tidyName('Hutto Hippos')).toBe('Hutto Hippos');
         expect(tidyName('LPCL')).toBe('Lpcl');
     });
