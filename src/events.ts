@@ -92,8 +92,13 @@ export function detectEvents(prev: CricketAPIData | null, next: CricketAPIData):
 
     for (const i of [1, 2] as const) {
         const id = b[`batsman${i}ID`];
-        if (id === undefined || id !== a[`batsman${i}ID`]) continue;
-        const mark = crossed(num(a[`batsman${i}Runs`]), num(b[`batsman${i}Runs`]));
+        if (id === undefined || id === null || String(id) === '') continue;
+        // 🛑 Match the batter by ID across BOTH slots. batsman1 is always the striker, so the pair
+        // swap slots on every odd run and at every over's end; comparing slot to slot silently
+        // dropped any fifty reached with a single or on an over's last ball (match 4655).
+        const j = ([1, 2] as const).find(k => String(a[`batsman${k}ID`]) === String(id));
+        if (j === undefined) continue;
+        const mark = crossed(num(a[`batsman${j}Runs`]), num(b[`batsman${i}Runs`]));
         if (mark) {
             events.push({
                 type: 'milestone', mark,

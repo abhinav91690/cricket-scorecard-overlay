@@ -2,6 +2,16 @@
 
 ## 2026-09-26
 
+**A fifty reached with a single never went on air.** Watching match 4655, Sriharan S made 91 with no
+Fifty card. `detectEvents()` compared each batter only with whoever held the same slot on the last
+poll, but batsman1 is always the striker, so the pair swap slots on every odd run and at every over's
+end. Batters are now matched by ID across both slots. The simulator had been dropping one of its four
+fifties all along without noticing; its grader now counts fifties and hundreds from the scorecard
+against milestone cards, and fails on the old code.
+
+**Keeper catches read "c &#8224; Anand S"** (match 4651): `parseDismissal()` decoded only `&amp;` and
+`&nbsp;`. It now decodes numeric and the common named entities by hand, never through `innerHTML`.
+
 **Waiting panels show once, and come off when the openers are in.** Watching match 4651 live on
 production, the pre-match line-up cycled 16 s on, 4 s off until the first ball. It is 1240×553 px,
 about a third of a 1080p frame, from 35% to 87% of the way down, over the pitch. Now each waiting

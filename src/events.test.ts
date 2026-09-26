@@ -59,6 +59,18 @@ describe('detectEvents', () => {
         expect(detectEvents(first(), first({ batsman1ID: 99, batsman1Runs: '55' }))).toEqual([]);
     });
 
+    it('still sees a fifty when the batters swap slots (a single, or the last ball of an over)', () => {
+        // batsman1 is always the striker, so a single moves him to batsman2 (match 4655: Sriharan's
+        // fifty never went on air). The batter is matched by ID, whichever slot he is in.
+        const swapped = first({ batsman1ID: 22, batsman1Name: 'Raja K', batsman1Runs: '7', batsman1Balls: '3',
+                                batsman2ID: 11, batsman2Name: 'Abhinav V', batsman2Runs: '50', batsman2Balls: '31', batsman2Fours: '5', batsman2Sixers: '1' });
+        expect(detectEvents(first({ batsman1Runs: '49' }), swapped)).toEqual([
+            { type: 'milestone', mark: 50, name: 'Abhinav V', runs: '50', balls: '31', fours: '5', sixes: '1' },
+        ]);
+        // and a swap alone, with nobody crossing a mark, is nothing
+        expect(detectEvents(first(), first({ batsman1ID: 22, batsman1Runs: '7', batsman2ID: 11, batsman2Runs: '43' }))).toEqual([]);
+    });
+
     it('detects a partnership milestone for the same pair', () => {
         const next = first({ currentPartnershipMap: { partnershipBatsman1ID: '11', partnershipBatsman2ID: '22', partnershipBatsman1FirstName: 'Abhinav', partnershipBatsman2FirstName: 'Raja', partnershipTotalRuns: '52', partnershipTotalBalls: '36' } });
         expect(detectEvents(first(), next)).toEqual([{ type: 'partnership', mark: 50, names: 'Abhinav & Raja', runs: '52', balls: '36' }]);

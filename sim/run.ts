@@ -138,6 +138,11 @@ async function main() {
     const wickets = innings.reduce((n, i) => n + i.wickets, 0);
     const wicketShows = shows.filter(s => s.type === 'wicket').length;
     check('Every wicket produced a wicket card', wicketShows === wickets, `${wicketShows} cards for ${wickets} wickets`);
+    // Fifties and hundreds, counted from the scorecard. A milestone reached with a single or on an
+    // over's last ball swaps the batters' slots; comparing slot to slot once dropped those (match 4655).
+    const marks = innings.flatMap(i => i.batters).reduce((n, b) => n + (b.runs >= 100 ? 2 : b.runs >= 50 ? 1 : 0), 0);
+    const markShows = shows.filter(s => s.type === 'milestone').length;
+    check('Every fifty and hundred produced a milestone card', markShows === marks, `${markShows} cards for ${marks} milestones`);
     check('Boundary flashes appeared', shows.some(s => s.type === 'boundary'), `${shows.filter(s => s.type === 'boundary').length} flashes`);
     check('Line-up panel shown before the first ball', shows.some(s => s.type === 'lineup' && phaseAt(s.sim) === 'pre'), '');
     check('Innings summary shown at the break', shows.some(s => s.type === 'innings-summary' && phaseAt(s.sim) === 'break'), '');
