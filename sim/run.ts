@@ -115,8 +115,9 @@ async function main() {
     const seqs = new Set(events.filter(e => e.kind === 'page').map(e => (e.detail as any).seq as number).filter(n => Number.isFinite(n)));
     const lost = seqs.size ? Math.max(...seqs) + 1 - seqs.size : 0;
     const logGap = (a: number, b: number) => { for (let i = a + 1; i < b; i++) if (!seqs.has(i)) return true; return false; };
-    const frames = page_('frame'), shows = page_('card:show'), hides = page_('card:hide'), dismissals = page_('card:dismiss'), switches = page_('switch');
-    const phaseAt = (simT: number) => { let p = 'pre'; for (const s of timeline) { if (s.t <= simT) p = s.phase; else break; } return p; };
+    const frames = page_('frame'), queued = page_('card:queue'), shows = page_('card:show'), hides = page_('card:hide'), dismissals = page_('card:dismiss'), switches = page_('switch');
+    // The ball that ends the first innings starts the break: the overlay treats a complete innings as one.
+    const phaseAt = (simT: number) => { let p = 'pre'; for (const s of sim.timeline) { if (s.t <= simT) p = s.phase === 'inn1' && s.inn1.complete ? 'break' : s.phase; else break; } return p; };
     const checks: { name: string; pass: boolean; detail: string }[] = [];
     const check = (name: string, pass: boolean, detail: string) => checks.push({ name, pass, detail });
 
@@ -138,6 +139,24 @@ async function main() {
     const wickets = innings.reduce((n, i) => n + i.wickets, 0);
     const wicketShows = shows.filter(s => s.type === 'wicket').length;
     check('Every wicket produced a wicket card', wicketShows === wickets, `${wicketShows} cards for ${wickets} wickets`);
+    // Fifties and hundreds, counted from the scorecard. A milestone reached with a single or on an
+    // over's last ball swaps the batters' slots; comparing slot to slot once dropped those (match 4655).
+    const marks = innings.flatMap(i => i.batters).reduce((n, b) => n + (b.runs >= 100 ? 2 : b.runs >= 50 ? 1 : 0), 0);
+    // ⚠ Counted when QUEUED, not shown: at x60 a ball lands every half second, so a fifty waiting
+    // behind its 2 s boundary card is cleared by the next ball before its turn. Live, balls are ~30 s
+    // apart and it plays. What these checks guard is detection and order.
+    const markQueued = queued.filter(s => s.type === 'milestone' && (s as any).mark !== 5).length;
+    check('Every fifty and hundred produced a milestone card', markQueued === marks, `${markQueued} queued for ${marks} milestones`);
+    const hauls = innings.flatMap(i => i.bowlers).filter(b => b.wickets >= 5).length;
+    const haulQueued = queued.filter(s => s.type === 'milestone' && (s as any).mark === 5).length;
+    check('Every five-wicket haul produced a milestone card', haulQueued === hauls, `${haulQueued} queued for ${hauls} hauls`);
+    // The ball's own card first: a wicket before its haul, a boundary before the fifty it brought up.
+    // Cards queued for the same ball share a page timestamp; within one ball, nothing may precede its wicket or boundary.
+    const balls = new Map<number, string[]>();
+    for (const q of queued.filter(q => q.surface === 'bar')) balls.set(q.t, [...(balls.get(q.t) ?? []), q.type === 'milestone' && (q as any).mark === 5 ? 'haul' : q.type]);
+    const own = (t: string) => t === 'wicket' || t === 'boundary';
+    const misordered = [...balls.values()].filter(g => g.some((t, i) => own(t) && i > 0 && !own(g[i - 1]))).length;
+    check('Each ball\'s own card comes first (wicket before haul, boundary before milestone)', misordered === 0, `${misordered} out of order`);
     check('Boundary flashes appeared', shows.some(s => s.type === 'boundary'), `${shows.filter(s => s.type === 'boundary').length} flashes`);
     check('Line-up panel shown before the first ball', shows.some(s => s.type === 'lineup' && phaseAt(s.sim) === 'pre'), '');
     check('Innings summary shown at the break', shows.some(s => s.type === 'innings-summary' && phaseAt(s.sim) === 'break'), '');
@@ -189,10 +208,12 @@ async function main() {
     // every dismissal was caused by a score change on the poll right before it
     const scoreOf = (f: any) => f.score;
     // The exceptions: the line-up and the innings summary come off early once both openers are in.
-    const earlyOff = (d: any) => (d.type === 'lineup' && phaseAt(d.sim) === 'pre') || (d.type === 'innings-summary' && phaseAt(d.sim) === 'break');
+    // At the break the summary may come off either way: dismissPanel() when the names change, or the
+    // score-change rule when the scorer starts the second innings, which is the same moment.
+    const earlyOff = (d: any) => (d.type === 'lineup' && phaseAt(d.sim) === 'pre') || (d.surface === 'panel' && phaseAt(d.sim) === 'break');
     const badDismiss = dismissals.filter(d => !earlyOff(d)).filter(d => { const before = frames.filter(f => f.t <= d.t).slice(-2); return !(before.length === 2 && (scoreOf(before[0]) !== scoreOf(before[1]) || before[0].balls !== before[1].balls)); });
     for (const [type, phase, label] of [['lineup', 'pre', 'Line-up'], ['innings-summary', 'break', 'Innings summary']] as const) {
-        const off = dismissals.filter(d => (d as any).type === type);
+        const off = dismissals.filter(d => (d as any).type === type || (type === 'innings-summary' && (d as any).surface === 'panel' && !(d as any).type && phaseAt(d.sim) === 'break'));
         check(`${label} came off once, when the openers were in`, off.length === 1 && phaseAt(off[0].sim) === phase, `${off.length} early dismissals`);
     }
     check('Every dismissal followed a score change', badDismiss.length === 0, `${dismissals.length} dismissals, ${badDismiss.length} unexplained`);

@@ -6,7 +6,7 @@
 import { mock_1stInnings, mock_2ndInnings, mock_matchEnded, mock_toss, mock_noTeamImage, mock_view_1, mock_view_2, mock_view_3, mock_view_4, mock_view_5, mock_view_48, mock_view_49 } from './mockData';
 import { CONFIG } from './config';
 import { DOM } from './dom';
-import { getQueryParams } from './utils';
+import { getQueryParams, battingSecond } from './utils';
 import { applyTheme, updateLogo } from './theme';
 import { fetchScoreData, switchView } from './api';
 import { updateTeamLogos, updateScoreboard } from './ui';
@@ -14,7 +14,7 @@ import { CricketAPIData } from './types';
 import { linkLiveStream, LinkLiveStreamError, extractYouTubeVideoId } from './liveStream';
 import { trackOnce, track, LinkOutcome } from './analytics';
 import { showToast } from './toast';
-import { detectEvents } from './events';
+import { detectEvents, OverlayEvent } from './events';
 import { ensureDataQr, renderDataCode, resetDataQrForTests } from './dataQr';
 import { dismissPanel, enqueueCards, showSampleCard, dismissAll, isIdle, PanelEvent } from './cards';
 import { apiBase, refreshMs, e2eLog } from './e2e';
@@ -76,6 +76,10 @@ let fastPolls = 0;
 let panelsShown = new Set<MatchPhase>();
 /** The batter names when the break began: the break's openers are "in" once these change. */
 let breakBatters: string | null = null;
+/** Every card already put on air this load, keyed by what it is about. See freshEvents(). */
+let cardsShown = new Set<string>();
+/** The player of the match the result panel was drawn with, so a late award redraws it. */
+let resultAward: string | null = null;
 const gaveUp = () => new Set(Object.entries(peekAttempts).filter(([, n]) => n >= PEEK_ATTEMPTS).map(([v]) => Number(v)));
 
 /** Test hook: forget replay position, last frame and whether a frame has rendered. */
@@ -90,6 +94,8 @@ export function resetAppStateForTests() {
     fastPolls = 0;
     panelsShown = new Set();
     breakBatters = null;
+    cardsShown = new Set();
+    resultAward = null;
     resetDataQrForTests();
 }
 
@@ -112,7 +118,7 @@ function renderFrame(data: CricketAPIData, quiet: boolean, showData = false) {
     if (!quiet) {
         // Golden rule: a new ball dismisses whatever is showing before this frame's own cards play.
         if (scoreChanged(lastData, data)) dismissAll();
-        enqueueCards(detectEvents(lastData, data));
+        enqueueCards(freshEvents(detectEvents(lastData, data), data));
         const phase = matchPhase(data);
         // Panels wait until the phase's peeks have landed (or been given up on), so they never render half-empty.
         const dataReady = desiredView(data, phase, viewCache, gaveUp()) === null;
@@ -122,12 +128,41 @@ function renderFrame(data: CricketAPIData, quiet: boolean, showData = false) {
         const early = openersIn(phase, data.values);
         if (phase === 'pre' && early) dismissPanel('lineup');
         if (phase === 'break' && early) dismissPanel('innings-summary');
+        // The result stays up for good, so an award CricClubs names later means drawing it again.
+        const award = (data.values.manOfTheMatch ?? '').trim();
+        if (phase === 'ended' && panelsShown.has('ended') && award !== resultAward) {
+            dismissPanel('match-summary');
+            panelsShown.delete('ended');
+        }
         if (phase !== 'play' && dataReady && isIdle('panel') && !panelsShown.has(phase) && !early) {
             panelsShown.add(phase);
+            if (phase === 'ended') resultAward = award;
             enqueueCards(phasePanels(phase, data.values, viewCache));
         }
     }
     lastData = data;
+}
+
+/**
+ * Drops a card that has already been on air. Scorers undo and redo balls — a wicket, a four, a
+ * six — and each redo looked like a new event: match 4655 showed three cards for one wicket. A
+ * card is keyed by what it is about, so a redo of the same delivery is silent, while a corrected
+ * wicket (a different batter out) still gets its card.
+ */
+function freshEvents(events: OverlayEvent[], data: CricketAPIData): OverlayEvent[] {
+    const v = data.values;
+    const inns = battingSecond(v) ? 2 : 1;
+    const key = (e: OverlayEvent): string => {
+        switch (e.type) {
+            // the wicket's number and who was out, not the total: a redo can land a run later (4655)
+            case 'wicket': return `${inns}|w|${inns === 2 ? v.t2Wickets : v.t1Wickets}|${e.name}`;
+            case 'milestone': return `${inns}|m|${e.name}|${e.mark}`;
+            case 'partnership': return `${inns}|p|${e.names}|${e.mark}`;
+            // a delivery's place in the innings: the overs and how far into this over's balls it is
+            case 'boundary': return `${inns}|b|${inns === 2 ? v.t2Overs : v.t1Overs}|${(data.balls ?? []).length}|${e.runs}`;
+        }
+    };
+    return events.filter(e => { const k = key(e); if (cardsShown.has(k)) return false; cardsShown.add(k); return true; });
 }
 
 function openersIn(phase: MatchPhase, v: CricketAPIData['values']): boolean {

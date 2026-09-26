@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { VIEW, matchPhase, desiredView, isFullFrame, stripPii, mergeCache, scoreChanged, displayName, oversFromBalls, fowText, wicketFallText, topBatters, topBowlers, phasePanels, inningsSummaryPanel, matchSummaryPanel, resultWinner, resultHeadline, topPerformers, imageUrl, initialsOf, roleTag, squadRows, tossInfo, tidyName, runRate, boundaryCount } from './views';
+import { VIEW, matchPhase, desiredView, isFullFrame, stripPii, mergeCache, scoreChanged, displayName, oversFromBalls, fowText, wicketFallText, topBatters, topBowlers, phasePanels, inningsSummaryPanel, matchSummaryPanel, resultWinner, resultHeadline, topPerformers, imageUrl, initialsOf, roleTag, squadRows, tossInfo, runRate, boundaryCount } from './views';
 import { mock_view_1, mock_view_2, mock_view_3, mock_view_4, mock_view_5, mock_view_8, mock_view_48 } from './mockData';
 import { CricketAPIData } from './types';
 
@@ -13,6 +13,17 @@ describe('matchPhase', () => {
         expect(matchPhase(frame({ isSecondInningsStarted: 'true', t2Overs: '0.0' }, ['4']))).toBe('play');
         expect(matchPhase(frame({ isSecondInningsStarted: 'true', t2Overs: '3.2' }, ['1']))).toBe('play');
         expect(matchPhase(frame({ isMatchEnded: '1', isSecondInningsStarted: 'true', t2Overs: '18.4' }))).toBe('ended');
+    });
+
+    it('starts the break when the first innings is complete, before the scorer starts the second', () => {
+        // Match 4651: 169/4 after 20 overs at 09:38, but the second innings only "started" at 09:47,
+        // a minute before its first ball. The break is the ten minutes in between.
+        const done = { isSecondInningsStarted: 'false', totalOvers: 20, t1Wickets: '4' };
+        expect(matchPhase(frame({ ...done, t1Overs: '20' }, ['1', '4', '.', '2', '1', '6']))).toBe('break');
+        expect(matchPhase(frame({ ...done, t1Overs: '20.0' }))).toBe('break');
+        expect(matchPhase(frame({ ...done, t1Overs: '14.3', t1Wickets: '10' }, ['W']))).toBe('break');   // all out
+        expect(matchPhase(frame({ ...done, t1Overs: '19.5' }, ['1']))).toBe('play');                      // one ball left
+        expect(matchPhase(frame({ isSecondInningsStarted: 'false', t1Overs: '20', t1Wickets: '4' }, ['1']))).toBe('play');   // no match length: wait for the flag, as before
     });
 
     it('does not call a live super over an innings break', () => {
@@ -245,7 +256,7 @@ describe('phasePanels', () => {
             expect(lineup.teams[0].name).toBe('TOPGUNS UNITED'); // roster, crest and name from the same source
             expect(lineup.teams[0].players.length).toBeGreaterThan(10);
             expect(lineup.teams[1].players).toEqual([]); // team 2 squad not cached yet
-            expect(lineup.toss).toBe('Topguns United elected to bat');
+            expect(lineup.toss).toBe('TOPGUNS UNITED elected to bat');   // the team's own name, as stored
             expect(lineup.teams.map(t => t.role)).toEqual(['Batting', 'Fielding']);
             expect(lineup.matchOvers).toBe('20 overs');
             expect(lineup.series).toBe('2024 Fall Champions');
@@ -270,21 +281,23 @@ describe('phasePanels', () => {
 
 describe('tossInfo', () => {
     it('shortens the CricClubs wording and works out who bats first', () => {
-        expect(tossInfo('TOPGUNS UNITED WON THE TOSS AND ELECTED TO BAT', 'Lions', 'TOPGUNS UNITED')).toEqual({ headline: 'Topguns United elected to bat', batting: 2 });
+        expect(tossInfo('TOPGUNS UNITED WON THE TOSS AND ELECTED TO BAT', 'Lions', 'TOPGUNS UNITED')).toEqual({ headline: 'TOPGUNS UNITED elected to bat', batting: 2 });
         expect(tossInfo('Lions WON THE TOSS AND ELECTED TO BOWL', 'Lions', 'TOPGUNS UNITED')).toEqual({ headline: 'Lions elected to bowl', batting: 2 });
         expect(tossInfo('Lions won the toss and chose to field', 'Lions', 'Stags')).toEqual({ headline: 'Lions elected to bowl', batting: 2 });
         expect(tossInfo('Stags won the toss and elected to bat', 'Lions', 'Stags')).toEqual({ headline: 'Stags elected to bat', batting: 2 });
     });
     it('keeps unknown wording and leaves the batting side undecided', () => {
-        expect(tossInfo(undefined, 'A', 'B')).toEqual({ headline: 'Toss to come' });
-        expect(tossInfo('', 'A', 'B')).toEqual({ headline: 'Toss to come' });
+        expect(tossInfo(undefined, 'A', 'B')).toEqual({ headline: 'Toss pending' });
+        expect(tossInfo('', 'A', 'B')).toEqual({ headline: 'Toss pending' });
         expect(tossInfo('Toss delayed by rain', 'A', 'B')).toEqual({ headline: 'Toss delayed by rain' });
         expect(tossInfo('Hutto Hippos WON THE TOSS AND ELECTED TO BAT', 'Lions', 'Stags')).toEqual({ headline: 'Hutto Hippos elected to bat', batting: undefined });
     });
-    it('title-cases only all-caps names', () => {
-        expect(tidyName('TOPGUNS UNITED')).toBe('Topguns United');
-        expect(tidyName('Hutto Hippos')).toBe('Hutto Hippos');
-        expect(tidyName('LPCL')).toBe('Lpcl');
+    it('uses each team name exactly as CricClubs stores it', () => {
+        // "AVV XI" once went on air as "Avv Xi" (match 4651): names are never re-cased.
+        expect(resultHeadline('AVV XI won by 2 Runs', [{ name: 'AVV XI' }, { name: 'Vertex Vikings' }])).toBe('AVV XI won by 2 runs');
+        expect(resultHeadline('TOPGUNS UNITED won by 5 wickets', [{ name: 'Topguns United' }])).toBe('Topguns United won by 5 wickets');
+        expect(tossInfo('VIZCAYA DRAGONS WON THE TOSS AND ELECTED TO BAT', 'Vizcaya Dragons', 'Royal Stags').headline).toBe('Vizcaya Dragons elected to bat');
+        expect(tossInfo('AVV XI WON THE TOSS AND ELECTED TO BOWL', 'AVV XI', 'Vertex Vikings').headline).toBe('AVV XI elected to bowl');
     });
 });
 
@@ -319,8 +332,8 @@ describe('result card', () => {
     });
 
     it('turns the CricClubs wording into a headline', () => {
-        expect(resultHeadline('TOPGUNS UNITED won by 5 Wickets', teams)).toBe('Topguns United won by 5 wickets');
-        expect(resultHeadline('Match tied. TGN won the super over.', teams)).toBe('Match tied. Topguns United won the super over.');
+        expect(resultHeadline('TOPGUNS UNITED won by 5 Wickets', teams)).toBe('TOPGUNS UNITED won by 5 wickets');
+        expect(resultHeadline('Match tied. TGN won the super over.', teams)).toBe('Match tied. TOPGUNS UNITED won the super over.');
         expect(resultHeadline('Lions won by 12 Runs', teams)).toBe('Lions won by 12 runs');
         expect(resultHeadline('', teams)).toBe('Match over');
         // a code not followed by "won" is left alone
@@ -355,7 +368,7 @@ describe('result card', () => {
         expect(p.teams.map(t => [t.team.name, t.team.code, t.runs])).toEqual([['TOPGUNS UNITED', 'TGN', '188'], ['Lions', 'LNS', '188']]);
         expect(p.teams[0].overs).toBe('20.0 ov');
         expect(p.winner).toBe(1);   // "TGN won the super over", resolved through the code
-        expect(p.result).toBe('Match tied. Topguns United won the super over.');
+        expect(p.result).toBe('Match tied. TOPGUNS UNITED won the super over.');
         expect(p.ground).toBe('LPCL-G1');
     });
 
@@ -372,17 +385,18 @@ describe('result card', () => {
         expect(perf).toEqual([{ name: 'Rakesh G', value: '', note: 'Player of the match', pic: undefined, initials: 'RG' }]);
     });
 
-    it('without an award: top scorer, best bowling, then the other side\'s top scorer', () => {
+    it('without an award: the award slot says Awaiting, then top scorer and best bowling', () => {
         const perf = topPerformers({
             t1Batting: [{ firstName: 'A', lastName: 'One', runsScored: 70, ballsFaced: 40 }, { firstName: 'B', lastName: 'Two', runsScored: 20, ballsFaced: 15 }] as any,
             t2Batting: [{ firstName: 'C', lastName: 'Three', runsScored: 45, ballsFaced: 30 }] as any,
             t1Bowling: [{ firstName: 'D', lastName: 'Four', wickets: 4, runs: 20, balls: 24 }] as any,
             t2Bowling: [{ firstName: 'E', lastName: 'Five', wickets: 2, runs: 30, balls: 24 }] as any,
         });
-        expect(perf.map(p => [p.name, p.value])).toEqual([['A O', '70 (40)'], ['D F', '4-20 (4.0)'], ['C T', '45 (30)']]);
+        // CricClubs names the player of the match some time after the result (match 4651)
+        expect(perf.map(p => [p.name, p.value, p.note ?? ''])).toEqual([['Awaiting', '', 'Player of the match'], ['A O', '70 (40)', ''], ['D F', '4-20 (4.0)', '']]);
     });
 
-    it('lists nothing when no cards have been peeked yet', () => {
-        expect(topPerformers({})).toEqual([]);
+    it('lists only the awaited award when no cards have been peeked yet', () => {
+        expect(topPerformers({}).map(p => p.name)).toEqual(['Awaiting']);
     });
 });

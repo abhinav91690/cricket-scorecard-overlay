@@ -2,6 +2,44 @@
 
 ## 2026-09-26
 
+**Watching three live matches (4651, 4655, 4658) found five more faults**, all fixed together:
+
+- **The break summary missed the break.** The overlay only saw a break once the scorer started the
+  second innings, a minute before its first ball: 58 s on air after a 10-minute break (4651), 5 s
+  after 6 minutes (4655). A complete first innings is now the break.
+- **Scorers' undo and redo repeated cards**: three wicket cards for one wicket on 4655. Each card
+  is now keyed by what it is about and shown once; a corrected batter still gets its card.
+- **A catch with no fielder named** read "c &#8224; b X"; it now reads "c †Sub b X".
+- **Team names are never re-cased**, so "AVV XI" no longer becomes "Avv Xi"; the toss line uses the
+  team's stored name, not CricClubs' capitals.
+- **The result had no player of the match** until CricClubs named one; the slot now reads
+  "Awaiting", and the panel is redrawn when the award arrives.
+
+**A five-wicket haul gets a card**, a milestone card after the wicket that completed it. **One
+ball's cards now play in a fixed order**: the wicket or boundary first, then the haul, fifty or
+partnership it led to. The overlay used to queue the milestone ahead of the four that brought it
+up, though `highlights.md` §4a had always described the other order. The simulator's grader now
+counts milestones as they are queued, since at x60 a ball lands every half second and clears a
+card waiting behind a 2 s boundary card; live, balls are ~30 s apart.
+
+The line-up before the toss now says "Toss pending". The simulator's break now matches what
+CricClubs was seen to send, and its grader treats the ball that ends the first innings as the start
+of the break.
+
+⚠ Two simulator runs that crashed mid-way left their Chrome holding the debugging port, and the
+next runs attached to those stale pages: lost log entries, repeated peeks, 63 boundaries instead of
+40. Kill stray `sim/out/*/chrome-profile` Chromes before trusting a failing run.
+
+**A fifty reached with a single never went on air.** Watching match 4655, Sriharan S made 91 with no
+Fifty card. `detectEvents()` compared each batter only with whoever held the same slot on the last
+poll, but batsman1 is always the striker, so the pair swap slots on every odd run and at every over's
+end. Batters are now matched by ID across both slots. The simulator had been dropping one of its four
+fifties all along without noticing; its grader now counts fifties and hundreds from the scorecard
+against milestone cards, and fails on the old code.
+
+**Keeper catches read "c &#8224; Anand S"** (match 4651): `parseDismissal()` decoded only `&amp;` and
+`&nbsp;`. It now decodes numeric and the common named entities by hand, never through `innerHTML`.
+
 **Waiting panels show once, and come off when the openers are in.** Watching match 4651 live on
 production, the pre-match line-up cycled 16 s on, 4 s off until the first ball. It is 1240×553 px,
 about a third of a 1080p frame, from 35% to 87% of the way down, over the pitch. Now each waiting

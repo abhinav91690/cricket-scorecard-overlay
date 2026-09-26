@@ -151,11 +151,18 @@ over the batter/bowler slots.
 |---|---|---|
 | Wicket | the batting side's wicket count rises | 8 s |
 | Fifty / Hundred | a batter crosses 50 or 100 | 8 s |
+| 5-wicket haul | the same bowler reaches five wickets | 8 s (a milestone card) |
 | Four / Six | the newest ball is a boundary off the bat | 2 s |
 | 50 / 100 partnership | the current stand crosses 50 or 100 | 6 s |
 | Line-up (panel) | before the first ball, once | 60 s, or until both openers are in |
-| Innings summary (panel) | the innings break, once | 2 min, or until both new openers are in |
-| Match summary (panel) | the match ends, once | for good |
+| Innings summary (panel) | the first innings is complete, once | 2 min, or until the chase begins |
+| Match summary (panel) | the match ends, once | for good (drawn again when the award is named) |
+
+🛑 **One ball's cards play in a fixed order: the ball's own card first.** The wicket, or the four
+or six, then what it led to — a bowler's haul after the wicket; a fifty, hundred or partnership
+after the boundary that brought it up. The bar plays first come, first served, so this is the
+order `detectEvents()` returns them in. The haul is a milestone card on purpose: it carries the
+milestone accent, so `highlights/` needs no change to the palette contract (§6a).
 
 The last three render on a **second surface above the bar** and are built from CricClubs' data
 views rather than from poll diffs — see §14.
@@ -169,8 +176,26 @@ batter names are filled. At the break the names must also differ from the ones t
 with, since the first innings' last pair may still be in the fields.
 
 ⚠ **Before the first ball CricClubs sends the batter names empty until the scorer picks the
-openers** (seen live on 4651). What it sends at the break has not been seen yet; the
-simulator models it the same way, and `openersIn()` copes with either.
+openers** (seen live on 4651). The line-up shows even before the toss, since the squads are
+already in; its toss line then reads "Toss pending".
+
+🛑 **The break begins when the first innings is complete, not when the second starts.** CricClubs
+keeps `isSecondInningsStarted` false, with the last pair still in the batter fields, until the
+scorer starts the second innings by picking the openers, about a minute before its first ball.
+`matchPhase()` waiting for that flag put the summary on air for 58 s after a 10-minute break on
+4651, and for 5 s after 6 minutes on 4655. It now calls a complete first innings (all overs, or
+ten down) the break. The summary comes off when the scorer starts the chase: the chase flag
+flipping counts as a score change, and `openersIn()` sees new names too. ⚠ A rain-shortened
+innings is not recognised as complete; its break starts at the flag, as before.
+
+⚠ **The player of the match is named some time after the result**, so the result's first
+performer slot reads "Awaiting" until CricClubs sends it, and the panel is drawn again then.
+
+🛑 **Scorers undo and redo balls, and each redo looks like a new event.** Match 4655 showed three
+wicket cards for one wicket, one of them for the wrong batter. `freshEvents()` in `app.ts` keys each
+card by what it is about — the wicket's number and who was out, a batter and their mark, or a
+delivery's place in the innings — and never shows the same key twice. A corrected wicket (a
+different batter out) is a new key, so it still gets its card.
 
 Hold times live in `HOLD_MS`. ⚠ **The exit transition length is duplicated** between `cards.ts`
 (`TRANSITION_MS`) and the `.event-card` CSS — keep them equal.
@@ -506,7 +531,8 @@ one card per side in batting order, then an inverted strip of top performers.
   `"Match tied. TGN won the super over."`. ⚠ The capture must not cross a full stop, or that second
   form yields `"Match tied. TGN"` and no winner. Wording it cannot pin to a side marks **no** winner,
   never a guessed one.
-- `resultHeadline()` title-cases team names, expands a winner's code to its name and lower-cases
+- `resultHeadline()` writes team names exactly as CricClubs stores them ("AVV XI" was once
+  re-cased to "Avv Xi"), expands a winner's code to its name and lower-cases
   `"5 Wickets"`. Anything it does not recognise passes through unchanged.
 - ⚠ **Team codes are cached from the data views, with the names.** The scorebar carries them too,
   but it swaps sides during a super over (§14b), so pairing its `t1Code` with a data view's

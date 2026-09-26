@@ -9,6 +9,17 @@ const first = (over: Record<string, unknown> = {}, balls: string[] = []) =>
             ...over }, balls);
 
 describe('parseDismissal', () => {
+    it('decodes the entities CricClubs sends, like the keeper dagger (match 4651)', () => {
+        expect(parseDismissal("<span>c &#8224; </span><span class='outname'>Anand S</span><span> b </span><span class='outname'>Purushotham G</span>"))
+            .toBe('c †Anand S b Purushotham G');
+        // no fielder name sent (match 4658): shown as a substitute, and the dagger never swallows the "b"
+        expect(parseDismissal("<span>c &#8224; </span><span> b </span><span class='outname'>Praharsha S</span>")).toBe('c †Sub b Praharsha S');
+        expect(parseDismissal("<span>c </span><span> b </span><span class='outname'>Praharsha S</span>")).toBe('c Sub b Praharsha S');
+        expect(parseDismissal("<span>c&b </span><span class='outname'>Avinash K</span>")).toBe('c&b Avinash K');   // caught and bowled is untouched
+        expect(parseDismissal("<span>c </span><span class='outname'>O&#39;Brien &amp; co</span> &#x2020;")).toBe("c O'Brien & co †");
+        expect(parseDismissal('<span>b </span>X &bogus; &#0;')).toBe('b X &bogus; &#0;');   // unknown entities left alone
+        expect(parseDismissal('&lt;img src=x onerror=alert(1)&gt;')).toBe('<img src=x onerror=alert(1)>');   // text, rendered via textContent
+    });
     it('reduces the CricClubs markup to plain text', () => {
         expect(parseDismissal("<span>b </span><span class='outname'>Siva Krishna V</span>")).toBe('b Siva Krishna V');
         expect(parseDismissal("<span>run out </span><span class='outname'>(Aamir K)</span> ")).toBe('run out (Aamir K)');
@@ -50,6 +61,35 @@ describe('detectEvents', () => {
         expect(detectEvents(first({ batsman1Runs: '98' }), first({ batsman1Runs: '102' }))[0]).toMatchObject({ type: 'milestone', mark: 100 });
         // new batter arriving on 50+ is not a milestone
         expect(detectEvents(first(), first({ batsman1ID: 99, batsman1Runs: '55' }))).toEqual([]);
+    });
+
+    it('still sees a fifty when the batters swap slots (a single, or the last ball of an over)', () => {
+        // batsman1 is always the striker, so a single moves him to batsman2 (match 4655: Sriharan's
+        // fifty never went on air). The batter is matched by ID, whichever slot he is in.
+        const swapped = first({ batsman1ID: 22, batsman1Name: 'Raja K', batsman1Runs: '7', batsman1Balls: '3',
+                                batsman2ID: 11, batsman2Name: 'Abhinav V', batsman2Runs: '50', batsman2Balls: '31', batsman2Fours: '5', batsman2Sixers: '1' });
+        expect(detectEvents(first({ batsman1Runs: '49' }), swapped)).toEqual([
+            { type: 'milestone', mark: 50, name: 'Abhinav V', runs: '50', balls: '31', fours: '5', sixes: '1' },
+        ]);
+        // and a swap alone, with nobody crossing a mark, is nothing
+        expect(detectEvents(first(), first({ batsman1ID: 22, batsman1Runs: '7', batsman2ID: 11, batsman2Runs: '43' }))).toEqual([]);
+    });
+
+    it('puts the ball\'s own card first: the four before the fifty and the partnership it brought up', () => {
+        const next = first({ batsman1Runs: '50', t1Total: '104', currentPartnershipMap: { ...first().values.currentPartnershipMap, partnershipTotalRuns: '52' } }, ['1', '4']);
+        expect(detectEvents(first({}, ['1']), next).map(e => e.type)).toEqual(['boundary', 'milestone', 'partnership']);
+    });
+
+    it('detects a five-wicket haul, after the wicket that completed it', () => {
+        const bowl = (w: string, extra: Record<string, unknown> = {}) => first({ bowlerID: 77, bowlerName: 'Siva K', bowlerWickets: w, bowlerRuns: '24', bowlerOvers: '3.4', ...extra });
+        const out = { t1Wickets: '2', lastOutName: 'X Y', lastOutRuns: '3', lastOutBalls: '4', lastOutString: '<span>b </span><span class=\'outname\'>Siva K</span>' };
+        expect(detectEvents(bowl('4'), bowl('5', out))).toEqual([
+            expect.objectContaining({ type: 'wicket', name: 'X Y' }),
+            { type: 'milestone', mark: 5, haul: true, name: 'Siva K', figures: '5-24', overs: '3.4' },
+        ]);
+        expect(detectEvents(bowl('5'), bowl('6', out)).map(e => e.type)).toEqual(['wicket']);                 // only the fifth
+        expect(detectEvents(bowl('4', { bowlerID: 12 }), bowl('5', out)).map(e => e.type)).toEqual(['wicket']);  // a different bowler's four
+        expect(detectEvents(bowl('4', { bowlerID: 0, bowlerName: 'Siva K' }), bowl('5', { ...out, bowlerID: 0 })).map(e => e.type)).toEqual(['wicket', 'milestone']);   // no ID: matched by name
     });
 
     it('detects a partnership milestone for the same pair', () => {
