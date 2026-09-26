@@ -359,6 +359,43 @@ describe('views: peeks, dismissal and panels', () => {
         expect(dismissPanel).not.toHaveBeenCalled();
     });
 
+    it('puts each card on air once, however often the scorer undoes and redoes the ball', async () => {
+        // Match 4655: one wicket, entered for the wrong batter, corrected, then saved again a run
+        // later, went on air three times. A corrected batter still gets a card; the resave does not.
+        setSearch('?matchId=1');
+        const real = await vi.importActual<typeof import('./events')>('./events');
+        vi.mocked(detectEvents).mockImplementation(real.detectEvents);   // the real detector, fed the scorer's edits
+        const at = (over: Record<string, unknown>, balls: string[]) => ({ ...live, values: { ...live.values, ...over }, balls });
+        const four = at({ t1Total: '44', t1Overs: '5.1' }, ['1', '4']);
+        const undone = at({ t1Total: '40', t1Overs: '5.0' }, ['1']);
+        const wrong = at({ t1Total: '44', t1Overs: '5.2', t1Wickets: '2', lastOutName: 'Prashanth R' }, ['1', '4', 'W']);
+        const fixed = at({ t1Total: '44', t1Overs: '5.2', t1Wickets: '2', lastOutName: 'Prashanth B' }, ['1', '4', 'W']);
+        const resaved = at({ t1Total: '45', t1Overs: '5.2', t1Wickets: '2', lastOutName: 'Prashanth B' }, ['1', '4', 'W']);
+        const back = at({ t1Total: '44', t1Overs: '5.1', t1Wickets: '1' }, ['1', '4']);
+        vi.mocked(fetchScoreData).mockResolvedValueOnce(live).mockResolvedValueOnce(four).mockResolvedValueOnce(undone).mockResolvedValueOnce(four)
+            .mockResolvedValueOnce(wrong).mockResolvedValueOnce(back).mockResolvedValueOnce(fixed).mockResolvedValueOnce(back).mockResolvedValueOnce(resaved);
+        for (let i = 0; i < 9; i++) await updateScore();
+        const cards = vi.mocked(enqueueCards).mock.calls.flat(2).filter((c: any) => c.type === 'boundary' || c.type === 'wicket').map((c: any) => c.type === 'wicket' ? c.name : c.runs);
+        expect(cards).toEqual([4, 'Prashanth R', 'Prashanth B']);
+    });
+
+    it('redraws the result when CricClubs names the player of the match later', async () => {
+        setSearch('?matchId=2079&clubId=1');
+        const base = { ...(mock_matchEnded as any), values: { ...(mock_matchEnded as any).values, isMatchEnded: '1', manOfTheMatch: '' } };
+        const named = { ...base, values: { ...base.values, manOfTheMatch: 'Anand Babu Badrichetty' } };
+        vi.mocked(fetchScoreData).mockResolvedValue(base);
+        const summaries = () => vi.mocked(enqueueCards).mock.calls.flat(2).filter((c: any) => c.type === 'match-summary');
+        for (let i = 0; i < 20; i++) await updateScore();
+        expect(summaries()).toHaveLength(1);
+        expect((summaries()[0] as any).performers[0].name).toBe('Awaiting');
+        vi.mocked(fetchScoreData).mockResolvedValue(named);
+        for (let i = 0; i < 3; i++) await updateScore();
+        expect(dismissPanel).toHaveBeenCalledWith('match-summary');
+        expect(summaries()).toHaveLength(2);
+        expect((summaries()[1] as any).performers[0].note).toBe('Player of the match');
+        expect((summaries()[1] as any).performers[0].name).not.toBe('Awaiting');
+    });
+
     it('gives up on a view that never yields and shows the panel anyway', async () => {
         setSearch('?matchId=2079&clubId=1');
         vi.mocked(fetchScoreData).mockResolvedValue(pre); // the peek never lands: every poll is the scorebar

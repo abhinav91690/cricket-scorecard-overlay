@@ -2,6 +2,27 @@
 
 ## 2026-09-26
 
+**Watching three live matches (4651, 4655, 4658) found five more faults**, all fixed together:
+
+- **The break summary missed the break.** The overlay only saw a break once the scorer started the
+  second innings, a minute before its first ball: 58 s on air after a 10-minute break (4651), 5 s
+  after 6 minutes (4655). A complete first innings is now the break.
+- **Scorers' undo and redo repeated cards**: three wicket cards for one wicket on 4655. Each card
+  is now keyed by what it is about and shown once; a corrected batter still gets its card.
+- **A catch with no fielder named** read "c &#8224; b X"; it now reads "c †Sub b X".
+- **Team names are never re-cased**, so "AVV XI" no longer becomes "Avv Xi"; the toss line uses the
+  team's stored name, not CricClubs' capitals.
+- **The result had no player of the match** until CricClubs named one; the slot now reads
+  "Awaiting", and the panel is redrawn when the award arrives.
+
+The line-up before the toss now says "Toss pending". The simulator's break now matches what
+CricClubs was seen to send, and its grader treats the ball that ends the first innings as the start
+of the break.
+
+⚠ Two simulator runs that crashed mid-way left their Chrome holding the debugging port, and the
+next runs attached to those stale pages: lost log entries, repeated peeks, 63 boundaries instead of
+40. Kill stray `sim/out/*/chrome-profile` Chromes before trusting a failing run.
+
 **A fifty reached with a single never went on air.** Watching match 4655, Sriharan S made 91 with no
 Fifty card. `detectEvents()` compared each batter only with whoever held the same slot on the last
 poll, but batsman1 is always the striker, so the pair swap slots on every odd run and at every over's

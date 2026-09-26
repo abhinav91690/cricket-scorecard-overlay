@@ -89,7 +89,7 @@ export type Phase = 'pre' | 'inn1' | 'break' | 'inn2' | 'soGap' | 'so1' | 'soBre
 export const SUPER_OVER_PHASES: ReadonlySet<Phase> = new Set<Phase>(['soGap', 'so1', 'soBreak', 'so2']);
 /** `openersIn`: before the first ball, whether the scorer has picked both openers yet. Until then
  *  CricClubs sends the batter names empty (seen live on match 4651), and the line-up waits on it.
- *  The break is modelled the same way. */
+ *  At the break it marks the scorer starting the second innings (see fullFrame). */
 export interface Snapshot { t: number; phase: Phase; openersIn?: boolean; inn1: InningsState; inn2: InningsState | null; so1?: InningsState | null; so2?: InningsState | null; result: string; }
 
 const clone = <T,>(x: T): T => structuredClone(x);
@@ -262,8 +262,8 @@ function playMatch(cfg: SimConfig, seed: number, tie: boolean) {
     while (deliver(inn1, cfg, rand, wides1, level)) { snaps.push({ t, phase: 'inn1', inn1: clone(inn1), inn2: null, result: '' }); t += cfg.ballIntervalSec; }
     const inn2 = startInnings(t2, t1, rand2);
     snaps.push({ t, phase: 'break', inn1: clone(inn1), inn2: clone(inn2), result: '' });
-    // As before the first ball, the chasing side's openers are picked shortly before play resumes.
-    snaps.push({ t: t + Math.max(1, cfg.breakSec - 120), phase: 'break', openersIn: true, inn1: clone(inn1), inn2: clone(inn2), result: '' });
+    // The scorer starts the second innings, picking its openers, about a minute before play resumes.
+    snaps.push({ t: t + Math.max(1, cfg.breakSec - 60), phase: 'break', openersIn: true, inn1: clone(inn1), inn2: clone(inn2), result: '' });
     t += cfg.breakSec;
     const wides2 = { left: cfg.extrasPerInnings };
     const target = inn1.total + 1;
@@ -378,7 +378,10 @@ export function fullFrame(s: Snapshot, cfg: SimConfig = DEFAULT_CONFIG): Cricket
     // First and second innings as the scorebar sees them: the super over's, once there is one.
     const [first, second] = so ? [s.so1!, s.so2 ?? null] : [s.inn1, s.inn2];
     const [side1, side2] = so ? [t2, t1] : [t1, t2];
-    const chase = so ? ['soBreak', 'so2', 'ended'].includes(s.phase) : s.phase === 'break' || s.phase === 'inn2' || s.phase === 'ended';
+    // Seen live on 4651 and 4655: when the first innings ends, CricClubs keeps the chase flag off and
+    // the last pair in the batter fields, until the scorer starts the second innings by picking the
+    // openers, about a minute before its first ball. `openersIn` marks that moment.
+    const chase = so ? ['soBreak', 'so2', 'ended'].includes(s.phase) : (s.phase === 'break' && !!s.openersIn) || s.phase === 'inn2' || s.phase === 'ended';
     const inn = (chase && second) ? second : first;
     const live = ['inn1', 'inn2', 'so1', 'so2'].includes(s.phase);
     const oversOf = (x: InningsState | null) => (so ? String(x?.legalBalls ?? 0) : overs(x?.legalBalls ?? 0));
@@ -386,9 +389,7 @@ export function fullFrame(s: Snapshot, cfg: SimConfig = DEFAULT_CONFIG): Cricket
     const striker = inn.batters[inn.strikerIdx]; const non = inn.batters[inn.nonStrikerIdx]; const bowler = inn.bowlers[inn.bowlerIdx];
     const target = first.total + 1;
     const award = simAward(s);
-    // ⚠ Unverified for the break: what CricClubs sends in the batter fields between innings has not
-    // been seen live. Modelled like the pre-match, blank until picked; app.ts copes either way.
-    const noOpeners = (s.phase === 'pre' || s.phase === 'break') && !s.openersIn;
+    const noOpeners = s.phase === 'pre' && !s.openersIn;
     const values: V = {
         ...base,
         t1Name: side1.name, t2Name: side2.name, t1Code: side1.code, t2Code: side2.code,
@@ -418,7 +419,7 @@ export function fullFrame(s: Snapshot, cfg: SimConfig = DEFAULT_CONFIG): Cricket
 /** A data view, shaped like the real API: live fields dropped, extras added, balls empty. */
 export function dataView(s: Snapshot, viewId: number, cfg: SimConfig = DEFAULT_CONFIG): CricketAPIData {
     const [t1, t2] = teams();
-    const chase = s.phase !== 'pre' && s.phase !== 'inn1';
+    const chase = s.phase !== 'pre' && s.phase !== 'inn1' && !(s.phase === 'break' && !s.openersIn);
     const common: V = {
         isSecondInningsStarted: chase ? 'true' : 'false', isMatchEnded: s.phase === 'ended' ? '1' : '0', result: s.result,
         customTextValue: '', showMsgForScoreNeeded: '', firstnamefirst: 1, totalOvers: cfg.totalOvers,

@@ -32,8 +32,20 @@ export function matchPhase(data: CricketAPIData): MatchPhase {
     const chase = isTrue(v.isSecondInningsStarted);
     const balls = data.balls ?? [];
     if (!chase && noOvers(v.t1Overs) && balls.length === 0) return 'pre';
+    // 🛑 The break begins when the first innings is COMPLETE, not when the scorer starts the second.
+    // CricClubs only sets isSecondInningsStarted once the chasing openers are picked, about a minute
+    // before the first ball: waiting for it put the summary on air for 58 s after a 10-minute break
+    // (match 4651), and for 5 s after a 6-minute one (4655).
+    if (!chase && firstInningsComplete(v)) return 'break';
     if (chase && noOvers(v.t2Overs) && balls.length === 0) return 'break';
     return 'play';
+}
+
+/** All overs bowled or ten down. A rain-shortened innings is not caught here; its break starts late, as before. */
+function firstInningsComplete(v: CricketAPIData['values']): boolean {
+    const total = Number(v.totalOvers);
+    const overs = parseFloat(String(v.t1Overs ?? ''));
+    return Number(v.t1Wickets) >= 10 || (total > 0 && Number.isFinite(overs) && overs >= total);
 }
 
 /**
@@ -261,21 +273,13 @@ function team(v: CricketAPIValues, cache: ViewCache, n: 1 | 2): PanelTeam {
 export interface TossInfo { headline: string; batting?: 1 | 2; }
 
 /** "TOPGUNS UNITED" → "Topguns United"; names that already carry case are left alone. */
-export function tidyName(name: string): string {
-    if (name !== name.toUpperCase() || !/[A-Z]/.test(name)) return name;
-    // Initials and numerals stay capitals: "AVV XI" once went on air as "Avv Xi" (match 4651).
-    // A short real word ("MOB") stays capitals too — acceptable, as only all-caps names get here.
-    const keep = (w: string) => /^[IVXLC]+$/.test(w) || (w.length <= 3 && !COMMON.has(w));
-    return name.replace(/\S+/g, w => keep(w) ? w : w.charAt(0) + w.slice(1).toLowerCase());
-}
-const COMMON = new Set(['THE', 'AND', 'OF']);
 
 /**
  * Turns CricClubs' "X WON THE TOSS AND ELECTED TO BAT" into a short headline and works out
  * who bats first. Unknown wording is shown as-is and leaves the batting side undecided.
  */
 export function tossInfo(toss: string | undefined, t1Name: string, t2Name: string): TossInfo {
-    if (!toss) return { headline: 'Toss to come' };
+    if (!toss) return { headline: 'Toss pending' };
     const m = /^(.+?)\s+won the toss and (?:elected|chose|opted|decided) to (bat|bowl|field)\b/i.exec(toss.trim());
     if (!m) return { headline: toss };
     const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -283,7 +287,8 @@ export function tossInfo(toss: string | undefined, t1Name: string, t2Name: strin
     const bats = m[2].toLowerCase() === 'bat';
     const name = winner === 1 ? t1Name : winner === 2 ? t2Name : m[1];
     const batting = winner === undefined ? undefined : bats ? winner : winner === 1 ? 2 : 1;
-    return { headline: `${tidyName(name)} elected to ${bats ? 'bat' : 'bowl'}`, batting };
+    // The toss line arrives in capitals; the team's own name is used exactly as CricClubs stores it.
+    return { headline: `${name} elected to ${bats ? 'bat' : 'bowl'}`, batting };
 }
 
 function panelMeta(v: CricketAPIValues): PanelMeta {
@@ -369,8 +374,8 @@ export function resultHeadline(result: string | undefined, teams: { name: string
     const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     for (const t of teams) {
         if (!t.name) continue;
-        s = s.replace(new RegExp(esc(t.name), 'gi'), tidyName(t.name));
-        if (t.code) s = s.replace(new RegExp(`\\b${esc(t.code)}(?=\\s+won\\b)`, 'g'), tidyName(t.name));
+        s = s.replace(new RegExp(esc(t.name), 'gi'), t.name);
+        if (t.code) s = s.replace(new RegExp(`\\b${esc(t.code)}(?=\\s+won\\b)`, 'g'), t.name);
     }
     return s.replace(/\bwon by (\d+) (runs?|wickets?)\b/i, (_, n, u) => `won by ${n} ${u.toLowerCase()}`);
 }
@@ -391,12 +396,14 @@ export function topPerformers(cache: ViewCache, mom?: string, momPic?: string, n
     const add = (key: string, row: PanelRow) => { if (key && !seen.has(key) && out.length < n) { seen.add(key); out.push(row); } };
 
     const award = (mom || '').trim();
+    // CricClubs names the award some time after the result; until then the slot says so.
+    if (!award) add('__award', { name: 'Awaiting', value: '', note: 'Player of the match', initials: '…' });
     if (award) {
         const key = award.toLowerCase();
         const bat = bats.find(b => fullName(b.r) === key)?.r;
         const bowl = bowls.find(b => fullName(b) === key);
         const src = bat ?? bowl;
-        const words = tidyName(award).split(/\s+/);
+        const words = award.split(/\s+/);
         const name = src ? displayName(src) : words.length > 1 ? `${words.slice(0, -1).join(' ')} ${words.at(-1)!.charAt(0)}` : words[0];
         const value = [bat && batFigure(bat), bowl && bowl.balls ? bowlFigure(bowl) : ''].filter(Boolean).join(' · ');
         add(key, { name, value, note: 'Player of the match', pic: imageUrl(src?.profilepic_file_path) ?? imageUrl(momPic), initials: src ? initialsOf(src) : words.map(w => w[0]).join('').slice(0, 2).toUpperCase() });

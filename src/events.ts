@@ -34,7 +34,9 @@ export function parseDismissal(html: string | undefined | null): string {
         // CricClubs marks the keeper with a dagger in its own span: "c † Anand S" reads "c †Anand S".
         // Sometimes it sends no keeper name at all ("c † b Praharsha S", match 4658): leave that gap.
         .replace(/† (?!b\b)/g, '†')
-        .trim();
+        .trim()
+        // No fielder named at all ("c † b X", "c b X"): the catcher was a substitute or not entered.
+        .replace(/^c (†?) ?(?=b )/, (_, dagger: string) => `c ${dagger}Sub `);
 }
 
 const NAMED: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: '\u00a0' };
