@@ -27,13 +27,27 @@ const battingWickets = (v: CricketAPIValues) => num(isChase(v) ? v.t2Wickets : v
  */
 export function parseDismissal(html: string | undefined | null): string {
     if (!html) return '';
-    return html
-        .replace(/<[^>]*>/g, ' ')
-        .replace(/&nbsp;|&#160;/g, ' ')
-        .replace(/&amp;/g, '&')
+    return decodeEntities(html.replace(/<[^>]*>/g, ' '))
+        .replace(/\u00a0/g, ' ')
         .replace(/\s+/g, ' ')
         .replace(/\s+([),.])/g, '$1')
+        // CricClubs marks the keeper with a dagger in its own span: "c † Anand S" reads "c †Anand S".
+        .replace(/† /g, '†')
         .trim();
+}
+
+const NAMED: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: '\u00a0' };
+
+/**
+ * CricClubs escapes some characters as entities — a keeper catch arrives as "c &#8224; Anand S"
+ * (seen live on match 4651). Decoded by hand, not via innerHTML, so nothing it sends is parsed as HTML.
+ */
+function decodeEntities(s: string): string {
+    return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
+        if (e[0] !== '#') return NAMED[e.toLowerCase()] ?? m;
+        const code = e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+        return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : m;
+    });
 }
 
 function crossed(prev: number, next: number): 50 | 100 | null {

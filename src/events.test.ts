@@ -9,6 +9,13 @@ const first = (over: Record<string, unknown> = {}, balls: string[] = []) =>
             ...over }, balls);
 
 describe('parseDismissal', () => {
+    it('decodes the entities CricClubs sends, like the keeper dagger (match 4651)', () => {
+        expect(parseDismissal("<span>c &#8224; </span><span class='outname'>Anand S</span><span> b </span><span class='outname'>Purushotham G</span>"))
+            .toBe('c †Anand S b Purushotham G');
+        expect(parseDismissal("<span>c </span><span class='outname'>O&#39;Brien &amp; co</span> &#x2020;")).toBe("c O'Brien & co †");
+        expect(parseDismissal('<span>b </span>X &bogus; &#0;')).toBe('b X &bogus; &#0;');   // unknown entities left alone
+        expect(parseDismissal('&lt;img src=x onerror=alert(1)&gt;')).toBe('<img src=x onerror=alert(1)>');   // text, rendered via textContent
+    });
     it('reduces the CricClubs markup to plain text', () => {
         expect(parseDismissal("<span>b </span><span class='outname'>Siva Krishna V</span>")).toBe('b Siva Krishna V');
         expect(parseDismissal("<span>run out </span><span class='outname'>(Aamir K)</span> ")).toBe('run out (Aamir K)');
