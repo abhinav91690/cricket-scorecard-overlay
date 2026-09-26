@@ -1,5 +1,19 @@
 # Update Log
 
+## 2026-09-26
+
+**Waiting panels show once, and come off when the openers are in.** Watching match 4651 live on
+production, the pre-match line-up cycled 16 s on, 4 s off until the first ball. It is 1240×553 px,
+about a third of a 1080p frame, from 35% to 87% of the way down, over the pitch. Now each waiting
+panel shows once per load. The line-up stays up for 60 s or until both openers are picked, the
+innings summary for 2 min or until the chasing side's openers are picked, and the result stays up
+for good. Also fixed: a team whose name already ends in "XI" was headed "AVV XI XI".
+
+The simulator now leaves the openers blank until two minutes before play (CricClubs does, seen
+live), before the first ball and at the break, and its grader checks that each early dismissal
+happens once. That caught a real bug: a poll landing during the 300 ms fade dismissed the panel
+again and restarted the fade.
+
 ## 2026-09-25
 
 ### Replay mode plays a whole match, toss to result

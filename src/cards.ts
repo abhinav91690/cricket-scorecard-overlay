@@ -29,9 +29,12 @@ export const HOLD_MS: Record<AnyCard['type'], number> = {
     milestone: 8000,
     partnership: 6000,
     boundary: 2000,
-    lineup: 16000,
-    'innings-summary': 15000,
-    'match-summary': 15000,
+    // The waiting panels each go on air once (app.ts). The line-up and innings summary sit over
+    // the middle of the picture, so they come off early once both openers are in.
+    lineup: 60000,
+    'innings-summary': 120000,
+    // The match is over: the result stays up for good (setTimeout's ceiling, ~24 days).
+    'match-summary': 2 ** 31 - 1,
 };
 
 /** Must match the CSS transitions on .event-card and .panel-card. */
@@ -57,7 +60,7 @@ export function cardCopy(e: OverlayEvent): CardCopy {
 }
 
 interface Queued { card: AnyCard; hold: number; }
-interface SurfaceState { queue: Queued[]; showing: boolean; timer?: ReturnType<typeof setTimeout>; }
+interface SurfaceState { queue: Queued[]; showing: boolean; current?: AnyCard['type']; timer?: ReturnType<typeof setTimeout>; }
 
 const state: Record<Surface, SurfaceState> = { bar: { queue: [], showing: false }, panel: { queue: [], showing: false } };
 
@@ -86,10 +89,26 @@ export function dismissAll(): void {
         s.timer = undefined;
         if (s.showing) {
             element(surface).classList.remove('is-visible');
-            s.showing = false;
+            s.showing = false; s.current = undefined;
             e2eLog('card:dismiss', { surface });
         }
     }
+}
+
+/** Takes one kind of panel off air early, and drops any queued copy of it. Other panels are untouched. */
+export function dismissPanel(type: PanelEvent['type']): void {
+    const s = state.panel;
+    s.queue = s.queue.filter(q => q.card.type !== type);
+    if (!s.showing || s.current !== type) return;
+    if (s.timer) clearTimeout(s.timer);
+    // Cleared now, not after the fade: a poll landing mid-fade must not dismiss it again.
+    s.current = undefined;
+    element('panel').classList.remove('is-visible');
+    e2eLog('card:dismiss', { surface: 'panel', type });
+    s.timer = setTimeout(() => {
+        s.showing = false;
+        pump('panel');
+    }, TRANSITION_MS);
 }
 
 function element(surface: Surface): HTMLElement {
@@ -272,7 +291,7 @@ function renderPanel(card: PanelEvent) {
                 const grid = rowList('panel-xi');
                 grid.style.setProperty('--rows', String(Math.max(1, Math.ceil(t.players.length / 2))));
                 t.players.forEach(p => grid.appendChild(personRow(p, 'sm')));
-                DOM.panelColumns.appendChild(column(`${t.name} XI`, t.role, t.role === 'Batting', grid));
+                DOM.panelColumns.appendChild(column(/\bXI$/i.test(t.name.trim()) ? t.name : `${t.name} XI`, t.role, t.role === 'Batting', grid));
             }
             metaStrip(card);
             break;
@@ -310,6 +329,7 @@ function pump(surface: Surface) {
     if (s.showing || s.queue.length === 0) return;
     const { card, hold } = s.queue.shift()!;
     s.showing = true;
+    s.current = card.type;
     if (surface === 'bar') renderBar(card as OverlayEvent); else renderPanel(card as PanelEvent);
     element(surface).classList.add('is-visible');
     e2eLog('card:show', { surface, type: card.type, hold });
@@ -317,7 +337,7 @@ function pump(surface: Surface) {
         element(surface).classList.remove('is-visible');
         e2eLog('card:hide', { surface, type: card.type });
         s.timer = setTimeout(() => {
-            s.showing = false;
+            s.showing = false; s.current = undefined;
             pump(surface);
         }, TRANSITION_MS);
     }, hold);
@@ -370,7 +390,7 @@ export function showSampleCard(type: string): void {
 export function resetCardsForTests(): void {
     for (const surface of ['bar', 'panel'] as const) {
         const s = state[surface];
-        s.queue = []; s.showing = false;
+        s.queue = []; s.showing = false; s.current = undefined;
         if (s.timer) clearTimeout(s.timer);
         s.timer = undefined;
     }

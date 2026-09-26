@@ -10,7 +10,7 @@ vi.mock('./theme', () => ({ applyTheme: vi.fn(), updateLogo: vi.fn() }));
 vi.mock('./analytics', () => ({ track: vi.fn(), trackOnce: vi.fn() }));
 vi.mock('./toast', () => ({ showToast: vi.fn() }));
 vi.mock('./events', () => ({ detectEvents: vi.fn(() => []) }));
-vi.mock('./cards', () => ({ enqueueCards: vi.fn(), showSampleCard: vi.fn(), dismissAll: vi.fn(), isIdle: vi.fn(() => true) }));
+vi.mock('./cards', () => ({ enqueueCards: vi.fn(), showSampleCard: vi.fn(), dismissAll: vi.fn(), dismissPanel: vi.fn(), isIdle: vi.fn(() => true) }));
 vi.mock('./liveStream', async (importOriginal) => {
     const actual = await importOriginal<typeof import('./liveStream')>();
     return { ...actual, linkLiveStream: vi.fn(async () => {}) };
@@ -25,7 +25,7 @@ import { applyTheme, updateLogo } from './theme';
 import { track, trackOnce } from './analytics';
 import { showToast } from './toast';
 import { detectEvents } from './events';
-import { enqueueCards, showSampleCard, dismissAll } from './cards';
+import { enqueueCards, showSampleCard, dismissAll, dismissPanel } from './cards';
 import { mock_view_48 } from './mockData';
 import { linkLiveStream, LinkLiveStreamError } from './liveStream';
 import { mock_1stInnings, mock_2ndInnings, mock_matchEnded, mock_toss, mock_noTeamImage } from './mockData';
@@ -284,7 +284,7 @@ describe('views: peeks, dismissal and panels', () => {
         expect(enq.length).toBeGreaterThan(0);
     });
 
-    it('holds phase panels until the phase\'s peeks have landed, then rotates them', async () => {
+    it('holds phase panels until the phase\'s peeks have landed', async () => {
         setSearch('?matchId=2079&clubId=1');
         const squad49 = { ...(mock_view_48 as any), view: 49, values: { ...(mock_view_48 as any).values, t2Name: 'TGU', t2PlayersList: (mock_view_48 as any).values.t1PlayersList } };
         vi.mocked(fetchScoreData).mockResolvedValueOnce(pre).mockResolvedValueOnce(mock_view_48 as any).mockResolvedValueOnce(pre).mockResolvedValueOnce(squad49).mockResolvedValue(pre);
@@ -299,6 +299,64 @@ describe('views: peeks, dismissal and panels', () => {
         expect(lineups()).toHaveLength(1);
         expect(lineups()[0]).toMatchObject({ toss: 'Lions won the toss' });
         expect((lineups()[0] as any).teams[0].players.length).toBeGreaterThan(0);
+    });
+
+    it('shows the line-up once before the first ball, never on a loop', async () => {
+        // It covers the middle of the picture, so it goes on air one time per load; the panel
+        // surface going idle again (isIdle is always true here) must not bring it back.
+        setSearch('?matchId=2079&clubId=1');
+        const squad49 = { ...(mock_view_48 as any), view: 49, values: { ...(mock_view_48 as any).values, t2Name: 'TGU', t2PlayersList: (mock_view_48 as any).values.t1PlayersList } };
+        vi.mocked(fetchScoreData).mockResolvedValueOnce(pre).mockResolvedValueOnce(mock_view_48 as any).mockResolvedValueOnce(pre).mockResolvedValueOnce(squad49).mockResolvedValue(pre);
+        for (let i = 0; i < 12; i++) await updateScore();
+        expect(vi.mocked(enqueueCards).mock.calls.flat(2).filter((c: any) => c.type === 'lineup')).toHaveLength(1);
+        expect(dismissPanel).not.toHaveBeenCalled();     // one opener is not both
+    });
+
+    it('takes the line-up off once both openers are in, and skips it if they already are', async () => {
+        setSearch('?matchId=2079&clubId=1');
+        const squad49 = { ...(mock_view_48 as any), view: 49, values: { ...(mock_view_48 as any).values, t2Name: 'TGU', t2PlayersList: (mock_view_48 as any).values.t1PlayersList } };
+        const openers = { ...pre, values: { ...pre.values, batsman2Name: 'B' } };
+        vi.mocked(fetchScoreData).mockResolvedValueOnce(pre).mockResolvedValueOnce(mock_view_48 as any).mockResolvedValueOnce(pre).mockResolvedValueOnce(squad49).mockResolvedValueOnce(pre).mockResolvedValue(openers);
+        const lineups = () => vi.mocked(enqueueCards).mock.calls.flat(2).filter((c: any) => c.type === 'lineup');
+        for (let i = 0; i < 5; i++) await updateScore();
+        expect(lineups()).toHaveLength(1);
+        await updateScore();                             // the scorer picks the second opener
+        expect(dismissPanel).toHaveBeenCalledWith('lineup');
+        for (let i = 0; i < 3; i++) await updateScore();
+        expect(lineups()).toHaveLength(1);
+
+        resetAppStateForTests(); vi.mocked(enqueueCards).mockClear();
+        vi.mocked(fetchScoreData).mockReset();
+        vi.mocked(fetchScoreData).mockResolvedValueOnce(openers).mockResolvedValueOnce(mock_view_48 as any).mockResolvedValueOnce(openers).mockResolvedValueOnce(squad49).mockResolvedValue(openers);
+        for (let i = 0; i < 8; i++) await updateScore();
+        expect(lineups()).toHaveLength(0);               // loaded after the openers were in: never shown
+    });
+
+    it('shows the innings summary once at the break, and takes it off when new openers are in', async () => {
+        setSearch('?matchId=2079&clubId=1');
+        // The first innings' last pair is still in the fields when the break begins: that is not "openers in".
+        const brk = { view: 1, values: { t1Name: 'Lions', t2Name: 'TGU', t1Total: '142', t1Wickets: '8', t1Overs: '20.0', t2Overs: '0', isSecondInningsStarted: 'true', batsman1Name: 'Last A', batsman2Name: 'Last B' }, balls: [] } as any;
+        const resumed = { ...brk, values: { ...brk.values, batsman1Name: 'Open C', batsman2Name: 'Open D' } };
+        vi.mocked(fetchScoreData).mockResolvedValue(brk);    // the card peeks never land: the panel shows after its tries
+        const summaries = () => vi.mocked(enqueueCards).mock.calls.flat(2).filter((c: any) => c.type === 'innings-summary');
+        for (let i = 0; i < 12; i++) await updateScore();
+        expect(summaries()).toHaveLength(1);
+        expect(dismissPanel).not.toHaveBeenCalled();
+        vi.mocked(fetchScoreData).mockResolvedValue(resumed);
+        await updateScore();
+        expect(dismissPanel).toHaveBeenCalledWith('innings-summary');
+        for (let i = 0; i < 3; i++) await updateScore();
+        expect(summaries()).toHaveLength(1);
+    });
+
+    it('puts the result up once and leaves it there', async () => {
+        setSearch('?matchId=2079&clubId=1');
+        // (mock_matchEnded carries isMatchEnded "0", so the flag is set here.)
+        const ended = { ...(mock_matchEnded as any), values: { ...(mock_matchEnded as any).values, isMatchEnded: '1' } };
+        vi.mocked(fetchScoreData).mockResolvedValue(ended);
+        for (let i = 0; i < 20; i++) await updateScore();   // four card views get their three tries first
+        expect(vi.mocked(enqueueCards).mock.calls.flat(2).filter((c: any) => c.type === 'match-summary')).toHaveLength(1);
+        expect(dismissPanel).not.toHaveBeenCalled();
     });
 
     it('gives up on a view that never yields and shows the panel anyway', async () => {

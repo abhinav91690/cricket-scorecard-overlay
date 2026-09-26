@@ -8,7 +8,7 @@ vi.mock('./dom', () => {
     } };
 });
 
-import { cardCopy, enqueueCards, showSampleCard, resetCardsForTests, dismissAll, isIdle, HOLD_MS, SAMPLE_EVENTS, PanelEvent } from './cards';
+import { cardCopy, enqueueCards, showSampleCard, resetCardsForTests, dismissAll, dismissPanel, isIdle, HOLD_MS, SAMPLE_EVENTS, PanelEvent } from './cards';
 import { OverlayEvent } from './events';
 import { DOM } from './dom';
 
@@ -77,6 +77,26 @@ describe('card queue', () => {
         expect(DOM.panelCard.classList.contains('is-visible')).toBe(false);
         vi.advanceTimersByTime(300);
         expect(isIdle('panel')).toBe(true);
+    });
+
+    it('holds the line-up for a minute, and dismissPanel takes only that panel off early', () => {
+        expect(HOLD_MS.lineup).toBe(60000);
+        expect(HOLD_MS['innings-summary']).toBe(120000);
+        expect(HOLD_MS['match-summary']).toBe(2 ** 31 - 1);   // setTimeout's ceiling: up for good
+        enqueueCards([panel('lineup'), panel('innings-summary'), ev('wicket')]);
+        dismissPanel('innings-summary');                  // not the one showing: only the queued copy goes
+        expect(DOM.panelCard.classList.contains('is-visible')).toBe(true);
+        dismissPanel('lineup');
+        expect(DOM.panelCard.classList.contains('is-visible')).toBe(false);
+        expect(DOM.eventCard.classList.contains('is-visible')).toBe(true);   // the bar is untouched
+        vi.advanceTimersByTime(300);
+        expect(isIdle('panel')).toBe(true);               // the queued innings summary was dropped
+    });
+
+    it('does not double the XI on a team whose name already ends in it', () => {
+        enqueueCards([{ type: 'lineup', toss: '', series: '', ground: '', matchOvers: '', teams: [
+            { name: 'AVV XI', role: 'Batting', players: [] }, { name: 'Vertex Vikings', role: 'Fielding', players: [] }] }]);
+        expect(Array.from(DOM.panelColumns.querySelectorAll('.panel-col-head-title')).map(e => e.textContent)).toEqual(['AVV XI', 'Vertex Vikings XI']);
     });
 
     it('renders each panel type into the panel skeleton without HTML injection', () => {

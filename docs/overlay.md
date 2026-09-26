@@ -153,12 +153,24 @@ over the batter/bowler slots.
 | Fifty / Hundred | a batter crosses 50 or 100 | 8 s |
 | Four / Six | the newest ball is a boundary off the bat | 2 s |
 | 50 / 100 partnership | the current stand crosses 50 or 100 | 6 s |
-| Line-up (panel) | before the toss / pre-match phase | 16 s |
-| Innings summary (panel) | the innings break | 15 s |
-| Match summary (panel) | the match ends | 15 s |
+| Line-up (panel) | before the first ball, once | 60 s, or until both openers are in |
+| Innings summary (panel) | the innings break, once | 2 min, or until both new openers are in |
+| Match summary (panel) | the match ends, once | for good |
 
 The last three render on a **second surface above the bar** and are built from CricClubs' data
 views rather than from poll diffs — see §14.
+
+🛑 **A waiting panel goes on air once per load, never on a loop.** The line-up is about a third
+of a 1080p frame and sits over the middle of the picture, where the players are. It used to be
+re-queued whenever the panel surface went idle, so on match 4651 it cycled 16 s on, 4 s off for
+the whole wait before the first ball. `panelsShown` in `app.ts` now allows one showing per phase,
+and `openersIn()` takes the line-up or innings summary off early with `dismissPanel()` once both
+batter names are filled. At the break the names must also differ from the ones the break began
+with, since the first innings' last pair may still be in the fields.
+
+⚠ **Before the first ball CricClubs sends the batter names empty until the scorer picks the
+openers** (seen live on 4651). What it sends at the break has not been seen yet; the
+simulator models it the same way, and `openersIn()` copes with either.
 
 Hold times live in `HOLD_MS`. ⚠ **The exit transition length is duplicated** between `cards.ts`
 (`TRANSITION_MS`) and the `.event-card` CSS — keep them equal.
@@ -171,7 +183,7 @@ Adding a card type means: a new `OverlayEvent` variant, a detection rule, `cardC
 
 Two rules are enforced in `renderFrame()` and must survive any refactor: every card and panel
 is timed via `HOLD_MS`, and `scoreChanged()` → `dismissAll()` runs before a frame's cards are
-queued.
+queued. The only other early exit is `dismissPanel()` for a waiting panel once the openers are in.
 
 ### 6a. 🛑 The accent palette is a contract, not decoration
 

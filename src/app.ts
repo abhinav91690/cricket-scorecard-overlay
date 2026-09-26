@@ -16,9 +16,9 @@ import { trackOnce, track, LinkOutcome } from './analytics';
 import { showToast } from './toast';
 import { detectEvents } from './events';
 import { ensureDataQr, renderDataCode, resetDataQrForTests } from './dataQr';
-import { enqueueCards, showSampleCard, dismissAll, isIdle, PanelEvent } from './cards';
+import { dismissPanel, enqueueCards, showSampleCard, dismissAll, isIdle, PanelEvent } from './cards';
 import { apiBase, refreshMs, e2eLog } from './e2e';
-import { ViewCache, desiredView, isFullFrame, matchPhase, mergeCache, phasePanels, scoreChanged, stripPii, lineupPanel, inningsSummaryPanel, matchSummaryPanel } from './views';
+import { MatchPhase, ViewCache, desiredView, isFullFrame, matchPhase, mergeCache, phasePanels, scoreChanged, stripPii, lineupPanel, inningsSummaryPanel, matchSummaryPanel } from './views';
 
 /** True once the overlay has painted at least one successful frame of live/mock data. */
 let hasRenderedScore = false;
@@ -72,6 +72,10 @@ async function replayFeed(p: ReturnType<typeof getQueryParams>): Promise<Feed> {
 let peekFollowUp = false;
 /** Fast reads in a row; capped so a feed stuck on a data view cannot fast-poll forever. */
 let fastPolls = 0;
+/** Phases whose panel has gone on air this load. Each goes on once, never on a loop. */
+let panelsShown = new Set<MatchPhase>();
+/** The batter names when the break began: the break's openers are "in" once these change. */
+let breakBatters: string | null = null;
 const gaveUp = () => new Set(Object.entries(peekAttempts).filter(([, n]) => n >= PEEK_ATTEMPTS).map(([v]) => Number(v)));
 
 /** Test hook: forget replay position, last frame and whether a frame has rendered. */
@@ -84,6 +88,8 @@ export function resetAppStateForTests() {
     peekAttempts = {};
     peekFollowUp = false;
     fastPolls = 0;
+    panelsShown = new Set();
+    breakBatters = null;
     resetDataQrForTests();
 }
 
@@ -110,9 +116,26 @@ function renderFrame(data: CricketAPIData, quiet: boolean, showData = false) {
         const phase = matchPhase(data);
         // Panels wait until the phase's peeks have landed (or been given up on), so they never render half-empty.
         const dataReady = desiredView(data, phase, viewCache, gaveUp()) === null;
-        if (phase !== 'play' && dataReady && isIdle('panel')) enqueueCards(phasePanels(phase, data.values, viewCache));
+        // Before the first ball and at the break, the panel comes off once both openers are in:
+        // the players are walking out. At the break the names must also have changed, since the
+        // last pair of the first innings may still be sitting in the fields.
+        const early = openersIn(phase, data.values);
+        if (phase === 'pre' && early) dismissPanel('lineup');
+        if (phase === 'break' && early) dismissPanel('innings-summary');
+        if (phase !== 'play' && dataReady && isIdle('panel') && !panelsShown.has(phase) && !early) {
+            panelsShown.add(phase);
+            enqueueCards(phasePanels(phase, data.values, viewCache));
+        }
     }
     lastData = data;
+}
+
+function openersIn(phase: MatchPhase, v: CricketAPIData['values']): boolean {
+    if (phase !== 'pre' && phase !== 'break') return false;
+    const a = v.batsman1Name?.trim(), b = v.batsman2Name?.trim();
+    const pair = `${a ?? ''}|${b ?? ''}`;
+    if (phase === 'break') breakBatters ??= pair;
+    return !!(a && b) && (phase === 'pre' || pair !== breakBatters);
 }
 
 function setDataCode(data: CricketAPIData, showData: boolean) {
