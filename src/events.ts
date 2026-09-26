@@ -32,7 +32,8 @@ export function parseDismissal(html: string | undefined | null): string {
         .replace(/\s+/g, ' ')
         .replace(/\s+([),.])/g, '$1')
         // CricClubs marks the keeper with a dagger in its own span: "c † Anand S" reads "c †Anand S".
-        .replace(/† /g, '†')
+        // Sometimes it sends no keeper name at all ("c † b Praharsha S", match 4658): leave that gap.
+        .replace(/† (?!b\b)/g, '†')
         .trim();
 }
 

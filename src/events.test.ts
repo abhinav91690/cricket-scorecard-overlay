@@ -12,6 +12,8 @@ describe('parseDismissal', () => {
     it('decodes the entities CricClubs sends, like the keeper dagger (match 4651)', () => {
         expect(parseDismissal("<span>c &#8224; </span><span class='outname'>Anand S</span><span> b </span><span class='outname'>Purushotham G</span>"))
             .toBe('c †Anand S b Purushotham G');
+        // no keeper name sent (match 4658): the dagger must not swallow the "b"
+        expect(parseDismissal("<span>c &#8224; </span><span> b </span><span class='outname'>Praharsha S</span>")).toBe('c † b Praharsha S');
         expect(parseDismissal("<span>c </span><span class='outname'>O&#39;Brien &amp; co</span> &#x2020;")).toBe("c O'Brien & co †");
         expect(parseDismissal('<span>b </span>X &bogus; &#0;')).toBe('b X &bogus; &#0;');   // unknown entities left alone
         expect(parseDismissal('&lt;img src=x onerror=alert(1)&gt;')).toBe('<img src=x onerror=alert(1)>');   // text, rendered via textContent
