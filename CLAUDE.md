@@ -162,6 +162,24 @@ two humps and the chase out-peaks the shot, so peak-picking put a four nine seco
 `MIN_GAP` suppression then deleted the real delivery from the candidate list — which is why
 every tuning attempt reproduced the same stable wrong answer. → `highlights.md` §6c
 
+🛑 **A delivery is preceded by a STILL field; the burst after one is not — that is the only
+thing that separates them.** In innings 2 a wicket landed 4.5 s late on the aftermath, and
+every global lever failed to move it: peak height, contrast, quietness, `STRENGTH`, and
+`SMOOTH` from 0.5 to 0. ⚠ `SMOOTH` is the trap — that ball's true lag is 23 s against its
+neighbour's 8 s, so a smoothness prior *prefers* the wrong answer, and removing it breaks
+innings 1. → `highlights.md` §6d
+
+⚠ **The camera is repositioned at the innings break, not at end swaps.** The bowling end
+changes every 5 overs but the action does not move in frame — side-on, both ends share a
+centre (centroid 47-55% in every block). Footage shot from behind the bowler's arm would not
+have that property. → `highlights.md` §6d
+
+⚠ **An outlying scorer lag is the tell for a mis-aligned clip.** Both mis-alignments ever
+confirmed by eye were the largest lag in their innings and nothing else was, so `shot_times()`
+drops them — floored at 30 s, because a uniformly slow scorer is not a mis-alignment. It
+catches the failure seen, not every one that exists; keep reviewing reel by reel.
+→ `highlights.md` §6c
+
 🛑 **Never cut a clip with raw ffmpeg — go through `cut.segments()`.** The `WINDOWS` are the
 only thing that knows the scorer's graphic lags the ball (a six by ~5 s, a wicket by ~35 s), so
 a hand-rolled `-ss` produces a clip of the batter waiting. → `highlights.md` §6

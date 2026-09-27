@@ -230,18 +230,97 @@ The delivery stride is 1 s before the shot in all three, and the smoothed motion
 Coverage on `vs ATX Panthers`: **135/144** balls in innings 1, **73/79** in innings 2, and
 **39/39** of the moments that actually feed a reel.
 
-#### What is NOT reliable
+#### ✅ An outlying lag is the tell for a mis-alignment
 
-⚠ **The extreme tail of the lag distribution.** Nine predicted instants were checked as
-frames, chosen to span the lag range rather than sampled uniformly: six show the bat coming
-through the ball, two are a second or two late, and **the one at the top of the range
-(39.6 s) is a still field** — a genuine mis-alignment. Balls the scorer entered very late
-are the ones to distrust, so a reel-by-reel look is still worth it.
+⚠ **The extreme tail of the lag distribution is where it fails.** Thirteen predicted instants
+were checked as frames, chosen to span the lag range rather than sampled uniformly:
+
+| verified | lags | what the frames show |
+|---|---|---|
+| good | 2.2-25.4 s | the bat coming through the ball (two a second or two late) |
+| **bad** | **39.6 s**, **45.3 s** | a still field; an empty pitch |
+
+Both failures were the **largest lag in their innings** and nothing else was. `shot_times()`
+therefore drops a ball whose lag exceeds `median + 4 x MAD`, floored at
+`LAG_OUTLIER_FLOOR = 30 s` — the floor matters, because the MAD of a tight distribution is
+small enough that a uniformly slow scorer would otherwise be discarded wholesale. On
+`vs ATX Panthers` it removes 1 ball from innings 1 and 3 from innings 2, including the empty
+pitch that was in a wicket reel. `--keep-suspect` turns it off.
+
+🛑 **A clip cut from a wrong match is worse than a missing clip.** That is the whole ordering
+this module is built around, and it is why the guard drops rather than warns.
+
+⚠ **This rests on two confirmed cases.** Re-check the threshold once a second match has been
+reviewed reel by reel — and keep reviewing, because the guard catches the failure mode that
+has been *seen*, not every one that exists.
 
 ⚠ **`pitch_crop()` is a per-match input, like the reel crop.** It spans 31-76% of the width
 because the camera sat at 39-66% in one innings and 41-63% in the other. A differently framed
 match needs it re-measured; being generous costs only noise, because candidates are weighed
 by strength.
+
+### 6d. 🛑 The second innings needed more than a good detector
+
+The onset detector was verified on three **innings-1** balls and it is right there. It was not
+right in innings 2: a wicket landed **4.5 s late**, on a burst 5 s after the real delivery.
+Frame by frame, the delivery stride is at 10728 and bat on ball at 10729.3; the burst the
+aligner chose at 10733-10736 is the batter walking off and the fielders gathering.
+
+⚠ **The camera is repositioned at the innings break.** The motion centroid sits at 47-55% of
+the width in every 5-over block of both innings — so the **bowling end swapping every 5 overs
+does not move the action in frame**, because the camera is side-on and both ends sit either
+side of the same centre. What does change is the vertical framing between innings (centroid
+y 68% -> 62%): the second innings is framed tighter, so players walking fill more of the frame
+and an aftermath burst out-peaks a delivery more easily.
+🛑 A match shot from **behind the bowler's arm** would behave differently — there the end swap
+would move the action, and `pitch_crop()` would have to cover both ends. Check this before
+trusting `--align` on differently-filmed footage.
+
+#### Every global lever failed, and one of them was a trap
+
+Both candidates were in the list. The decoy was simply the stronger burst, 10.64 against 7.87.
+None of these moved it:
+
+| lever | result |
+|---|---|
+| peak height (shipped) | +4.5 s |
+| contrast over `BACKTRACK` | +4.5 s — the decoy reaches back *past* the delivery and claims the same quiet as its own trough |
+| contrast against the local level | +4.5 s |
+| quietness alone | +13.7 s, and it broke innings 1 |
+| `STRENGTH` halved | +4.5 s |
+| `SMOOTH` from 0.5 down to 0 | +4.5 s, and `SMOOTH = 0` broke innings 1 |
+
+🛑 **`SMOOTH` is the trap.** Lowering it looks like the obvious fix and is exactly wrong: that
+ball's true lag is 23 s against its neighbour's 8 s, so a smoothness prior *actively prefers*
+the decoy. The scorer's lag is bursty, so smoothness is a weak prior — but raising or removing
+it costs innings-1 accuracy, so it stays at 0.5.
+
+#### ✅ What worked: the field before the onset
+
+The two are trivially separable on a fact the cost model never used.
+
+| | onset | field in the 2.5 s before |
+|---|---|---|
+| real delivery | 10727.75 | **4.34** — set, still |
+| aftermath | 10733.00 | **6.29+** — previous ball still unwinding |
+
+`snap_to_quiet()` walks back up to `SNAP_WINDOW` from the chosen candidate for one preceded by
+a still field. It fixed the wicket (+4.5 s -> **-0.8 s**), left all three innings-1 balls
+untouched, and is stable for `QUIET_FRAC` 0.8-1.1. It moved 5 of 73 matches in innings 2.
+
+`drop_busy_preceded()` is the second line: when the snap finds nothing still-preceded, the
+match probably is not on a delivery at all. At `SUSPECT_PRE_FRAC = 1.35` it removed two wicket
+clips showing fielders milling with no batter at the crease, kept all five showing the bowler
+delivering, and cost 8 balls in innings 1 and 3 in innings 2.
+
+#### 🛑 Still not clean — review the bowling reels
+
+Of eight predicted wicket deliveries checked as frames: **five clearly show the delivery, two
+were wrong and are now dropped, and one remains wrong**. That third one has a pre-onset level
+of 5.22, *below* the innings median, so neither guard can see it and its lag is unremarkable.
+Batting reels (innings 1) are in much better shape than bowling reels (innings 2) — three
+measured balls at ±0.25 s and six of nine blind checks good. **Watch the bowling reels before
+publishing.**
 
 ### 6a. ✅ The overlay is its own witness: verify a clip before publishing it
 

@@ -311,6 +311,10 @@ def main():
                          "aligning video motion to the scorer's entries (deliveries.py), "
                          "then cut around that. Needs no lag guess — the lag varied 5-44s "
                          "within one innings on vs ATX Panthers")
+    ap.add_argument("--keep-suspect", action="store_true",
+                    help="with --align, keep balls whose scorer lag is a wild outlier. "
+                         "🛑 Both mis-alignments ever confirmed by eye were the largest lag "
+                         "in their innings, so these are dropped by default")
     ap.add_argument("--player", help="only this player (substring, case-insensitive)")
     ap.add_argument("--height", type=int, default=1080)
     a = ap.parse_args()
@@ -330,7 +334,8 @@ def main():
         import deliveries as dv
         for inn in sorted({m["innings"] - 1 for m in moments}):
             got = dv.shot_times(a.video, states, inn,
-                                cache=f"{a.out}/motion-inn{inn}.npy")
+                                cache=f"{a.out}/motion-inn{inn}.npy",
+                                keep_suspect=a.keep_suspect)
             shots.update(got)
             n = len(dv.entered_balls(states, inn))
             print(f"  innings {inn + 1}: {len(got)}/{n} balls located in the video")

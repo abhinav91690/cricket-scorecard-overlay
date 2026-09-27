@@ -71,6 +71,27 @@ ONSET_GAP = 4.0             # onsets closer than this belong to the same burst
 ONSET_TO_SHOT = 0.75        # measured: bat on ball, this long after the onset
 CANDIDATES_PER_BALL = 3.0   # over-detect on purpose; see the module note
 
+# A ball whose lag is a wild outlier is usually a mis-alignment, not a slow scorer.
+# Both mis-alignments ever confirmed by looking at the frames sat at the very TOP of their
+# innings' lag distribution and nothing else did: 39.6 s (innings 1 max) showed a still
+# field, 45.3 s (innings 2 max) an empty pitch, while every clip verified good ran 2.2-25.4 s.
+# median + LAG_OUTLIER_MAD x MAD, but never below LAG_OUTLIER_FLOOR, so a uniformly slow
+# scorer is not thrown away wholesale.
+# ⚠ This rests on two confirmed cases. Re-check it when another match has been reviewed.
+LAG_OUTLIER_MAD = 4.0
+LAG_OUTLIER_FLOOR = 30.0
+
+# 🛑 A delivery is preceded by a STILL field; the burst that follows one is not. See
+# `snap_to_quiet()` — this is the only thing that separated a real delivery from the
+# aftermath 5 s later when the aftermath was the stronger burst.
+PRE_WINDOW = 2.5            # seconds before an onset used to judge "was the field still?"
+QUIET_FRAC = 0.9            # still = below this fraction of the innings' median motion
+SNAP_WINDOW = 8.0           # how far back to look for a quiet-preceded candidate
+# And if the snap could find no still-preceded candidate, distrust the match entirely.
+# Innings-2 wickets verified good by eye sat at pre-onset 3.90-5.67 against a median of
+# 5.38; the two verified bad sat at 7.58 and 7.91 — a clean gap at 1.35x the median.
+SUSPECT_PRE_FRAC = 1.35
+
 LAG_MIN, LAG_MAX = 2.0, 90.0
 SKIP_DELIVERY, SKIP_ENTRY, SMOOTH, STRENGTH = 1.0, 30.0, 0.5, 8.0
 INF = 1e18
@@ -243,8 +264,87 @@ def align(entries: list[float], times: np.ndarray, strength: np.ndarray) -> dict
     return pairs
 
 
-def shot_times(src: str, states: list[dict], innings: int,
-               cache: str | None = None) -> dict[float, float]:
+def pre_onset_level(sm: np.ndarray, j: int) -> float:
+    """Mean motion in the PRE_WINDOW seconds before onset index `j`."""
+    p0 = max(0, j - int(PRE_WINDOW * FPS))
+    return float(sm[p0:j + 1].mean()) if j > p0 else float(sm[j])
+
+
+def snap_to_quiet(sm: np.ndarray, times: np.ndarray, pairs: dict[int, int],
+                  t0: float) -> dict[int, int]:
+    """Move a match off an aftermath burst onto the delivery that caused it.
+
+    🛑 Why a post-hoc step and not a better cost. On `vs ATX Panthers` innings 2 the aligner
+    put a wicket 4.5 s late, on a burst 5 s after the real delivery. Both candidates were in
+    the list; the decoy was simply the stronger burst (10.64 vs 7.87) because the second
+    innings is framed much tighter, so players walking fill more of the frame than a delivery
+    does. ⚠ Every global lever was tried and none of them moved it — peak height, contrast
+    over BACKTRACK, contrast against the local level, quietness alone, SMOOTH from 0 to 0.5
+    and STRENGTH halved. SMOOTH is especially tempting and especially wrong: that ball's true
+    lag is 23 s against its neighbour's 8 s, so a smoothness prior actively prefers the decoy.
+
+    What separates them is not the burst, it is the field before it:
+
+        real delivery  onset 10727.75, field in the 2.5 s before:  4.34   (set, still)
+        aftermath      onset 10733.00, field in the 2.5 s before:  6.29+  (ball still unwinding)
+
+    So if the chosen candidate was NOT preceded by a still field, walk back up to
+    SNAP_WINDOW seconds for one that was. Stable for QUIET_FRAC 0.8-1.1, and it leaves every
+    already-correct ball alone.
+    """
+    quiet = QUIET_FRAC * float(np.median(sm))
+    idx = np.round((times - t0) * FPS).astype(int)
+    idx = np.clip(idx, 0, len(sm) - 1)
+    out = dict(pairs)
+    for k, j in pairs.items():
+        if pre_onset_level(sm, idx[j]) <= quiet:
+            continue                                  # already a quiet-preceded onset
+        for j2 in range(j - 1, -1, -1):
+            if times[j] - times[j2] > SNAP_WINDOW:
+                break
+            if pre_onset_level(sm, idx[j2]) <= quiet:
+                out[k] = j2
+                break
+    return out
+
+
+def drop_busy_preceded(sm: np.ndarray, times: np.ndarray, pairs: dict[int, int],
+                       t0: float) -> tuple[dict[int, int], int]:
+    """Drop matches still sitting on a burst that a busy field ran into. -> (kept, n dropped).
+
+    ⚠ This is the second line, after `snap_to_quiet()`. When the snap finds no still-preceded
+    candidate within its window, the match is probably not on a delivery at all: on
+    `vs ATX Panthers` innings 2 it removed two wicket clips that showed fielders milling about
+    with no batter at the crease, and kept all five that showed the bowler delivering.
+
+    🛑 It is not a complete filter. A third bad clip had a pre-onset level of 5.22, below the
+    innings median, and is indistinguishable by this signal — so keep reviewing reel by reel.
+    """
+    thr = SUSPECT_PRE_FRAC * float(np.median(sm))
+    idx = np.clip(np.round((times - t0) * FPS).astype(int), 0, len(sm) - 1)
+    kept = {k: j for k, j in pairs.items() if pre_onset_level(sm, idx[j]) <= thr}
+    return kept, len(pairs) - len(kept)
+
+
+def drop_lag_outliers(shots: dict[float, float]) -> tuple[dict[float, float], list[float]]:
+    """Remove balls whose scorer lag is a wild outlier. -> (kept, dropped lags).
+
+    🛑 A clip cut from a wrong match is worse than a missing clip, and an outlying lag is the
+    one signal that separated the two confirmed mis-alignments from every clip verified good.
+    See LAG_OUTLIER_MAD.
+    """
+    if len(shots) < 8:                      # too few to estimate a spread from
+        return shots, []
+    lags = np.array([e - s for e, s in shots.items()])
+    med = float(np.median(lags))
+    mad = float(np.median(np.abs(lags - med)))
+    thr = max(med + LAG_OUTLIER_MAD * 1.4826 * mad, LAG_OUTLIER_FLOOR)
+    kept = {e: s for e, s in shots.items() if (e - s) <= thr}
+    return kept, sorted(e - s for e, s in shots.items() if (e - s) > thr)
+
+
+def shot_times(src: str, states: list[dict], innings: int, cache: str | None = None,
+               keep_suspect: bool = False) -> dict[float, float]:
     """-> {entry time: time the ball was actually bowled}, for one innings."""
     entries = entered_balls(states, innings)
     if not entries:
@@ -255,4 +355,17 @@ def shot_times(src: str, states: list[dict], innings: int,
     curve = motion_curve(src, t0, t1, cache)
     times, strength = candidates(curve, t0, int(len(entries) * CANDIDATES_PER_BALL))
     pairs = align(entries, times, strength)
-    return {entries[k]: float(times[j] + ONSET_TO_SHOT) for k, j in pairs.items()}
+    sm = np.convolve(curve, np.ones(4) / 4, mode="same")
+    pairs = snap_to_quiet(sm, times, pairs, t0)
+    if keep_suspect:
+        return {entries[k]: float(times[j] + ONSET_TO_SHOT) for k, j in pairs.items()}
+    pairs, n_busy = drop_busy_preceded(sm, times, pairs, t0)
+    if n_busy:
+        print(f"    dropped {n_busy} ball(s) whose onset followed a busy field — "
+              f"probably not a delivery")
+    shots = {entries[k]: float(times[j] + ONSET_TO_SHOT) for k, j in pairs.items()}
+    shots, dropped = drop_lag_outliers(shots)
+    if dropped:
+        print(f"    dropped {len(dropped)} ball(s) on an outlying scorer lag "
+              f"({', '.join(f'{d:.0f}s' for d in dropped)}) — likely mis-aligned")
+    return shots

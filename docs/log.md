@@ -28,10 +28,54 @@ same ball):
 | four #2  (the disputed one) | 2241.7 | 2241.7 | **+0.03 s** |
 | ground truth | 2379.3 | 2379.5 | **+0.18 s** |
 
-Coverage 135/144 and 73/79 by innings, and 39/39 of the moments that feed a reel. Nine blind
-frame checks spanning the lag range: six show the bat through the ball, two are a second or
-two late, and the one at the top of the range (39.6 s) is a still field — so the late tail is
-still worth a reel-by-reel look.
+Coverage 135/144 and 73/79 by innings, and 39/39 of the moments that feed a reel.
+
+**Thirteen blind frame checks spanning the lag range found the failure mode and a tell for
+it.** Clips verified good ran 2.2-25.4 s of lag; the two bad ones — a still field and an
+empty pitch in a wicket reel — were **39.6 s and 45.3 s, the largest lag in each innings**,
+and nothing else was. `shot_times()` now drops a ball whose lag exceeds `median + 4 x MAD`,
+floored at 30 s so a uniformly slow scorer is not thrown away wholesale; `--keep-suspect`
+turns it off. It removes 4 balls across the match, including that empty pitch.
+
+⚠ The guard catches the failure mode that has been *seen*, on two confirmed cases. Keep
+reviewing reel by reel, and re-check the threshold after the next match.
+
+**Then the second innings turned out to need more than a good detector.** The onset detector
+was verified on three innings-1 balls and is right there; in innings 2 a wicket landed **4.5 s
+late**, on a burst 5 s after the real delivery (stride 10728, bat on ball 10729.3, chosen burst
+10733-10736 = the batter walking off). Both candidates were in the list and the decoy was
+simply stronger, 10.64 against 7.87, because the camera is framed tighter in the second
+innings.
+
+⚠ Asked whether the bowling end swapping every 5 overs was the cause: measured, and **no**.
+The motion centroid sits at 47-55% of the width in every 5-over block of both innings, because
+the camera is side-on and both ends share a centre. What changes is the vertical framing
+between innings (centroid y 68% -> 62%) — the camera is repositioned at the break, not at end
+swaps. 🛑 Footage shot from behind the bowler's arm would not have that property.
+
+🛑 **Every global lever failed and one was a trap.** Peak height, contrast over `BACKTRACK`,
+contrast against the local level, quietness alone, `STRENGTH` halved, and `SMOOTH` from 0.5
+down to 0 all left the ball at +4.5 s. `SMOOTH` looks like the obvious fix and is exactly
+wrong: that ball's true lag is 23 s against its neighbour's 8 s, so a smoothness prior
+*prefers* the decoy — and `SMOOTH = 0` breaks innings 1.
+
+✅ What worked is a fact the cost model never used: **a delivery rises out of a still field,
+the burst after one does not.** Pre-onset motion was 4.34 for the delivery and 6.29+ for the
+aftermath. `snap_to_quiet()` walks back for a still-preceded candidate (+4.5 s -> **-0.8 s**,
+innings-1 balls untouched, stable for `QUIET_FRAC` 0.8-1.1, moved 5 of 73 matches), and
+`drop_busy_preceded()` drops what the snap cannot rescue (removed 2 wrong wicket clips, kept
+all 5 right ones, cost 8 balls in innings 1 and 3 in innings 2).
+
+🛑 **Bowling reels are still weaker than batting reels.** Of eight predicted wicket deliveries
+checked as frames, five are clearly right, two are now dropped, and one remains wrong — its
+pre-onset level is 5.22, below the innings median, so neither guard can see it. Watch the
+bowling reels before publishing.
+
+⚠ Three synthetic test fixtures were built and discarded before the tests were written against
+the real curve: bursts too close and `ONSET_GAP` merged them, too far and `SNAP_WINDOW` could
+not reach, a flat baseline giving an unrealistically low median for `SUSPECT_PRE_FRAC`. Each
+failure was the fixture's fault, and one draft asserted the guard dropped a ball that the snap
+actually fixes — a false claim that passed review until the numbers were checked.
 
 `DEFAULT_LEAD`/`DEFAULT_TRAIL` are now **3 s / 5 s**. With the shot located to a quarter-second
 the lead no longer buys insurance against a bad estimate, so the time goes after the ball.
