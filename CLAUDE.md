@@ -150,6 +150,13 @@ not that the network is broken. Homebrew is unusable through the same proxy. →
 (`deploy-preview-<N>--score-overlay.netlify.app`) or `npm run dev -- --host 0.0.0.0`. →
 `deployment.md` §2
 
+🛑 **The clip lag is the SCORER's, not cricket's — measure it for every match.** A boundary
+was entered ~5 s after the shot on the reference match and **19 s** on `vs ATX Panthers`, so
+the default windows put every clip in the aftermath: batters talking, crowd cheering, no
+shot. Pass `--lag-bat`/`--lag-bowl`. ⚠ And never "verify" a clip by checking the score moved
+inside its own window — the window contains the state change by construction, so that check
+cannot fail. → `highlights.md` §6b
+
 🛑 **Never cut a clip with raw ffmpeg — go through `cut.segments()`.** The `WINDOWS` are the
 only thing that knows the scorer's graphic lags the ball (a six by ~5 s, a wicket by ~35 s), so
 a hand-rolled `-ss` produces a clip of the batter waiting. → `highlights.md` §6

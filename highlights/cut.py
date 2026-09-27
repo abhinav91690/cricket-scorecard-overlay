@@ -22,6 +22,33 @@ WINDOWS = {            # seconds relative to the card appearing
     'partnership': (-24,  4),
 }
 
+# 🛑 Those defaults are ONE scorer's lag, not a property of cricket. On the reference match
+# a boundary was entered ~5 s after the shot; on `vs ATX Panthers` it was **19 s**, and that
+# scorer entered balls in bursts. A window built for 5 s lands entirely in the aftermath at
+# 19 s: the clip holds the batters talking and the crowd cheering, and never the shot.
+# Always measure the lag for a new match — see docs/highlights.md §6b.
+DEFAULT_LEAD = 2.0     # seconds of run-up kept before the shot
+DEFAULT_TRAIL = 3.0    # seconds kept after it
+
+
+def windows_for(lag_bat: float, lag_bowl: float,
+                lead: float = DEFAULT_LEAD, trail: float = DEFAULT_TRAIL) -> dict:
+    """Windows relative to the state change, derived from the measured overlay lag.
+
+    `lag_*` is how long the scorer took to enter the ball, so the shot itself sits at
+    `-lag`. Keeping `lead` before it and `trail` after gives a clip of `lead + trail`
+    seconds that is genuinely centred on the action rather than on the data entry.
+
+    ⚠ A tight window is only as good as the lag is consistent. A scorer who enters balls in
+    bursts has a lag that varies per ball, and a 5 s clip can then miss. Widen `trail`
+    before `lead`: the run-up is predictable, the aftermath is not.
+    """
+    def w(lag):
+        return (-(lag + lead), -(lag - trail))
+    return {'four': w(lag_bat), 'six': w(lag_bat),
+            'milestone': w(lag_bat), 'partnership': w(lag_bat),
+            'wicket': w(lag_bowl)}
+
 
 def segments(events, types=None, windows=WINDOWS):
     """One clip per ball, never one per card.

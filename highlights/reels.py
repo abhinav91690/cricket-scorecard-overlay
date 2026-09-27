@@ -33,7 +33,8 @@ import json
 import os
 import re
 
-from cut import ASPECTS, WINDOWS, crop_filter, cut, segments
+from cut import (ASPECTS, DEFAULT_LEAD, DEFAULT_TRAIL, WINDOWS, crop_filter,
+                 cut, segments, windows_for)
 from detect import probe
 
 # What counts as a player's own highlight, by the role they were in.
@@ -291,6 +292,20 @@ def main():
                     help="batting crop centre, as a fraction of frame width")
     ap.add_argument("--crop-x-bowl", type=float, default=0.5, metavar="F",
                     help="bowling crop centre, as a fraction of frame width")
+    # 🛑 The overlay trails the action by however long the scorer takes to enter the ball,
+    # and that is a property of the SCORER, not of cricket: ~5 s on the reference match,
+    # 19 s on vs ATX Panthers. Without a measured lag the clip lands in the aftermath and
+    # holds the crowd cheering instead of the shot. Measure it, do not assume it.
+    ap.add_argument("--lag-bat", type=float, metavar="S",
+                    help="seconds the scorer took to enter a BOUNDARY. Measure it: find a "
+                         "boundary's entry time in events.json, scrub back to the shot, "
+                         "subtract. Omit to keep the legacy windows")
+    ap.add_argument("--lag-bowl", type=float, metavar="S",
+                    help="seconds to enter a WICKET (longer — a dismissal has more fields)")
+    ap.add_argument("--lead", type=float, default=DEFAULT_LEAD, metavar="S",
+                    help=f"run-up kept before the shot (default {DEFAULT_LEAD:g}s)")
+    ap.add_argument("--trail", type=float, default=DEFAULT_TRAIL, metavar="S",
+                    help=f"kept after the shot (default {DEFAULT_TRAIL:g}s)")
     ap.add_argument("--player", help="only this player (substring, case-insensitive)")
     ap.add_argument("--height", type=int, default=1080)
     a = ap.parse_args()
@@ -301,6 +316,20 @@ def main():
     states = doc.get("states") or []
     if not moments:
         raise SystemExit(f"{a.events} has no moments — run qrscan.py or detect.py first.")
+
+    # One or the other: a measured lag, or the legacy windows. Mixing them silently would
+    # give boundaries a measured window and wickets a guessed one.
+    if (a.lag_bat is None) != (a.lag_bowl is None):
+        raise SystemExit("pass both --lag-bat and --lag-bowl, or neither")
+    if a.lag_bat is not None:
+        wins = windows_for(a.lag_bat, a.lag_bowl, a.lead, a.trail)
+        print(f"  lag {a.lag_bat:g}s bat / {a.lag_bowl:g}s bowl, "
+              f"-{a.lead:g}s/+{a.trail:g}s around the shot "
+              f"-> {a.lead + a.trail:g}s per clip")
+    else:
+        wins = WINDOWS
+        print("  ⚠ using the legacy windows — no --lag-bat/--lag-bowl given, so these "
+              "assume the reference match's scorer")
 
     by_player = attribute(moments, a.batting_innings)
     if a.player:
@@ -330,7 +359,7 @@ def main():
     for (player, role), ms in sorted(by_player.items(), key=lambda kv: -len(kv[1])):
         ms.sort(key=lambda m: m["t"])
         kinds = {k for m in ms for k in m["_kinds"]}
-        segs = segments(ms, types=kinds, windows=WINDOWS)
+        segs = segments(ms, types=kinds, windows=wins)
         if not segs:
             continue
         meta = metadata(player, ms, segs, a.match, a.team, states)

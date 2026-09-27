@@ -134,11 +134,60 @@ instead of 3818, and 66:34 as 3962 instead of 3994 — two of three timestamps w
 silently shifting the window earlier. Combined with hand-rolling the cut, the clip missed
 twice over.
 
+### 6b. 🛑 The lag is the SCORER's, not cricket's — measure it every match
+
+The windows are relative to the state change, and the state changes when the **scorer
+enters the ball**, not when it is bowled. That delay is a property of the person scoring:
+
+| Match | Boundary entered after the shot |
+|---|---|
+| reference (`Topguns vs Bazzigarz`) | **~5 s** |
+| `vs ATX Panthers` | **19 s** |
+
+⚠ **A window built for 5 s lands entirely in the aftermath at 19 s.** The first pass on
+`vs ATX Panthers` cut 22 s clips with `four: (-18, +4)`; every one of them held the batters
+talking and the crowd cheering, and none of them held the shot. The reels looked completely
+fine — right length, right crop, real cricket, no error anywhere.
+
+`windows_for(lag_bat, lag_bowl, lead, trail)` derives the windows instead: the shot sits at
+`-lag`, so keeping `lead` before and `trail` after gives a clip centred on the action.
+`reels.py --lag-bat 19 --lag-bowl <n>` cut Rakesh G's reel from **308 s to 70 s** and put
+the delivery in every clip.
+
+⚠ **This scorer entered balls in bursts**, so the lag is not perfectly constant — at the
+shot the overlay still read a state from 19 s earlier. A 5 s clip is therefore only as good
+as the lag's consistency; widen `trail` before `lead`, because the run-up is predictable
+and the aftermath is not.
+
+#### How to measure it
+
+1. Pick a boundary in `events.json` and note its `t` — that is the entry time.
+2. Scrub the recording back from `t` to where the bat meets the ball.
+3. `lag = t - shot`. Repeat for a wicket; dismissals take longer to enter.
+
+🛑 **Do not try to find the shot from the audio.** Bat on ball was attempted with a
+highpass-plus-onset detector: after restricting the search it looked convincing —
+median −7.7 s, 18/18 in a plausible range, sd 2.8 s — and it was wrong. Checking the frames
+at each detected onset showed between-ball moments every time. The DJI mic sits closer to
+the spectators than to the bat, so the detector locks onto chatter and applause. The
+statistics looked like a result; the pixels said otherwise.
+
 ### 6a. ✅ The overlay is its own witness: verify a clip before publishing it
 
 🛑 **"The cut succeeded" and "the shot is in the clip" are separate claims.** A clip that
 misses the ball looks perfectly fine — right length, right crop, real cricket, no error
 anywhere. Extracting one mid-clip frame proves only that the video is not black.
+
+🛑 **But do not check that the score changed inside the window — that check cannot fail.**
+The window is `[t-a, t+b]` around the state change, so `t` is inside it by construction and
+the delta is always there. On `vs ATX Panthers` this reported "28/28 clips confirmed" for
+reels that contained no shots at all. It was a tautology wearing the clothes of a
+verification.
+
+What the score *can* confirm is a clip cut around a KNOWN event time, as in the worked
+example below, where the window was chosen independently of the score. For per-player reels
+the only sound check is the lag measurement in §6b plus looking at a frame near the expected
+shot.
 
 Because the scorebar is **burnt into the footage**, the clip carries the evidence. Read the
 score at each end:
