@@ -71,7 +71,8 @@ const server = http.createServer(async (req, res) => {
 // ---------- what the recording says should have gone on air ----------
 function expectations() {
     const exp: { t: number; type: string; about: string }[] = [];
-    let maxW = [0, 0, 0], prevOut = '', bat = new Map<string, number>(), bowl = new Map<string, number>();
+    const marked = new Set<string>();
+    let maxW = [0, 0, 0], prevOut = '', dipped = false, bat = new Map<string, number>(), bowl = new Map<string, number>();
     let breakSeen = false, preSeen = false, endSeen = false, inns = 1, first = true;
     for (const r of frames.filter(r => r.view === 1 && r.data?.values && 'batsman1Name' in r.data.values)) {
         const v = r.data!.values!, balls = r.data!.balls ?? [];
@@ -82,21 +83,27 @@ function expectations() {
         const w = Number(chase ? v.t2Wickets : v.t1Wickets) || 0;
         const out = String(v.lastOutName ?? '');
         // The first frame is where the overlay starts, not an event; nothing is carded once the match is over.
+        // A card is due when the count RISES: to a new high, or back up after an undo with a different
+        // batter out (a correction). A scorer rewriting who was out without the count moving (seen on
+        // 4672: three names in two minutes at 5 down) raises nothing, and should not.
         if (first) { first = false; maxW[inns] = w; prevOut = out; }
-        else if (!ended && (w > maxW[inns] || (w === maxW[inns] && w > 0 && out && out !== prevOut))) exp.push({ t: r.t, type: 'wicket', about: `${w} ${out}` });
-        if (w >= maxW[inns]) { maxW[inns] = w; prevOut = out; }
+        else if (!ended && (w > maxW[inns] || (dipped && w === maxW[inns] && w > 0 && out && out !== prevOut))) exp.push({ t: r.t, type: 'wicket', about: `${w} ${out}` });
+        if (w < maxW[inns]) dipped = true;
+        if (w >= maxW[inns]) { if (w > maxW[inns] || dipped) prevOut = out; maxW[inns] = w; dipped = false; }
         for (const i of [1, 2]) {
             const id = String(v[`batsman${i}ID`] ?? ''), runs = Number(v[`batsman${i}Runs`]) || 0;
             if (!id) continue;
             const was = bat.get(id);
-            for (const mark of [50, 100]) if (!ended && was !== undefined && was < mark && runs >= mark) exp.push({ t: r.t, type: 'milestone', about: `${mark} ${v[`batsman${i}Name`]}` });
+            // once per batter and mark: a scorer's undo and redo can cross 100 twice (seen on 4670)
+            for (const mark of [50, 100]) if (!ended && was !== undefined && was < mark && runs >= mark && !marked.has(`${id}|${mark}`)) { marked.add(`${id}|${mark}`); exp.push({ t: r.t, type: 'milestone', about: `${mark} ${v[`batsman${i}Name`]}` }); }
             bat.set(id, runs);
         }
         const bid = String(v.bowlerID ?? v.bowlerName ?? ''), bw = Number(v.bowlerWickets) || 0;
         if (bid) { const was = bowl.get(bid); if (!ended && was !== undefined && was < 5 && bw >= 5) exp.push({ t: r.t, type: 'haul', about: `5 ${v.bowlerName}` }); bowl.set(bid, bw); }
         const total = Number(v.totalOvers) || 0, ov1 = parseFloat(String(v.t1Overs ?? '0')) || 0;
         const pre = !chase && !ov1 && !balls.length;
-        if (pre && !preSeen) { preSeen = true; exp.push({ t: r.t, type: 'lineup', about: 'before the first ball' }); }
+        // The line-up is due only while the openers are still to be picked (on 4674 they already were).
+        if (pre && !preSeen) { preSeen = true; if (!(String(v.batsman1Name ?? '').trim() && String(v.batsman2Name ?? '').trim())) exp.push({ t: r.t, type: 'lineup', about: 'before the first ball' }); }
         const complete = !chase && (Number(v.t1Wickets) >= 10 || (total > 0 && ov1 >= total));
         if ((complete || (chase && !parseFloat(String(v.t2Overs ?? '0')) && !balls.length)) && !breakSeen && String(v.isMatchEnded) !== '1') { breakSeen = true; exp.push({ t: r.t, type: 'innings-summary', about: 'the break' }); }
         if (String(v.isMatchEnded) === '1' && !endSeen) { endSeen = true; exp.push({ t: r.t, type: 'match-summary', about: String(v.result ?? '') }); }
@@ -144,7 +151,9 @@ async function main() {
     const qtype = (e: { type: string; mark?: number }) => e.type === 'milestone' && e.mark === 5 ? 'haul' : e.type;
     for (const type of ['wicket', 'milestone', 'haul', 'lineup', 'innings-summary', 'match-summary']) {
         const want = exp.filter(e => e.type === type), got = queued.filter(q => qtype(q) === type);
-        check(`${type}: one card per event in the recording`, got.length === want.length, `${got.length} queued for ${want.length} — ${want.map(w => w.about).join('; ').slice(0, 300)}`);
+        // The result is drawn again when a late award arrives, so it needs at least one showing.
+        const ok = type === 'match-summary' ? (got.length >= 1) === (want.length >= 1) : got.length === want.length;
+        check(`${type}: one card per event in the recording`, ok, `${got.length} queued for ${want.length} — ${want.map(w => w.about).join('; ').slice(0, 300)}`);
     }
     const shows = page.filter(e => e.kind === 'card:show');
     check('No page errors while recording', errors.length === 0, errors.map(e => e.text).join('; ').slice(0, 200) || 'none');
