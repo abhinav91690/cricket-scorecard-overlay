@@ -39,7 +39,15 @@ let view = 1;
 // The clock starts at the overlay's FIRST request, not at launch: Chrome and Vite take a few seconds
 // to come up, and at x15 that alone skipped 45 s of the recording — the whole wait for the openers.
 let startWall = 0;
-const recNow = () => t0 + (startWall ? Date.now() - startWall : 0) * SPEED;
+// ⚠ The first minute plays in REAL time. The overlay's pre-match decisions (squad peeks, then the
+// line-up until the openers are in) run on real-time delays that do not scale with SPEED, so at x15
+// the peeks alone ate 14 s of match: on 4678 the openers were picked 18 s in and the line-up was
+// (correctly) skipped. After that minute the recording runs at SPEED.
+const REAL_MS = 60_000;
+const recNow = () => {
+    const e = startWall ? Date.now() - startWall : 0;
+    return t0 + (e < REAL_MS ? e : REAL_MS + (e - REAL_MS) * SPEED);
+};
 const events: { wall: number; rec: number; kind: string; detail: unknown }[] = [];
 const latest = (pred: (r: Row) => boolean, at: number) => { let hit: Row | undefined; for (const r of frames) { if (r.t > at) break; if (pred(r)) hit = r; } return hit; };
 function frameFor(v: number, at: number): Row {
@@ -138,7 +146,7 @@ async function main() {
         const refresh = Math.max(100, Math.round(5000 / SPEED));
         const url = `${DEV}/?matchId=rec&clubId=rec&api=${encodeURIComponent(`http://localhost:${PORT}`)}&refresh=${refresh}&e2e&data=1`;
         await cdp.send('Page.navigate', { url });
-        const realMs = (tEnd - t0) / SPEED + 20_000;
+        const realMs = Math.min(tEnd - t0, REAL_MS) + Math.max(0, tEnd - t0 - REAL_MS) / SPEED + 20_000;
         console.log(`replaying ${MATCH}: ${frames.length} frames, ${Math.round((tEnd - t0) / 60000)} min of match in ${Math.round(realMs / 1000)} s at x${SPEED}`);
         await sleep(realMs);
         cdp.close();
