@@ -322,7 +322,45 @@ Batting reels (innings 1) are in much better shape than bowling reels (innings 2
 measured balls at ±0.25 s and six of nine blind checks good. **Watch the bowling reels before
 publishing.**
 
-### 6e. ✅ Clip width should carry the uncertainty — never drop
+### 6e. 🛑 Widening a clip to cover doubt was tried and is WORSE — keep them tight
+
+**Reverted after a second reel-by-reel review.** The reasoning below was sound and the
+measurement supported it — 8 of 8 hand-measured deliveries landed inside their clip, against
+5 of 8 for the tight cut — and it was still the wrong trade. Watching the result found three
+distinct new failures that no coverage metric sees:
+
+| widened clip | what it actually showed |
+|---|---|
+| 28 s | the **previous batter** playing the ball before |
+| 52 s | a **different bowler's** over entirely |
+| 27 s | the delivery at **0:22 of 0:27** — read as "missing the boundary" |
+
+🛑 **A clip showing the wrong player is worse than an absent clip**, and 22 s of dead lead-in
+followed by a cut 5 s after contact is worse than a short reel. The metric said the shot was
+in the clip; the viewer said the clip was about someone else. ⚠ Coverage of the right
+*instant* is not coverage of the right *ball* — a wide window spans neighbouring deliveries,
+and the neighbours belong to other players.
+
+Tight 8 s clips are the default again, and a ball with no confident delivery is **omitted**.
+`--widen` keeps the widening behaviour for review passes, where seeing more matters more than
+seeing the right person.
+
+⚠ **An "omit anything ambiguous" rule was priced and rejected**: it removes 15 of 35 reel
+clips and takes three verified-correct boundaries with it, to catch three verified-wrong ones.
+
+#### What survived the revert
+
+Three changes from that round are unambiguous wins, because none of them lengthens a clip:
+
+- `prefer_cluster_start()` — moved 8 reel balls 9-15 s earlier, and made a wicket that had
+  been missing entirely land exactly right. The reels confirmed good beforehand were untouched.
+- `dedupe_moments()` — §6f.
+- `combine_all_rounders()` — §13aa.
+
+#### The original reasoning, kept because the measurement stands
+
+##### Superseded: clip width should carry the uncertainty
+
 
 🛑 **Dropping a doubtful clip was wrong, and the reel-by-reel review proved it.** The tight
 8 s aligned cut was *worse* for bowling than the old fixed-lag cut it replaced, and the reason
@@ -642,7 +680,7 @@ the *first* moment — captioned with batting figures while containing a wicket.
 
 ✅ **Combining the two reels afterwards is a different thing, and is now the default.**
 `combine_all_rounders()` merges the two moment lists in time order into one `(player, 'all')`
-reel, captioned with both sets of figures — `"Anudeep K 7 (4) & 4/10 (2.1 ov)"`. Every moment
+reel, captioned with both sets of figures — `"A. Player 7 (4) & 4/10 (2.1 ov)"`. Every moment
 keeps its own `_role`, so clip widths and commentary lines stay role-correct; the bug above
 was never about one file, it was about reading one role off a mixed list.
 

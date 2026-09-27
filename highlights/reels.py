@@ -380,6 +380,11 @@ def main():
                          "aligning video motion to the scorer's entries (deliveries.py), "
                          "then cut around that. Needs no lag guess — the lag varied 5-44s "
                          "within one innings on vs ATX Panthers")
+    ap.add_argument("--widen", action="store_true",
+                    help="🛑 widen a clip when the delivery is uncertain instead of omitting "
+                         "the ball. Measured worse on `vs ATX Panthers`: wide clips showed the "
+                         "previous batter and a different bowler's over, and pushed the shot "
+                         "to the last seconds of a long clip. → highlights.md §6e")
     ap.add_argument("--split-roles", action="store_true",
                     help="give a player who both batted and bowled two reels instead of one "
                          "combined all-rounder reel")
@@ -409,9 +414,17 @@ def main():
     if a.align:
         import deliveries as dv
         for inn in sorted({m["innings"] - 1 for m in moments}):
-            got = dv.shot_brackets(a.video, states, inn,
-                                    cache=f"{a.out}/motion-inn{inn}.npy",
-                                    keep_suspect=a.keep_suspect)
+            if a.widen:
+                got = dv.shot_brackets(a.video, states, inn,
+                                       cache=f"{a.out}/motion-inn{inn}.npy",
+                                       keep_suspect=a.keep_suspect)
+            else:
+                # 🛑 Not shot_brackets(): that only MARKS a doubtful ball and widens it, so
+                # without --widen those balls would get a tight clip on a point nothing
+                # vouches for. shot_times() drops them, which is what the review asked for.
+                got = {e: (t, t) for e, t in dv.shot_times(
+                    a.video, states, inn, cache=f"{a.out}/motion-inn{inn}.npy",
+                    keep_suspect=a.keep_suspect).items()}
             shots.update(got)
             n = len(dv.entered_balls(states, inn))
             print(f"  innings {inn + 1}: {len(got)}/{n} balls located in the video")
@@ -466,34 +479,34 @@ def main():
         ms.sort(key=lambda m: m["t"])
         kinds = {k for m in ms for k in m["_kinds"]}
         if a.align:
-            # 🛑 Nothing is dropped. Each ball gets the narrowest clip its evidence supports:
-            # 8 s when one candidate is clearly the delivery, a span when rivals cannot be
-            # separated, and a window measured from the scorer's entry when no candidate was
-            # found at all. Dropping was tried and made the bowling reels worse than the old
-            # fixed-lag cut, which caught events simply by being wide. → highlights.md §6e
-            clips, tight, wide, fell_back = [], 0, 0, 0
+            # 🛑 Tight clips, and a ball with no confident delivery is OMITTED. Widening was
+            # tried instead and made things worse in three distinct ways, all confirmed by
+            # watching: a 28 s clip showed the PREVIOUS batter, a 52 s one showed a different
+            # bowler's over, and a 27 s one put the shot at 0:22 of 0:27 so it read as missing
+            # even though the delivery was in there. A wrong-player clip is worse than an
+            # absent one, and dead lead-in is worse than a short reel. → highlights.md §6e
+            clips, wide, missing = [], 0, 0
             for mom in ms:                     # not `m`: that is the probe() dict here
                 label = "+".join(mom["_kinds"])
                 hit = [t for t in shots if abs(t - mom["t"]) < 0.6]
-                if hit:
-                    lo, hi = shots[hit[0]]
-                    clips.append([max(0.0, lo - a.lead), hi + a.trail, label])
-                    if hi - lo > 0.5:
-                        wide += 1
-                    else:
-                        tight += 1
-                else:
-                    lead = (FALLBACK_LEAD_BOWL if mom["_role"] == "bowl"
-                            else FALLBACK_LEAD_BAT)
-                    clips.append([max(0.0, mom["t"] - lead),
-                                  mom["t"] + FALLBACK_TRAIL, label])
-                    fell_back += 1
+                if not hit:
+                    missing += 1
+                    continue
+                lo, hi = shots[hit[0]]
+                if not a.widen:
+                    lo = hi                     # the point estimate, not the span
+                elif hi - lo > 0.5:
+                    wide += 1
+                clips.append([max(0.0, lo - a.lead), hi + a.trail, label])
+            if not clips:
+                print("     (no located deliveries — skipped)")
+                continue
             segs = merge_clips(clips)
-            note = [f"{tight} tight"]
+            note = [f"{len(segs)} clip(s)"]
             if wide:
                 note.append(f"{wide} widened")
-            if fell_back:
-                note.append(f"{fell_back} from the scorer's entry (no delivery found)")
+            if missing:
+                note.append(f"⚠ {missing} ball(s) not located, omitted")
             print(f"     {', '.join(note)}")
         else:
             segs = segments(ms, types=kinds, windows=wins)

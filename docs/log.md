@@ -109,7 +109,25 @@ batter credited with three fours whose figures read `10 (5)`.
 different bowlers, and one bowler's four wickets span 28 minutes against figures of 2.1 overs.
 `--align` cannot fix that; a reel can hold the right ball under the wrong name.
 
-**All-rounders now get one combined reel** (`Anudeep-style "7 (4) & 4/10 (2.1 ov)"`), reversing
+🛑 **A second reel-by-reel review reverted the widening.** It had raised coverage from 5 of 8
+to 8 of 8 hand-measured deliveries, and it was still wrong: watching found three failures no
+coverage metric can see — a 28 s clip showing the **previous batter**, a 52 s clip showing a
+**different bowler's over**, and a 27 s clip with the delivery at **0:22 of 0:27**, which reads
+as missing even though it is there. A wrong-player clip is worse than an absent one.
+⚠ Coverage of the right *instant* is not coverage of the right *ball*: a wide window spans
+neighbouring deliveries, and the neighbours belong to other players. Tight 8 s clips are the
+default again and an unplaceable ball is omitted; `--widen` opts back in for review passes.
+
+⚠ An "omit anything ambiguous" rule was priced and rejected too — it removes 15 of 35 reel
+clips and takes three verified-correct boundaries to catch three verified-wrong ones.
+
+✅ Three changes from that round survived, because none of them lengthens a clip:
+`prefer_cluster_start()` (moved 8 reel balls 9-15 s earlier and made a previously-missing
+wicket land exactly right, leaving every confirmed-good reel untouched), `dedupe_moments()`
+and `combine_all_rounders()`. The reels confirmed good in the first review come out
+byte-identical.
+
+**All-rounders now get one combined reel** (captioned `"7 (4) & 4/10 (2.1 ov)"`), reversing
 §13aa's two-reel decision at the owner's request. Each moment keeps its own `_role` so clip
 widths and commentary lines stay role-correct; the reel takes the batting crop, since a file
 can only have one. `--split-roles` restores the old behaviour.

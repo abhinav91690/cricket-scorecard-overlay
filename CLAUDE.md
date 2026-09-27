@@ -174,11 +174,16 @@ changes every 5 overs but the action does not move in frame — side-on, both en
 centre (centroid 47-55% in every block). Footage shot from behind the bowler's arm would not
 have that property. → `highlights.md` §6d
 
-🛑 **Never drop a doubtful clip — widen it.** The tight 8 s aligned cut was *worse* for
-bowling than the 44 s fixed-lag cut it replaced, because a 44 s window brackets any lag and
-cannot miss. Clip width now carries the uncertainty: 8 s when confident, a span when
-candidates are rivals, and a window measured from the scorer's entry when no delivery was
-found. → `highlights.md` §6e
+🛑 **Keep clips tight and omit a ball you cannot place — widening was tried and is worse.**
+It raised measured coverage from 5/8 to 8/8 hand-measured deliveries and was still reverted:
+a 28 s clip showed the previous batter, a 52 s one a different bowler's over, and a 27 s one
+put the shot at 0:22 of 0:27. A wrong-player clip is worse than an absent one, and coverage of
+the right *instant* is not coverage of the right *ball*. `--widen` opts back in for review
+passes only. → `highlights.md` §6e
+
+⚠ **A coverage metric cannot see who is in the clip.** Every widening change looked like an
+improvement by the numbers and was rejected on sight. Watch the reels before believing a
+metric about them. → `highlights.md` §6e
 
 🛑 **A scorer retraction emits the same event twice**, the duplicate carrying the re-entry's
 timestamp — 256 s after the ball in the case that was caught, so its clip showed a different
