@@ -322,6 +322,88 @@ Batting reels (innings 1) are in much better shape than bowling reels (innings 2
 measured balls at ±0.25 s and six of nine blind checks good. **Watch the bowling reels before
 publishing.**
 
+### 6e. ✅ Clip width should carry the uncertainty — never drop
+
+🛑 **Dropping a doubtful clip was wrong, and the reel-by-reel review proved it.** The tight
+8 s aligned cut was *worse* for bowling than the old fixed-lag cut it replaced, and the reason
+is embarrassing once measured:
+
+| cut | seconds per clip |
+|---|---|
+| pre-alignment, batting | 22.0 (`-18…+4`) |
+| pre-alignment, bowling | 44.0 (`-40…+4`) |
+| aligned | 8.0 |
+
+A 44 s wicket clip starting 40 s before the entry brackets almost any lag and therefore
+**cannot miss**. It was never a better estimate — it was a wider net. So the thing worth
+keeping from it is not its timing but its width, as a fallback.
+
+Each ball now gets the narrowest clip its own evidence supports:
+
+| evidence | clip |
+|---|---|
+| one candidate clearly the delivery | **8 s** |
+| rival candidates that no rule separates | span them (`AMBIGUITY_WINDOW`, ~20-28 s) |
+| onset follows a busy field | span widened |
+| scorer stalled **and** the alignment is implausible for it | measured from the entry, `STALL_LEAD` |
+| no candidate at all | `FALLBACK_LEAD_BAT` / `FALLBACK_LEAD_BOWL` from the entry |
+
+Result on `vs ATX Panthers`: **8 of 8 hand-measured deliveries inside their clip**, 19 of 39
+reel clips still tight at 8 s, median 18.2 s.
+
+#### What the failures had in common
+
+Every mis-aligned clip in the review had an abnormally **small** lag — the aligner had locked
+onto a burst *after* the ball. Never once was it too early.
+
+| reviewed as | lag |
+|---|---|
+| good | 11.8, 26.1, 23.9, 8.7, 6.1 s |
+| **wrong** | **5.1, 7.3, 4.3, 4.0, 7.8 s** |
+
+⚠ But a small lag is not itself a fault — 8.7 s and 6.1 s balls were verified correct, so a
+blanket small-lag penalty breaks as much as it fixes. It only becomes a signal in combination:
+`prefer_cluster_start()` moves a match to the first burst of its cluster, and a stall only
+widens when the lag is *also* below the innings median.
+
+#### 🛑 The hardest case: a delivery that was never detected
+
+One wicket had a **46.7 s** lag and its delivery was not among the motion candidates at all —
+the nearest were 15 s early and 11 s late. No span, no cluster rule and no threshold can
+recover a ball the detector never saw; only a window measured from the scorer's entry can, and
+it has to reach past 50 s. Its one distinguishing feature was that the previous ball was
+entered 65.8 s earlier — the scorer had stalled.
+
+⚠ **Adaptive thresholds, not fractions of the median.** `QUIET_FRAC` and `SUSPECT_PRE_FRAC`
+as fractions of the curve median are nearly inert in the second innings, where tighter framing
+lifts every level: real deliveries measured 4.89-5.67 against a 4.84 threshold, so nearly
+every ball read as doubtful and got widened for nothing. `STILL_PCT`/`BUSY_PCT` take
+percentiles of the innings' own pre-onset distribution instead.
+
+### 6f. 🛑 A scorer retraction produces the SAME event twice
+
+A retracted-and-re-entered ball emits a second, identical moment carrying the **re-entry's**
+timestamp:
+
+```
+9080.7  213/3  10(5)   boundary entered
+9098.1  209/3   6(4)   retracted
+9118.2  213/3  10(5)   re-entered, outcome "4"   <- second moment, 256 s after the ball
+```
+
+Its clip showed a different player getting out. There were **18 retraction events** in this
+match, and two produced duplicate moments. `dedupe_moments()` keeps the earliest of any
+identical `(innings, ball, striker, strikerScore, score, outcome)`.
+
+⚠ **An independent check catches this without the state trace**: a batter credited with three
+fours whose figures read `10 (5)`. Three fours is 12 runs. When a reel's clip count disagrees
+with the player's own boundary count, suspect a duplicate before suspecting the timing.
+
+⚠ **Bowler attribution is separately unreliable.** In one over the payload named two different
+bowlers for the same ball, and one bowler's four wickets span 28 minutes while their figures
+read 2.1 overs. That is the scorer's data, not a clip-timing fault, and `--align` cannot fix
+it — a reel can contain the right ball attributed to the wrong bowler.
+
 ### 6a. ✅ The overlay is its own witness: verify a clip before publishing it
 
 🛑 **"The cut succeeded" and "the shot is in the clip" are separate claims.** A clip that
@@ -548,15 +630,25 @@ failure class this pipeline keeps getting caught by.
 aspect. Verified by re-scanning a finished reel: `qrscan.py` decoded **0 of 80** keyframes,
 against 13 of 13 on the source.
 
-### 13aa. 🛑 One player, two roles, two reels
+### 13aa. 🛑 One player, two roles — attributed separately, then combined on purpose
 
-Reels are keyed by **(player, role)**, and the role is in the filename —
-`v-kohli-batting.mp4`, `v-kohli-bowling.mp4`.
+Moments are attributed by **(player, role)**, and the role is in the filename —
+`v-kohli-batting.mp4`, `v-kohli-bowling.mp4`, `v-kohli-allrounder.mp4`.
 
-Keyed by name alone, an all-rounder who hit a four and later took a wicket got **one** reel
-holding both, and every caption helper reads the role off the first moment — so it would have
-been captioned with batting figures while containing a wicket. It also made the per-role crop
-above impossible to apply. Pinned by `test_an_all_rounder_gets_one_reel_per_role`.
+🛑 **The attribution key must stay (player, role).** Keyed by name alone, an all-rounder who
+hit a four and later took a wicket got one reel whose caption helpers all read the role off
+the *first* moment — captioned with batting figures while containing a wicket. Pinned by
+`test_an_all_rounder_gets_one_reel_per_role`.
+
+✅ **Combining the two reels afterwards is a different thing, and is now the default.**
+`combine_all_rounders()` merges the two moment lists in time order into one `(player, 'all')`
+reel, captioned with both sets of figures — `"Anudeep K 7 (4) & 4/10 (2.1 ov)"`. Every moment
+keeps its own `_role`, so clip widths and commentary lines stay role-correct; the bug above
+was never about one file, it was about reading one role off a mixed list.
+
+⚠ **The combined reel takes the batting crop**, because a single file can only have one and
+the per-role crop below cannot apply to both halves. `--split-roles` restores two reels when
+the crops matter more than having one file.
 
 ### 13b. Captions travel in a sidecar
 

@@ -174,6 +174,25 @@ changes every 5 overs but the action does not move in frame — side-on, both en
 centre (centroid 47-55% in every block). Footage shot from behind the bowler's arm would not
 have that property. → `highlights.md` §6d
 
+🛑 **Never drop a doubtful clip — widen it.** The tight 8 s aligned cut was *worse* for
+bowling than the 44 s fixed-lag cut it replaced, because a 44 s window brackets any lag and
+cannot miss. Clip width now carries the uncertainty: 8 s when confident, a span when
+candidates are rivals, and a window measured from the scorer's entry when no delivery was
+found. → `highlights.md` §6e
+
+🛑 **A scorer retraction emits the same event twice**, the duplicate carrying the re-entry's
+timestamp — 256 s after the ball in the case that was caught, so its clip showed a different
+player getting out. `dedupe_moments()` keeps the earliest. ⚠ The tell without a state trace:
+a batter credited with three fours whose figures read `10 (5)`. → `highlights.md` §6f
+
+⚠ **Bowler attribution is the scorer's data and is sometimes wrong** — one over named two
+bowlers, and one bowler's four wickets span 28 minutes against figures of 2.1 overs. No clip
+timing can fix that. → `highlights.md` §6f
+
+⚠ **Every mis-aligned clip found by review had too SMALL a lag**, never too large — the
+aligner had locked onto a burst after the ball. But small lags are often correct (6.1 s and
+8.7 s balls verified good), so it is only a signal in combination. → `highlights.md` §6e
+
 ⚠ **An outlying scorer lag is the tell for a mis-aligned clip.** Both mis-alignments ever
 confirmed by eye were the largest lag in their innings and nothing else was, so `shot_times()`
 drops them — floored at 30 s, because a uniformly slow scorer is not a mis-alignment. It

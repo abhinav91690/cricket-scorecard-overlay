@@ -85,12 +85,57 @@ LAG_OUTLIER_FLOOR = 30.0
 # `snap_to_quiet()` — this is the only thing that separated a real delivery from the
 # aftermath 5 s later when the aftermath was the stronger burst.
 PRE_WINDOW = 2.5            # seconds before an onset used to judge "was the field still?"
+# 🛑 Judge "still" against the innings' OWN pre-onset distribution, not a fraction of the
+# curve median. A fraction of the median was tried and is nearly inert in the second innings,
+# where the tighter framing lifts every level: real deliveries measured 4.89-5.67 against a
+# 4.84 threshold, so almost every ball read as doubtful and got widened for nothing. These
+# percentiles adapt to whatever the framing does.
+STILL_PCT = 40.0            # a pre-onset in the quietest this fraction reads as "field set"
+BUSY_PCT = 85.0             # at or above this it reads as "the previous ball still unwinding"
 QUIET_FRAC = 0.9            # still = below this fraction of the innings' median motion
 SNAP_WINDOW = 8.0           # how far back to look for a quiet-preceded candidate
 # And if the snap could find no still-preceded candidate, distrust the match entirely.
 # Innings-2 wickets verified good by eye sat at pre-onset 3.90-5.67 against a median of
 # 5.38; the two verified bad sat at 7.58 and 7.91 — a clean gap at 1.35x the median.
 SUSPECT_PRE_FRAC = 1.35
+
+# 🛑 Within one ball the FIRST burst is the delivery and the rest are the aftermath, so a
+# match is moved to the start of its cluster. Every mis-aligned clip found in the reel-by-reel
+# review was too LATE and never too early, and in each one the true delivery was the cluster's
+# first candidate — confirmed frame by frame at lags of 25.9 s, 18.6 s and 21.2 s where the
+# aligner had chosen 5.2 s, 4.4 s and 7.8 s.
+# ⚠ 10 s and no more. At 12 s this rule reaches back past a genuinely separate ball and broke
+# a reel that had been confirmed perfect (a four moved from a 12.7 s lag to 24.2 s). Balls are
+# sometimes 12 s apart and sometimes 25 s, so no gap separates them cleanly; 10 s is the
+# largest that regressed nothing.
+CLUSTER_GAP = 10.0
+
+# 🛑 When two bursts are rivals for the same ball and no rule can separate them, the clip
+# should say so rather than pick. An earlier candidate within this window is a rival, and
+# `shot_brackets()` returns a span covering both instead of a point — so the clip gets wider
+# exactly where the estimate is less certain. Balls with a single candidate stay tight.
+# This is what replaced dropping: a 20 s clip that certainly holds the ball beats an 8 s one
+# that might not, and beats no clip at all.
+AMBIGUITY_WINDOW = 20.0
+
+# 🛑 When the scorer STALLS, the lag that follows is untrustworthy and sometimes enormous.
+# Balls are entered ~25-30 s apart; a wicket whose previous entry was 65.8 s earlier turned out
+# to have a 46.7 s lag, and its delivery was not even among the motion candidates — so no span
+# could reach it and only a window measured from the entry can. A stall is flagged when the gap
+# to the previous entry exceeds STALL_FACTOR x the innings' median gap, and a flagged ball gets
+# STALL_LEAD of run-up.
+# ⚠ A stall alone over-flags badly: 51 of 208 balls, including one aligned perfectly that
+# turned an 8 s clip into 48 s. So a stall widens only when the alignment is ALSO implausible
+# for it — either the onset fails the still-field test, or the claimed lag is below this
+# innings' median. A 66 s stall that supposedly ended with a ball bowled 4 s earlier makes no
+# sense; a 74 s stall ending in a 14 s lag is ordinary, and that ball stays tight at 8 s.
+STALL_FACTOR = 1.8
+STALL_LEAD = 55.0
+# ⚠ "Below the median" is far too loose a second condition: it fired on two balls that had
+# been confirmed perfect by eye and turned an 8 s clip into 51 s, pushing reels over the 60 s
+# Shorts line for nothing. The lag has to be well below the median before a stall counts —
+# the ball that genuinely needed this claimed 4.0 s against a median of 8.6 s.
+SHORT_LAG_FRAC = 0.6
 
 LAG_MIN, LAG_MAX = 2.0, 90.0
 SKIP_DELIVERY, SKIP_ENTRY, SMOOTH, STRENGTH = 1.0, 30.0, 0.5, 8.0
@@ -270,6 +315,23 @@ def pre_onset_level(sm: np.ndarray, j: int) -> float:
     return float(sm[p0:j + 1].mean()) if j > p0 else float(sm[j])
 
 
+def pre_levels(sm: np.ndarray, times: np.ndarray, t0: float) -> np.ndarray:
+    """Pre-onset level for every candidate, in candidate order."""
+    idx = np.clip(np.round((times - t0) * FPS).astype(int), 0, len(sm) - 1)
+    return np.array([pre_onset_level(sm, j) for j in idx])
+
+
+def still_and_busy(pre: np.ndarray, median: float) -> tuple[float, float]:
+    """-> (still threshold, busy threshold) from the innings' own distribution.
+
+    ⚠ Falls back to the fraction-of-median form when there are too few candidates to take a
+    percentile from, so a short innings still gets sane thresholds.
+    """
+    if len(pre) < 20:
+        return QUIET_FRAC * median, SUSPECT_PRE_FRAC * median
+    return (float(np.percentile(pre, STILL_PCT)), float(np.percentile(pre, BUSY_PCT)))
+
+
 def snap_to_quiet(sm: np.ndarray, times: np.ndarray, pairs: dict[int, int],
                   t0: float) -> dict[int, int]:
     """Move a match off an aftermath burst onto the delivery that caused it.
@@ -292,7 +354,8 @@ def snap_to_quiet(sm: np.ndarray, times: np.ndarray, pairs: dict[int, int],
     SNAP_WINDOW seconds for one that was. Stable for QUIET_FRAC 0.8-1.1, and it leaves every
     already-correct ball alone.
     """
-    quiet = QUIET_FRAC * float(np.median(sm))
+    pre = pre_levels(sm, times, t0)
+    quiet, _ = still_and_busy(pre, float(np.median(sm)))
     idx = np.round((times - t0) * FPS).astype(int)
     idx = np.clip(idx, 0, len(sm) - 1)
     out = dict(pairs)
@@ -308,6 +371,31 @@ def snap_to_quiet(sm: np.ndarray, times: np.ndarray, pairs: dict[int, int],
     return out
 
 
+def prefer_cluster_start(times: np.ndarray, pairs: dict[int, int],
+                        gap: float = CLUSTER_GAP) -> dict[int, int]:
+    """Move each match back to the first candidate of its burst cluster.
+
+    See CLUSTER_GAP. A match never moves onto a candidate already taken by an earlier entry,
+    so the alignment stays monotonic.
+    """
+    taken = {j: k for k, j in pairs.items()}
+    out = dict(pairs)
+    for k in sorted(pairs):
+        j = pairs[k]
+        first = j
+        while first > 0 and times[first] - times[first - 1] <= gap:
+            nxt = first - 1
+            owner = taken.get(nxt)
+            if owner is not None and owner != k:
+                break                        # that burst belongs to an earlier ball
+            first = nxt
+        if first != j:
+            taken.pop(j, None)
+            taken[first] = k
+            out[k] = first
+    return out
+
+
 def drop_busy_preceded(sm: np.ndarray, times: np.ndarray, pairs: dict[int, int],
                        t0: float) -> tuple[dict[int, int], int]:
     """Drop matches still sitting on a burst that a busy field ran into. -> (kept, n dropped).
@@ -320,7 +408,8 @@ def drop_busy_preceded(sm: np.ndarray, times: np.ndarray, pairs: dict[int, int],
     🛑 It is not a complete filter. A third bad clip had a pre-onset level of 5.22, below the
     innings median, and is indistinguishable by this signal — so keep reviewing reel by reel.
     """
-    thr = SUSPECT_PRE_FRAC * float(np.median(sm))
+    pre = pre_levels(sm, times, t0)
+    _, thr = still_and_busy(pre, float(np.median(sm)))
     idx = np.clip(np.round((times - t0) * FPS).astype(int), 0, len(sm) - 1)
     kept = {k: j for k, j in pairs.items() if pre_onset_level(sm, idx[j]) <= thr}
     return kept, len(pairs) - len(kept)
@@ -343,6 +432,72 @@ def drop_lag_outliers(shots: dict[float, float]) -> tuple[dict[float, float], li
     return kept, sorted(e - s for e, s in shots.items() if (e - s) > thr)
 
 
+def shot_brackets(src: str, states: list[dict], innings: int, cache: str | None = None,
+                  keep_suspect: bool = False) -> dict[float, tuple[float, float]]:
+    """-> {entry time: (earliest plausible shot, chosen shot)} for one innings.
+
+    The two are equal when only one candidate was in play, which is the common case. When an
+    earlier rival sits within `AMBIGUITY_WINDOW` the span is returned instead, and the caller
+    widens the clip to cover it. ⚠ A span never reaches back onto a candidate matched to an
+    earlier ball, so clips cannot swallow the previous delivery.
+    """
+    entries = entered_balls(states, innings)
+    if not entries:
+        return {}
+    t0, t1 = max(0.0, entries[0] - 120), entries[-1] + 30
+    curve = motion_curve(src, t0, t1, cache)
+    times, strength = candidates(curve, t0, int(len(entries) * CANDIDATES_PER_BALL))
+    pairs = align(entries, times, strength)
+    sm = np.convolve(curve, np.ones(4) / 4, mode="same")
+    pairs = snap_to_quiet(sm, times, pairs, t0)
+    pairs = prefer_cluster_start(times, pairs)
+    # 🛑 Nothing is dropped here. `drop_busy_preceded()` is used only to mark which matches
+    # are doubtful; a doubtful ball gets the FULL ambiguity window instead of being thrown
+    # away, because dropping is what made the bowling reels worse than the old fixed-lag cut.
+    kept, _ = drop_busy_preceded(sm, times, pairs, t0)
+    doubtful = set(pairs) - set(kept)
+    # Which entries followed a stall? Measured on the entry sequence, not the video.
+    gaps = np.diff(entries) if len(entries) > 1 else np.array([30.0])
+    med_gap = float(np.median(gaps)) if len(gaps) else 30.0
+    stalled = {k for k in range(1, len(entries))
+               if entries[k] - entries[k - 1] > STALL_FACTOR * med_gap}
+    # Onsets that do not read as a still-preceded delivery (a weaker bar than `doubtful`).
+    pre_all = pre_levels(sm, times, t0)
+    quiet_thr, _ = still_and_busy(pre_all, float(np.median(sm)))
+    doubtful_still = {k for k, j in pairs.items() if pre_all[j] > quiet_thr}
+    # A lag below this innings' median is not wrong on its own — plenty of correct balls sit
+    # there — but combined with a stall it means the aligner found the wrong burst.
+    all_lags = np.array([entries[k] - (times[j] + ONSET_TO_SHOT) for k, j in pairs.items()])
+    med_lag = float(np.median(all_lags)) if len(all_lags) else 0.0
+    short_lag = {k for k, j in pairs.items()
+                 if entries[k] - (times[j] + ONSET_TO_SHOT) < SHORT_LAG_FRAC * med_lag}
+    taken = set(pairs.values())
+    out: dict[float, tuple[float, float]] = {}
+    for k, j in pairs.items():
+        lo = j
+        while lo > 0:
+            nxt = lo - 1
+            if times[j] - times[nxt] > AMBIGUITY_WINDOW or nxt in taken:
+                break
+            lo = nxt
+        lo_t = float(times[lo] + ONSET_TO_SHOT)
+        hi_t = float(times[j] + ONSET_TO_SHOT)
+        if not keep_suspect:
+            if k in doubtful:
+                # No candidate here reads as a delivery: trust the span, not the point.
+                lo_t = min(lo_t, hi_t - AMBIGUITY_WINDOW)
+            if k in stalled and (k in doubtful_still or k in short_lag):
+                # The scorer stalled AND this onset does not look like a delivery, so measure
+                # from the ENTRY rather than trusting a candidate.
+                lo_t = min(lo_t, entries[k] - STALL_LEAD)
+        out[entries[k]] = (lo_t, hi_t)
+    if not keep_suspect and (doubtful or stalled):
+        print(f"    widened: {len(doubtful)} after a busy field, "
+              f"{len(stalled & (doubtful_still | short_lag))} after a scorer stall "
+              f"(median gap {med_gap:.0f}s)")
+    return out
+
+
 def shot_times(src: str, states: list[dict], innings: int, cache: str | None = None,
                keep_suspect: bool = False) -> dict[float, float]:
     """-> {entry time: time the ball was actually bowled}, for one innings."""
@@ -357,6 +512,7 @@ def shot_times(src: str, states: list[dict], innings: int, cache: str | None = N
     pairs = align(entries, times, strength)
     sm = np.convolve(curve, np.ones(4) / 4, mode="same")
     pairs = snap_to_quiet(sm, times, pairs, t0)
+    pairs = prefer_cluster_start(times, pairs)
     if keep_suspect:
         return {entries[k]: float(times[j] + ONSET_TO_SHOT) for k, j in pairs.items()}
     pairs, n_busy = drop_busy_preceded(sm, times, pairs, t0)

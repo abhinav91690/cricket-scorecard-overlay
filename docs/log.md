@@ -77,6 +77,43 @@ not reach, a flat baseline giving an unrealistically low median for `SUSPECT_PRE
 failure was the fixture's fault, and one draft asserted the guard dropped a ball that the snap
 actually fixes — a false claim that passed review until the numbers were checked.
 
+**Then a reel-by-reel review of all ten reels showed the tight cut was worse for bowling than
+the fixed-lag cut it replaced**, and the reason was that the old cut was 44 s per wicket clip
+against 8 s. A 44 s window starting 40 s before the entry brackets almost any lag and cannot
+miss; it was never a better estimate, only a wider net. Asked whether to drop that data point
+or go hybrid: **hybrid, and what it contributes is width, not timing.** Clip width now carries
+the uncertainty — 8 s when one candidate is clearly the delivery, a span when rivals cannot be
+separated, and a window measured from the scorer's entry when no candidate was found at all.
+🛑 Nothing is dropped any more. 8 of 8 hand-measured deliveries now sit inside their clip, 19
+of 39 clips stay tight, median 18.2 s.
+
+Every mis-aligned clip the review found had too **small** a lag (4.0-7.8 s) and never too
+large (good ones ran 6.1-26.1 s) — the aligner had locked onto a burst after the ball. ⚠ Small
+lags are often correct though, so it only works as a signal in combination: `prefer_cluster_start()`
+takes the first burst of a cluster at a 10 s gap, and a scorer stall only widens a clip when
+the lag is also below the innings median. A 12 s cluster gap fixes one more ball and breaks a
+reel that had been confirmed perfect, so 10 s it is.
+
+🛑 The hardest ball had a **46.7 s** lag and its delivery was never detected at all — nearest
+candidates 15 s early and 11 s late. Nothing derived from candidates can recover it; only the
+entry-measured fallback, reaching past 50 s. Its only tell was a 65.8 s gap to the previous
+entry.
+
+🛑 **A scorer retraction emits the same event twice.** 18 retractions in this match; two
+produced duplicate moments carrying the re-entry's timestamp, 256 s after the ball, and one of
+those clips showed a different player getting out. `dedupe_moments()` keeps the earliest of an
+identical `(innings, ball, striker, strikerScore, score, outcome)`. ⚠ The independent tell: a
+batter credited with three fours whose figures read `10 (5)`.
+
+⚠ **Bowler attribution is the scorer's own data and is sometimes wrong** — one over named two
+different bowlers, and one bowler's four wickets span 28 minutes against figures of 2.1 overs.
+`--align` cannot fix that; a reel can hold the right ball under the wrong name.
+
+**All-rounders now get one combined reel** (`Anudeep-style "7 (4) & 4/10 (2.1 ov)"`), reversing
+§13aa's two-reel decision at the owner's request. Each moment keeps its own `_role` so clip
+widths and commentary lines stay role-correct; the reel takes the batting crop, since a file
+can only have one. `--split-roles` restores the old behaviour.
+
 `DEFAULT_LEAD`/`DEFAULT_TRAIL` are now **3 s / 5 s**. With the shot located to a quarter-second
 the lead no longer buys insurance against a bad estimate, so the time goes after the ball.
 

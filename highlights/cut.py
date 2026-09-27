@@ -81,6 +81,34 @@ def segments(events, types=None, windows=WINDOWS):
     return merged
 
 
+# The widest a fallback clip gets when no delivery was located at all, measured from the
+# scorer's entry. 🛑 These are the old fixed-lag windows, kept for exactly this job: they are
+# wide enough that the ball is in there somewhere, which is why the pre-alignment cut caught
+# events the tight aligned cut missed. Bowling needs more because a dismissal is entered
+# slowly — measured wicket lags on `vs ATX Panthers` ran 6-45 s.
+FALLBACK_LEAD_BAT = 30.0
+FALLBACK_LEAD_BOWL = 44.0
+FALLBACK_TRAIL = 4.0
+
+
+def merge_clips(clips):
+    """Merge overlapping [start, end, label] clips, unioning their labels.
+
+    One ball can raise two events (a four that also brings up a fifty), and a widened clip can
+    overlap its neighbour. Either way the footage belongs in the reel once.
+    """
+    merged = []
+    for a, b, k in sorted(clips):
+        if merged and a <= merged[-1][1] + 1.0:
+            merged[-1][1] = max(merged[-1][1], b)
+            for part in str(k).split('+'):
+                if part not in merged[-1][2].split('+'):
+                    merged[-1][2] += '+' + part
+        else:
+            merged.append([a, b, str(k)])
+    return merged
+
+
 def segments_at(shots, lead=DEFAULT_LEAD, trail=DEFAULT_TRAIL, labels=None):
     """Clips around ABSOLUTE shot times, rather than offsets from the scorer's entry.
 
@@ -91,20 +119,8 @@ def segments_at(shots, lead=DEFAULT_LEAD, trail=DEFAULT_TRAIL, labels=None):
     Overlapping clips are merged, exactly as `segments()` does, so two events on one ball
     (a four that also brings up a fifty) do not put the same footage in twice.
     """
-    segs = []
-    for i, t in enumerate(sorted(shots)):
-        label = (labels or {}).get(t, 'shot')
-        segs.append([max(0.0, t - lead), t + trail, label])
-    merged = []
-    for a, b, k in segs:
-        if merged and a <= merged[-1][1] + 1.0:
-            merged[-1][1] = max(merged[-1][1], b)
-            for part in k.split('+'):
-                if part not in merged[-1][2].split('+'):
-                    merged[-1][2] += '+' + part
-        else:
-            merged.append([a, b, k])
-    return merged
+    return merge_clips([[max(0.0, t - lead), t + trail, (labels or {}).get(t, 'shot')]
+                        for t in sorted(shots)])
 
 
 def cut(video, segs, out, height=1080, bitrate='10M', keep_clips=False, vf=None):

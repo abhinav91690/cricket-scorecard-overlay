@@ -384,6 +384,59 @@ def test_an_unknown_aspect_is_refused():
     raise AssertionError("expected ValueError for a landscape aspect")
 
 
+# --- scorer retractions and all-rounder reels ------------------------------------------
+
+def test_dedupe_drops_a_retracted_and_reentered_ball():
+    """🛑 The scorer retracted a boundary and re-entered it 256 s later. The duplicate's
+    timestamp is not the ball's, so its clip showed a different player getting out."""
+    from reels import dedupe_moments
+    base = {"innings": 1, "ball": 109, "striker": "A", "strikerScore": "10(5)",
+            "score": "213/3", "outcome": "4", "types": ["four"]}
+    ms, n = dedupe_moments([{**base, "t": 8862.4}, {**base, "t": 9118.2}])
+    assert n == 1 and len(ms) == 1, f"dropped {n}, kept {len(ms)}"
+    assert ms[0]["t"] == 8862.4, "the earlier timestamp is the one nearer the ball"
+
+
+def test_dedupe_keeps_two_genuinely_different_balls():
+    """⚠ Load-bearing: a signature differing only by ball number must survive, or the dedupe
+    would silently eat a batter's repeated identical-looking boundaries."""
+    from reels import dedupe_moments
+    base = {"innings": 1, "striker": "A", "strikerScore": "10(5)", "score": "213/3",
+            "outcome": "4", "types": ["four"]}
+    ms, n = dedupe_moments([{**base, "ball": 109, "t": 100.0},
+                            {**base, "ball": 115, "t": 200.0}])
+    assert n == 0 and len(ms) == 2, f"ate a real ball: dropped {n}"
+
+
+def test_all_rounder_gets_one_reel_with_both_figures():
+    from reels import combine_all_rounders, headline, roles_in
+    bat = [{"t": 10.0, "_role": "bat", "_kinds": ["four"], "types": ["four"]}]
+    bowl = [{"t": 500.0, "_role": "bowl", "_kinds": ["wicket"], "types": ["wicket"]}]
+    out = combine_all_rounders({("A", "bat"): bat, ("A", "bowl"): bowl,
+                                ("B", "bat"): list(bat)})
+    assert ("A", "all") in out, "all-rounder was not collapsed into one reel"
+    assert ("A", "bat") not in out and ("A", "bowl") not in out, "split reels remain"
+    assert ("B", "bat") in out, "a single-role player must be untouched"
+    assert [m["t"] for m in out[("A", "all")]] == [10.0, 500.0], "not in time order"
+    assert roles_in(out[("A", "all")]) == ["bat", "bowl"]
+    states = [{"fields": {"strikerName": "A", "strikerRuns": 7, "strikerBalls": 4,
+                          "strikerFours": 1, "strikerSixes": 0}},
+              {"fields": {"bowlerName": "A", "bowlerWickets": 4, "bowlerRuns": 10,
+                          "bowlerBalls": 13, "bowlerMaidens": 0}}]
+    h = headline("A", out[("A", "all")], None, states)
+    assert "7 (4)" in h and "4/10" in h and "&" in h, f"headline lost a role: {h!r}"
+
+
+def test_each_moment_keeps_its_own_role_in_a_combined_reel():
+    """⚠ Clip width and the commentary line are per-role, so roles must survive the merge —
+    this is the all-rounder bug from §13aa in a new place."""
+    from reels import combine_all_rounders
+    bat = [{"t": 10.0, "_role": "bat", "_kinds": ["four"], "types": ["four"]}]
+    bowl = [{"t": 500.0, "_role": "bowl", "_kinds": ["wicket"], "types": ["wicket"]}]
+    out = combine_all_rounders({("A", "bat"): bat, ("A", "bowl"): bowl})
+    assert [m["_role"] for m in out[("A", "all")]] == ["bat", "bowl"], "roles lost"
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     bad = 0

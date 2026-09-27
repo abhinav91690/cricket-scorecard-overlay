@@ -33,14 +33,15 @@ import json
 import os
 import re
 
-from cut import (ASPECTS, DEFAULT_LEAD, DEFAULT_TRAIL, WINDOWS, crop_filter,
-                 cut, segments, segments_at, windows_for)
+from cut import (ASPECTS, DEFAULT_LEAD, DEFAULT_TRAIL, FALLBACK_LEAD_BAT,
+                 FALLBACK_LEAD_BOWL, FALLBACK_TRAIL, WINDOWS, crop_filter, cut,
+                 merge_clips, segments, segments_at, windows_for)
 from detect import probe
 
 # What counts as a player's own highlight, by the role they were in.
 BATTING_TYPES = ('four', 'six')
 FIELDING_TYPES = ('wicket',)
-ROLE_NAME = {'bat': 'batting', 'bowl': 'bowling'}
+ROLE_NAME = {'bat': 'batting', 'bowl': 'bowling', 'all': 'allrounder'}
 
 
 def parse_aspects(spec: str) -> list:
@@ -60,6 +61,54 @@ def slug(name: str) -> str:
     """'V. KOHLI' -> 'v-kohli'. Stable, filesystem-safe, no accidental collisions."""
     s = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
     return s or "unknown"
+
+
+def dedupe_moments(moments: list[dict]) -> tuple[list[dict], int]:
+    """Drop moments the scorer entered twice. -> (kept, n dropped).
+
+    🛑 A scorer who retracts a ball and re-enters it produces the SAME event twice, and the
+    second copy carries the re-entry's timestamp — 256 s later in the case that exposed this,
+    so its clip showed a different player getting out entirely. The state trace:
+
+        9080.7  213/3  10(5)   boundary entered
+        9098.1  209/3   6(4)   retracted
+        9118.2  213/3  10(5)   re-entered, outcome "4"
+
+    The duplicate is exact — same ball number, score, striker score and outcome — so keeping
+    the earliest is both safe and correct: the earlier timestamp is the one nearer the ball.
+    ⚠ An independent check caught the same thing: three "fours" for a batter whose figures
+    read 10 (5), when three fours is 12 runs.
+    """
+    seen, kept, dropped = set(), [], 0
+    for m in sorted(moments, key=lambda m: m["t"]):
+        sig = (m.get("innings"), m.get("ball"), m.get("striker"), m.get("strikerScore"),
+               m.get("score"), m.get("outcome"))
+        if sig in seen:
+            dropped += 1
+            continue
+        seen.add(sig)
+        kept.append(m)
+    return kept, dropped
+
+
+def combine_all_rounders(by_player: dict[tuple, list[dict]]) -> dict[tuple, list[dict]]:
+    """Merge a player's batting and bowling moments into one 'all' reel, in time order.
+
+    Each moment keeps its own `_role`, so per-clip widths and the commentary lines stay
+    role-correct; only the reel and its caption are shared. ⚠ The reel takes the BATTING crop,
+    because a single file can only have one — `docs/highlights.md` §13aa has the trade-off.
+    """
+    players = {p for p, _ in by_player}
+    out: dict[tuple, list[dict]] = {}
+    for p in players:
+        bat, bowl = by_player.get((p, "bat")), by_player.get((p, "bowl"))
+        if bat and bowl:
+            out[(p, "all")] = sorted(bat + bowl, key=lambda m: m["t"])
+        elif bat:
+            out[(p, "bat")] = bat
+        elif bowl:
+            out[(p, "bowl")] = bowl
+    return out
 
 
 def attribute(moments: list[dict], batting_innings: int) -> dict[tuple, list[dict]]:
@@ -165,32 +214,51 @@ def breakdown(fig: dict | None, role: str) -> str:
     return ", ".join(bits)
 
 
-def headline(player: str, moments: list[dict], fig: dict | None) -> str:
-    """'V. Kohli 46 (28)' or 'J. Bumrah 3/24 (4.0 ov)' — how a scorecard would say it."""
+def roles_in(moments: list[dict]) -> list[str]:
+    """Which roles this reel covers, batting first. One entry normally, two for an all-rounder."""
+    have = {m["_role"] for m in moments}
+    return [r for r in ("bat", "bowl") if r in have]
+
+
+def headline(player: str, moments: list[dict], fig: dict | None,
+             states: list[dict] | None = None) -> str:
+    """'V. Kohli 46 (28)', 'J. Bumrah 3/24 (4.0 ov)', or both for an all-rounder."""
     who = titlecase(player)
-    role = moments[0]["_role"]
+    rs = roles_in(moments)
+    if len(rs) > 1:
+        # An all-rounder needs both sets of figures; `fig` only holds one role's.
+        parts = []
+        for r in rs:
+            f = figures(states, player, r)
+            if not f:
+                continue
+            parts.append(f"{f['runs']} ({f['balls']})" if r == "bat"
+                         else f"{f['wickets']}/{f['runs']} ({over(f['balls'])} ov)")
+        if parts:
+            return f"{who} {' & '.join(parts)}"
+        return f"{who} — {tally(moments)}"
     if not fig:
         return f"{who} — {tally(moments)}"
-    if role == "bat":
+    if rs[0] == "bat":
         return f"{who} {fig['runs']} ({fig['balls']})"
     return f"{who} {fig['wickets']}/{fig['runs']} ({over(fig['balls'])} ov)"
 
 
 def build_title(player: str, moments: list[dict], fig: dict | None, match: str,
-                limit: int = 100) -> str:
+                limit: int = 100, states: list[dict] | None = None) -> str:
     """Add detail while it fits, dropping the least important part first.
 
     The scorecard line matters most, then what is actually in the reel, then the fixture.
     A long team name must not push the player's own figures out of the title.
     """
-    head = headline(player, moments, fig)
+    head = headline(player, moments, fig, states)
     # Without figures, headline() already ends in the tally — appending it again would
     # read "Venu S — 1 six — 1 six".
     what = tally(moments) if fig else ""
     # "3/24 (4.0 ov) — 3 wickets" says it twice. But when the reel holds fewer wickets
     # than the innings figure (the stream started late), the count is real information,
     # so only drop it when the two agree.
-    if fig and moments[0]["_role"] == "bowl":
+    if fig and roles_in(moments) == ["bowl"]:
         in_reel = sum(1 for m in moments if "wicket" in m["_kinds"])
         if in_reel == fig.get("wickets"):
             what = ""
@@ -225,17 +293,18 @@ def ball_line(m: dict, t: float) -> str:
 def metadata(player: str, moments: list[dict], segs: list, match: str, team: str,
              states: list[dict] | None = None) -> dict:
     """Title, description and tags for one player's reel."""
-    role = moments[0]["_role"]
-    fig = figures(states, player, role)
+    rs = roles_in(moments)
+    role = rs[0] if len(rs) == 1 else "all"
+    fig = figures(states, player, rs[0]) if len(rs) == 1 else None
     who = titlecase(player)
-    title = build_title(player, moments, fig, match)
+    title = build_title(player, moments, fig, match, states=states)
 
     lines, t = [], 0.0
     for (a, b, _), m in zip(segs, moments):
         lines.append(ball_line(m, t))
         t += b - a
 
-    head = headline(player, moments, fig)
+    head = headline(player, moments, fig, states)
     extra = breakdown(fig, role)
     if extra:
         head += f", {extra}"
@@ -311,6 +380,9 @@ def main():
                          "aligning video motion to the scorer's entries (deliveries.py), "
                          "then cut around that. Needs no lag guess — the lag varied 5-44s "
                          "within one innings on vs ATX Panthers")
+    ap.add_argument("--split-roles", action="store_true",
+                    help="give a player who both batted and bowled two reels instead of one "
+                         "combined all-rounder reel")
     ap.add_argument("--keep-suspect", action="store_true",
                     help="with --align, keep balls whose scorer lag is a wild outlier. "
                          "🛑 Both mis-alignments ever confirmed by eye were the largest lag "
@@ -321,6 +393,10 @@ def main():
 
     doc = json.load(open(a.events))
     moments = doc.get("moments") or doc.get("events") or []
+    moments, n_dup = dedupe_moments(moments)
+    if n_dup:
+        print(f"  dropped {n_dup} duplicate moment(s) — the scorer retracted and re-entered "
+              f"the same ball, and the re-entry's timestamp is not the ball's")
     # Present for qrscan output, absent for detect.py — captions degrade, not break.
     states = doc.get("states") or []
     os.makedirs(a.out, exist_ok=True)
@@ -333,9 +409,9 @@ def main():
     if a.align:
         import deliveries as dv
         for inn in sorted({m["innings"] - 1 for m in moments}):
-            got = dv.shot_times(a.video, states, inn,
-                                cache=f"{a.out}/motion-inn{inn}.npy",
-                                keep_suspect=a.keep_suspect)
+            got = dv.shot_brackets(a.video, states, inn,
+                                    cache=f"{a.out}/motion-inn{inn}.npy",
+                                    keep_suspect=a.keep_suspect)
             shots.update(got)
             n = len(dv.entered_balls(states, inn))
             print(f"  innings {inn + 1}: {len(got)}/{n} balls located in the video")
@@ -357,6 +433,11 @@ def main():
               "these assume the reference match's scorer")
 
     by_player = attribute(moments, a.batting_innings)
+    if not a.split_roles:
+        n_before = len(by_player)
+        by_player = combine_all_rounders(by_player)
+        if len(by_player) < n_before:
+            print(f"  combined {n_before - len(by_player)} all-rounder(s) into one reel each")
     if a.player:
         by_player = {k: v for k, v in by_player.items()
                      if a.player.lower() in k[0].lower()}
@@ -385,30 +466,44 @@ def main():
         ms.sort(key=lambda m: m["t"])
         kinds = {k for m in ms for k in m["_kinds"]}
         if a.align:
-            # Map each moment to the time its ball was actually bowled. A moment with no
-            # aligned delivery is DROPPED rather than guessed at — a clip cut from a guess
-            # is the failure this whole module exists to stop.
-            picked, missing = {}, 0
+            # 🛑 Nothing is dropped. Each ball gets the narrowest clip its evidence supports:
+            # 8 s when one candidate is clearly the delivery, a span when rivals cannot be
+            # separated, and a window measured from the scorer's entry when no candidate was
+            # found at all. Dropping was tried and made the bowling reels worse than the old
+            # fixed-lag cut, which caught events simply by being wide. → highlights.md §6e
+            clips, tight, wide, fell_back = [], 0, 0, 0
             for mom in ms:                     # not `m`: that is the probe() dict here
+                label = "+".join(mom["_kinds"])
                 hit = [t for t in shots if abs(t - mom["t"]) < 0.6]
                 if hit:
-                    picked[shots[hit[0]]] = "+".join(mom["_kinds"])
+                    lo, hi = shots[hit[0]]
+                    clips.append([max(0.0, lo - a.lead), hi + a.trail, label])
+                    if hi - lo > 0.5:
+                        wide += 1
+                    else:
+                        tight += 1
                 else:
-                    missing += 1
-            if not picked:
-                print(f"     (no located deliveries — skipped)")
-                continue
-            if missing:
-                print(f"     ⚠ {missing} of {len(ms)} balls not located; those are omitted")
-            segs = segments_at(list(picked), a.lead, a.trail, picked)
+                    lead = (FALLBACK_LEAD_BOWL if mom["_role"] == "bowl"
+                            else FALLBACK_LEAD_BAT)
+                    clips.append([max(0.0, mom["t"] - lead),
+                                  mom["t"] + FALLBACK_TRAIL, label])
+                    fell_back += 1
+            segs = merge_clips(clips)
+            note = [f"{tight} tight"]
+            if wide:
+                note.append(f"{wide} widened")
+            if fell_back:
+                note.append(f"{fell_back} from the scorer's entry (no delivery found)")
+            print(f"     {', '.join(note)}")
         else:
             segs = segments(ms, types=kinds, windows=wins)
         if not segs:
             continue
         meta = metadata(player, ms, segs, a.match, a.team, states)
         print(f"{titlecase(player)} — {ROLE_NAME[role]}  ({tally(ms)})")
-        cx = a.crop_x_bat if role == "bat" else a.crop_x_bowl
-        for aspect in plan[role]:
+        crop_role = "bat" if role in ("bat", "all") else "bowl"
+        cx = a.crop_x_bat if crop_role == "bat" else a.crop_x_bowl
+        for aspect in plan[crop_role]:
             # The role is in the name because one player can have both reels; the aspect
             # is in it because several shapes can be cut for review side by side.
             base = os.path.join(a.out, f"{slug(player)}-{ROLE_NAME[role]}"

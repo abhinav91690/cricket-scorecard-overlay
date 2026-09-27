@@ -23,9 +23,11 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from deliveries import (FPS, LAG_OUTLIER_FLOOR, ONSET_TO_SHOT, QUIET_FRAC,
+from deliveries import (AMBIGUITY_WINDOW, CLUSTER_GAP, FPS, LAG_OUTLIER_FLOOR,
+                        ONSET_TO_SHOT, QUIET_FRAC, SHORT_LAG_FRAC, STALL_FACTOR,
                         SUSPECT_PRE_FRAC, align, candidates, drop_busy_preceded,
-                        drop_lag_outliers, pre_onset_level, snap_to_quiet)
+                        drop_lag_outliers, pre_onset_level, prefer_cluster_start,
+                        snap_to_quiet)
 
 BASE = 2.5
 DELIVERY_T, DELIVERY_PEAK = 100.0, 8.0     # run-up and shot
@@ -249,6 +251,43 @@ def test_the_guards_are_ordered_sanely():
     """⚠ Load-bearing: the snap must be more permissive than the drop, or it never helps."""
     assert QUIET_FRAC < SUSPECT_PRE_FRAC, (
         "a match the snap accepts must not then be dropped as busy-preceded")
+
+
+# --- the cluster rule and the widening tiers -------------------------------------------
+
+def test_cluster_start_moves_to_the_first_burst_of_a_ball():
+    """🛑 Every mis-aligned clip the review found was on a LATER burst of the right ball."""
+    times = np.array([100.0, 108.0, 116.0, 200.0])   # one cluster of 3, then a new ball
+    out = prefer_cluster_start(times, {0: 2}, gap=10.0)
+    assert out[0] == 0, f"did not reach the cluster's first burst: {out}"
+
+
+def test_cluster_start_does_not_cross_into_another_ball():
+    """⚠ A gap wider than CLUSTER_GAP is a different delivery, not the same one."""
+    times = np.array([100.0, 130.0])                 # 30 s apart: two separate balls
+    out = prefer_cluster_start(times, {0: 1}, gap=10.0)
+    assert out[0] == 1, "swallowed the previous ball"
+
+
+def test_cluster_start_will_not_steal_a_taken_burst():
+    """Monotonicity: if an earlier entry owns that burst, this one must not take it."""
+    times = np.array([100.0, 108.0])
+    out = prefer_cluster_start(times, {0: 0, 1: 1}, gap=10.0)
+    assert out == {0: 0, 1: 1}, f"alignment crossed over: {out}"
+
+
+def test_cluster_gap_stays_at_the_value_that_regressed_nothing():
+    """🛑 12 s fixes one more ball and breaks a reel confirmed perfect by eye. Don't raise it."""
+    assert CLUSTER_GAP == 10.0, (
+        "CLUSTER_GAP was changed — at 12 s a confirmed-good four moved from a 12.7 s lag "
+        "to 24.2 s. Re-measure before touching this.")
+
+
+def test_the_widening_tiers_are_ordered():
+    """⚠ Load-bearing: each tier must be wider than the last, or a tier is dead code."""
+    assert 0 < AMBIGUITY_WINDOW < LAG_OUTLIER_FLOOR, "span tier is not between the others"
+    assert STALL_FACTOR > 1.0, "a stall must be longer than a normal gap"
+    assert 0 < SHORT_LAG_FRAC < 1.0, "a short lag is a fraction of the median, not a multiple"
 
 
 if __name__ == "__main__":
