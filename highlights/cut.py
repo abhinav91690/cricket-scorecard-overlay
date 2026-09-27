@@ -76,6 +76,32 @@ def segments(events, types=None, windows=WINDOWS):
     return merged
 
 
+def segments_at(shots, lead=DEFAULT_LEAD, trail=DEFAULT_TRAIL, labels=None):
+    """Clips around ABSOLUTE shot times, rather than offsets from the scorer's entry.
+
+    🛑 This is the correct way to cut once `deliveries.py` has found when each ball was
+    actually bowled. `segments()` measures from the state change, which is when the ball was
+    ENTERED — a delay of 5-44 s on `vs ATX Panthers`, so no fixed offset can centre the clip.
+
+    Overlapping clips are merged, exactly as `segments()` does, so two events on one ball
+    (a four that also brings up a fifty) do not put the same footage in twice.
+    """
+    segs = []
+    for i, t in enumerate(sorted(shots)):
+        label = (labels or {}).get(t, 'shot')
+        segs.append([max(0.0, t - lead), t + trail, label])
+    merged = []
+    for a, b, k in segs:
+        if merged and a <= merged[-1][1] + 1.0:
+            merged[-1][1] = max(merged[-1][1], b)
+            for part in k.split('+'):
+                if part not in merged[-1][2].split('+'):
+                    merged[-1][2] += '+' + part
+        else:
+            merged.append([a, b, k])
+    return merged
+
+
 def cut(video, segs, out, height=1080, bitrate='10M', keep_clips=False, vf=None):
     """`vf` overrides the scale filter — reels.py passes crop_filter() for a Short."""
     ff = ffmpeg()

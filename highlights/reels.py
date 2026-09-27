@@ -34,7 +34,7 @@ import os
 import re
 
 from cut import (ASPECTS, DEFAULT_LEAD, DEFAULT_TRAIL, WINDOWS, crop_filter,
-                 cut, segments, windows_for)
+                 cut, segments, segments_at, windows_for)
 from detect import probe
 
 # What counts as a player's own highlight, by the role they were in.
@@ -306,6 +306,11 @@ def main():
                     help=f"run-up kept before the shot (default {DEFAULT_LEAD:g}s)")
     ap.add_argument("--trail", type=float, default=DEFAULT_TRAIL, metavar="S",
                     help=f"kept after the shot (default {DEFAULT_TRAIL:g}s)")
+    ap.add_argument("--align", action="store_true",
+                    help="🛑 the right way: find when each ball was actually BOWLED by "
+                         "aligning video motion to the scorer's entries (deliveries.py), "
+                         "then cut around that. Needs no lag guess — the lag varied 5-44s "
+                         "within one innings on vs ATX Panthers")
     ap.add_argument("--player", help="only this player (substring, case-insensitive)")
     ap.add_argument("--height", type=int, default=1080)
     a = ap.parse_args()
@@ -314,11 +319,24 @@ def main():
     moments = doc.get("moments") or doc.get("events") or []
     # Present for qrscan output, absent for detect.py — captions degrade, not break.
     states = doc.get("states") or []
+    os.makedirs(a.out, exist_ok=True)
     if not moments:
         raise SystemExit(f"{a.events} has no moments — run qrscan.py or detect.py first.")
 
     # One or the other: a measured lag, or the legacy windows. Mixing them silently would
     # give boundaries a measured window and wickets a guessed one.
+    shots = {}
+    if a.align:
+        import deliveries as dv
+        for inn in sorted({m["innings"] - 1 for m in moments}):
+            got = dv.shot_times(a.video, states, inn,
+                                cache=f"{a.out}/motion-inn{inn}.npy")
+            shots.update(got)
+            n = len(dv.entered_balls(states, inn))
+            print(f"  innings {inn + 1}: {len(got)}/{n} balls located in the video")
+        if not shots:
+            raise SystemExit("--align found no deliveries; check the pitch crop")
+
     if (a.lag_bat is None) != (a.lag_bowl is None):
         raise SystemExit("pass both --lag-bat and --lag-bowl, or neither")
     if a.lag_bat is not None:
@@ -326,10 +344,12 @@ def main():
         print(f"  lag {a.lag_bat:g}s bat / {a.lag_bowl:g}s bowl, "
               f"-{a.lead:g}s/+{a.trail:g}s around the shot "
               f"-> {a.lead + a.trail:g}s per clip")
+    elif a.align:
+        wins = WINDOWS          # unused: --align cuts from located shot times
     else:
         wins = WINDOWS
-        print("  ⚠ using the legacy windows — no --lag-bat/--lag-bowl given, so these "
-              "assume the reference match's scorer")
+        print("  ⚠ using the legacy windows — no --lag-bat/--lag-bowl and no --align, so "
+              "these assume the reference match's scorer")
 
     by_player = attribute(moments, a.batting_innings)
     if a.player:
@@ -359,7 +379,25 @@ def main():
     for (player, role), ms in sorted(by_player.items(), key=lambda kv: -len(kv[1])):
         ms.sort(key=lambda m: m["t"])
         kinds = {k for m in ms for k in m["_kinds"]}
-        segs = segments(ms, types=kinds, windows=wins)
+        if a.align:
+            # Map each moment to the time its ball was actually bowled. A moment with no
+            # aligned delivery is DROPPED rather than guessed at — a clip cut from a guess
+            # is the failure this whole module exists to stop.
+            picked, missing = {}, 0
+            for mom in ms:                     # not `m`: that is the probe() dict here
+                hit = [t for t in shots if abs(t - mom["t"]) < 0.6]
+                if hit:
+                    picked[shots[hit[0]]] = "+".join(mom["_kinds"])
+                else:
+                    missing += 1
+            if not picked:
+                print(f"     (no located deliveries — skipped)")
+                continue
+            if missing:
+                print(f"     ⚠ {missing} of {len(ms)} balls not located; those are omitted")
+            segs = segments_at(list(picked), a.lead, a.trail, picked)
+        else:
+            segs = segments(ms, types=kinds, windows=wins)
         if not segs:
             continue
         meta = metadata(player, ms, segs, a.match, a.team, states)
