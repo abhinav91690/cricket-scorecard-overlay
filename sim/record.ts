@@ -53,7 +53,12 @@ async function recordMatch(match: string) {
     const anon = new Anonymiser(loadSalt());
     const write = (entry: Record<string, unknown>) => appendFileSync(file, JSON.stringify({ t: Date.now(), ...entry }) + '\n');
     const url = `${SITE}/?matchId=${match}&clubId=${CLUB}&data=1&nostats=1`;
-    const tab = await (await fetch(`http://localhost:${CDP_PORT}/json/new?about:blank`, { method: 'PUT' })).json() as { id: string; webSocketDebuggerUrl: string };
+    // Chrome can take a while to come up when several recorders start together: retry, don't give up.
+    let tab: { id: string; webSocketDebuggerUrl: string } | undefined;
+    for (let i = 0; !tab; i++) {
+        try { tab = await (await fetch(`http://localhost:${CDP_PORT}/json/new?about:blank`, { method: 'PUT' })).json() as any; }
+        catch (e) { if (i > 60) throw e; await sleep(1000); }
+    }
     const targetId = tab.id;
     const cdp = await Cdp.connect(tab.webSocketDebuggerUrl);
     const feeds = new Set<string>();
@@ -93,10 +98,10 @@ async function recordMatch(match: string) {
 
 async function main() {
     mkdirSync(DIR, { recursive: true });
-    const chrome = spawn(CHROME, [`--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${DIR}/.chrome`, '--headless=new', '--disable-gpu', '--no-first-run', '--hide-scrollbars', '--window-size=1920,1080', 'about:blank'], { stdio: 'ignore' });
+    const chrome = spawn(CHROME, [`--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${DIR}/.chrome-${CDP_PORT}`, '--headless=new', '--disable-gpu', '--no-first-run', '--hide-scrollbars', '--window-size=1920,1080', 'about:blank'], { stdio: 'ignore' });
     const stop = () => { chrome.kill(); process.exit(0); };
     process.on('SIGINT', stop); process.on('SIGTERM', stop);
-    for (let i = 0; i < 40 && !(await reachable(`http://localhost:${CDP_PORT}/json/version`)); i++) await sleep(250);
+    for (let i = 0; i < 240 && !(await reachable(`http://localhost:${CDP_PORT}/json/version`)); i++) await sleep(250);
     await Promise.all(MATCHES.map(m => recordMatch(m).catch(e => console.error(`${m}: ${e}`))));
     stop();
 }
