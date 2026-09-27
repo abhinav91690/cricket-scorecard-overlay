@@ -121,6 +121,9 @@ class Cdp {
 
 async function main() {
     mkdirSync(OUT, { recursive: true });
+    // --grade <events.json>: re-score a saved run against the recording, without replaying it
+    const saved = arg('grade', '');
+    if (saved) { events.push(...JSON.parse(readFileSync(saved, 'utf8')).events); return grade(); }
     server.listen(PORT);
     let vite: ChildProcess | null = null;
     if (!(await reachable(DEV))) { vite = spawn('npx', ['vite', '--port', '5173', '--strictPort'], { stdio: 'ignore' }); for (let i = 0; i < 60 && !(await reachable(DEV)); i++) await sleep(500); }
@@ -140,8 +143,10 @@ async function main() {
         await sleep(realMs);
         cdp.close();
     } finally { cleanup(); }
+    grade();
+}
 
-    // ---------- grade ----------
+function grade() {
     const page = events.filter(e => e.kind === 'page').map(e => ({ rec: e.rec, ...(e.detail as any) }));
     const queued = page.filter(e => e.kind === 'card:queue').map(e => ({ rec: e.rec, type: e.detail.type, mark: e.detail.mark }));
     const errors = rows.filter(r => r.kind === 'error');
