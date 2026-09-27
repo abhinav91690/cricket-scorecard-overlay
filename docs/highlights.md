@@ -142,7 +142,14 @@ enters the ball**, not when it is bowled. That delay is a property of the person
 | Match | Boundary entered after the shot |
 |---|---|
 | reference (`Topguns vs Bazzigarz`) | **~5 s** |
-| `vs ATX Panthers` | **19 s** |
+| `vs ATX Panthers`, innings 1 | median **10.7 s**, range **2-40 s** |
+| `vs ATX Panthers`, innings 2 | median **8.6 s**, range **2-45 s** |
+
+🛑 **A single measured lag is not a match constant.** "19 s on `vs ATX Panthers`" was one
+ball, and it became a fixed `--lag-bat 19` that was right for that ball and wrong for the
+rest: the spread within one innings is 2-40 s, sd 7.4 s. Measuring one ball and generalising
+is what §6c exists to replace — prefer `--align`, and keep `--lag-bat`/`--lag-bowl` for a
+match whose video is too dark or too hand-held for motion detection.
 
 ⚠ **A window built for 5 s lands entirely in the aftermath at 19 s.** The first pass on
 `vs ATX Panthers` cut 22 s clips with `four: (-18, +4)`; every one of them held the batters
@@ -151,7 +158,7 @@ fine — right length, right crop, real cricket, no error anywhere.
 
 `windows_for(lag_bat, lag_bowl, lead, trail)` derives the windows instead: the shot sits at
 `-lag`, so keeping `lead` before and `trail` after gives a clip centred on the action.
-`reels.py --lag-bat 19 --lag-bowl <n>` cut Rakesh G's reel from **308 s to 70 s** and put
+`reels.py --lag-bat 19 --lag-bowl <n>` cut one batter's reel from **308 s to 70 s** and put
 the delivery in every clip.
 
 ⚠ **This scorer entered balls in bursts**, so the lag is not perfectly constant — at the
@@ -171,6 +178,70 @@ median −7.7 s, 18/18 in a plausible range, sd 2.8 s — and it was wrong. Chec
 at each detected onset showed between-ball moments every time. The DJI mic sits closer to
 the spectators than to the bat, so the detector locks onto chatter and applause. The
 statistics looked like a result; the pixels said otherwise.
+
+### 6c. ✅ `--align`: find the delivery in the video, don't guess the lag
+
+🛑 **This is the right way, and the only one that survived a reel-by-reel review.** No fixed
+lag can work when the scorer's own lag spreads 2-40 s inside one innings. `deliveries.py`
+finds the balls independently in the video and aligns the two sequences — the k-th ball
+bowled is the k-th ball entered, which is the one thing that always holds.
+
+The camera is on a tripod, so a frame difference over the pitch is almost entirely players
+moving. A delivery is a **rise out of a still field**, and the alignment is a monotonic
+dynamic program over (entry k -> delivery j). `reels.py --align` needs no lag argument.
+
+#### 🛑 The onset, never the peak
+
+The first version took the strongest motion peak per ball. It read beautifully — 122/144
+balls aligned, 29/29 boundaries, 0.0 s against the hand-measured ball — and it put one of
+one batter's two fours **nine seconds late**, showing the batters walking after the ball had
+gone. A boundary makes **two** humps, and on a four the second is the bigger one:
+
+```
+2235-2239   2.3-3.6   field set, nobody moving
+2240-2244   6.0-8.7   run-up, shot             <- the delivery,  peak 8.65
+2245-2270   5.8-10.2  chase, throw back, crowd <- the aftermath, peak 9.49  (it won)
+```
+
+Worse, suppressing peaks within a `MIN_GAP` then *discarded* the delivery in favour of the
+aftermath, so the right answer was not on the candidate list at all. That is why tuning
+could not fix it: every configuration tried pinned that ball at a 5.3 s lag, stably, because
+nothing better was available. ⚠ **A stable wrong answer is not evidence of a good model** —
+it took frame-level measurement of three balls to see the detector had the wrong target.
+
+The rising edge has no such failure mode. It is the bowler starting his run-up, it looks the
+same whether the ball goes to the fence or to cover, and it sits a measured **0.75 s** before
+bat on ball. Each local maximum is walked back to where its rise covered `RISE_FRAC` of the
+way up from the quiet before it; same-burst onsets merge, and the group keeps the onset of
+its **strongest** peak — ⚠ not its earliest, which re-broke the same ball when a small bump
+4 s earlier swallowed the real onset.
+
+Measured against three balls found frame by frame, 200 s apart:
+
+| ball | delivery stride | shot (measured) | aligner | error |
+|---|---|---|---|---|
+| four #1 | 2168 | 2169.7 | 2169.5 | **-0.22 s** |
+| four #2  (the disputed one) | 2240 | 2241.7 | 2241.7 | **+0.03 s** |
+| ground truth | 2378 | 2379.3 | 2379.5 | **+0.18 s** |
+
+The delivery stride is 1 s before the shot in all three, and the smoothed motion curve reads
+5.8-6.1 at the moment of contact — within 0.3 across balls three minutes apart.
+
+Coverage on `vs ATX Panthers`: **135/144** balls in innings 1, **73/79** in innings 2, and
+**39/39** of the moments that actually feed a reel.
+
+#### What is NOT reliable
+
+⚠ **The extreme tail of the lag distribution.** Nine predicted instants were checked as
+frames, chosen to span the lag range rather than sampled uniformly: six show the bat coming
+through the ball, two are a second or two late, and **the one at the top of the range
+(39.6 s) is a still field** — a genuine mis-alignment. Balls the scorer entered very late
+are the ones to distrust, so a reel-by-reel look is still worth it.
+
+⚠ **`pitch_crop()` is a per-match input, like the reel crop.** It spans 31-76% of the width
+because the camera sat at 39-66% in one innings and 41-63% in the other. A differently framed
+match needs it re-measured; being generous costs only noise, because candidates are weighed
+by strength.
 
 ### 6a. ✅ The overlay is its own witness: verify a clip before publishing it
 

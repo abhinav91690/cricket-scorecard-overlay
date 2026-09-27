@@ -1,5 +1,46 @@
 # Update Log
 
+## 2026-09-27
+
+**Clip timing solved properly: `reels.py --align` locates the ball in the video.** The
+payload's timestamp is when the *scorer entered* the ball, and on `vs ATX Panthers` that lag
+spread **2-40 s within one innings** — so neither the stock windows nor a single measured
+`--lag-bat 19` could centre a clip. `highlights/deliveries.py` detects deliveries from frame
+differencing over the pitch and aligns the two sequences with a monotonic DP.
+
+🛑 **The first version targeted the strongest motion peak, and that was the wrong target.**
+It reported well — 122/144 aligned, 29/29 boundaries, 0.0 s against the one hand-measured
+ball — and still put the disputed four **nine seconds late**. A boundary makes two motion
+humps, and on a four the chase out-peaks the shot (8.65 vs 9.49); `MIN_GAP` suppression then
+*discarded* the delivery in favour of the aftermath, so the right answer was not on the
+candidate list. Every tuning configuration therefore reproduced the same 5.3 s lag, stably —
+⚠ a stable wrong answer read exactly like a confident model.
+
+What settled it was measuring three balls frame by frame instead of tuning: the shot always
+lands on the **rising edge**, 1 s after the delivery stride, with the smoothed motion curve
+at 5.8-6.1 on contact across balls three minutes apart. Rebuilt on burst onsets, with
+same-burst onsets keeping the **strongest** peak's onset (keeping the earliest re-broke the
+same ball):
+
+| ball | measured shot | aligner | error |
+|---|---|---|---|
+| four #1 | 2169.7 | 2169.5 | **-0.22 s** |
+| four #2  (the disputed one) | 2241.7 | 2241.7 | **+0.03 s** |
+| ground truth | 2379.3 | 2379.5 | **+0.18 s** |
+
+Coverage 135/144 and 73/79 by innings, and 39/39 of the moments that feed a reel. Nine blind
+frame checks spanning the lag range: six show the bat through the ball, two are a second or
+two late, and the one at the top of the range (39.6 s) is a still field — so the late tail is
+still worth a reel-by-reel look.
+
+`DEFAULT_LEAD`/`DEFAULT_TRAIL` are now **3 s / 5 s**. With the shot located to a quarter-second
+the lead no longer buys insurance against a bad estimate, so the time goes after the ball.
+
+`test_deliveries.py` was checked against the old detector rather than read green: it rejects
+peak-picking with the real symptom ("the delivery at 100.0s was not found; got [110, 179.5]").
+⚠ The first attempt to verify that patched `deliveries.candidates`, which the test module had
+already bound by name — the check passed and proved nothing. → `highlights.md` §6c
+
 ## 2026-09-26
 
 **Watching three live matches (4651, 4655, 4658) found five more faults**, all fixed together:

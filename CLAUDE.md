@@ -150,12 +150,17 @@ not that the network is broken. Homebrew is unusable through the same proxy. →
 (`deploy-preview-<N>--score-overlay.netlify.app`) or `npm run dev -- --host 0.0.0.0`. →
 `deployment.md` §2
 
-🛑 **The clip lag is the SCORER's, not cricket's — measure it for every match.** A boundary
-was entered ~5 s after the shot on the reference match and **19 s** on `vs ATX Panthers`, so
-the default windows put every clip in the aftermath: batters talking, crowd cheering, no
-shot. Pass `--lag-bat`/`--lag-bowl`. ⚠ And never "verify" a clip by checking the score moved
+🛑 **The clip lag is the SCORER's, not cricket's, and it is not constant — cut with
+`reels.py --align`.** It spread 2-40 s inside one innings of `vs ATX Panthers`, so both the
+default windows and a single measured `--lag-bat` put clips in the aftermath: batters
+talking, crowd cheering, no shot. ⚠ And never "verify" a clip by checking the score moved
 inside its own window — the window contains the state change by construction, so that check
-cannot fail. → `highlights.md` §6b
+cannot fail. → `highlights.md` §6b, §6c
+
+🛑 **A delivery is the ONSET of a motion burst, never its strongest peak.** A boundary makes
+two humps and the chase out-peaks the shot, so peak-picking put a four nine seconds late and
+`MIN_GAP` suppression then deleted the real delivery from the candidate list — which is why
+every tuning attempt reproduced the same stable wrong answer. → `highlights.md` §6c
 
 🛑 **Never cut a clip with raw ffmpeg — go through `cut.segments()`.** The `WINDOWS` are the
 only thing that knows the scorer's graphic lags the ball (a six by ~5 s, a wicket by ~35 s), so

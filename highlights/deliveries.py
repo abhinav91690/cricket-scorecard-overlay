@@ -59,9 +59,17 @@ from detect import ffmpeg, probe
 
 FPS = 4                     # motion sampling rate; 0.25 s is ample for a 5 s clip
 GRID_W, GRID_H = 160, 86    # tiny frames: this measures movement, not detail
-PEAK_TO_SHOT = 2.5          # measured: the motion peak trails bat-on-ball by this much
-MIN_GAP = 12.0              # two deliveries are never closer than this
-CANDIDATES_PER_BALL = 2.1   # over-detect on purpose; see the module note
+
+# A delivery is a RISE out of a still field, and the shot lands on the rising edge.
+# 🛑 Not the peak — see `candidates()`. Measured on three balls 200 s apart in
+# `vs ATX Panthers`: the shot is ONSET_TO_SHOT after the 45% point of the rise, with a
+# spread of 0.4 s.
+BACKTRACK = 10.0            # how far back to look for the quiet the burst rose out of
+RISE_FRAC = 0.45            # the onset is where the rise has covered this much of it
+MIN_RISE = 1.8              # below this a "burst" is just the field milling about
+ONSET_GAP = 4.0             # onsets closer than this belong to the same burst
+ONSET_TO_SHOT = 0.75        # measured: bat on ball, this long after the onset
+CANDIDATES_PER_BALL = 3.0   # over-detect on purpose; see the module note
 
 LAG_MIN, LAG_MAX = 2.0, 90.0
 SKIP_DELIVERY, SKIP_ENTRY, SMOOTH, STRENGTH = 1.0, 30.0, 0.5, 8.0
@@ -112,17 +120,54 @@ def motion_curve(src: str, t0: float, t1: float, cache: str | None = None) -> np
 
 
 def candidates(curve: np.ndarray, t0: float, n_want: int) -> tuple[np.ndarray, np.ndarray]:
-    """-> (times, strengths) of the `n_want` strongest peaks, at least MIN_GAP apart."""
+    """-> (times, strengths) of delivery onsets: the rising edge of each motion burst.
+
+    🛑 Do not go back to picking the strongest peak. That is what this did first, and it
+    put Abhinav's second four nine seconds late. A delivery that goes to the boundary has
+    TWO motion humps — the run-up and shot, then the chase, the throw back and the crowd —
+    and on a four the second is the bigger one:
+
+        2235-2239   2.3-3.6   field set, nobody moving
+        2240-2244   6.0-8.7   run-up, shot            <- the delivery, peak 8.65
+        2245-2270   5.8-10.2  chase and return        <- peak 9.49, and it won
+
+    Worse, suppressing peaks within a MIN_GAP then *discarded* the delivery in favour of the
+    aftermath, so no amount of alignment tuning could recover it: the right answer was not on
+    the list. The onset does not have that failure mode. It is the bowler starting his run-up,
+    it is the same shape whether the ball goes to the fence or to cover, and it sits a
+    measured 0.75 s before bat on ball.
+
+    Each local maximum is walked back to where its rise had covered `RISE_FRAC` of the way up
+    from the quiet before it. Onsets within `ONSET_GAP` are one burst, and the group keeps the
+    onset of its STRONGEST peak — ⚠ not the earliest. Keeping the earliest re-broke ball #2,
+    because a small bump at 2237.7 swallowed the real onset at 2242.
+    """
     sm = np.convolve(curve, np.ones(4) / 4, mode="same")
     peaks = [i for i in range(1, len(sm) - 1) if sm[i] >= sm[i - 1] and sm[i] > sm[i + 1]]
-    kept: list[int] = []
-    for i in sorted(peaks, key=lambda i: -sm[i]):
-        if len(kept) >= n_want:
-            break
-        if all(abs(i - j) / FPS >= MIN_GAP for j in kept):
-            kept.append(i)
-    kept.sort()
-    return np.array(kept) / FPS + t0, np.array([sm[i] for i in kept])
+    found: dict[int, float] = {}                 # onset index -> strongest peak above it
+    for i in peaks:
+        w0 = max(0, i - int(BACKTRACK * FPS))
+        lo = float(sm[w0:i + 1].min())
+        if sm[i] - lo < MIN_RISE:
+            continue
+        thr = lo + RISE_FRAC * (sm[i] - lo)
+        j = i
+        while j > w0 and sm[j] >= thr:
+            j -= 1
+        if sm[i] > found.get(j, 0.0):
+            found[j] = float(sm[i])
+    groups: list[list[tuple[int, float]]] = []
+    for j in sorted(found):
+        if groups and (j - groups[-1][-1][0]) / FPS < ONSET_GAP:
+            groups[-1].append((j, found[j]))
+        else:
+            groups.append([(j, found[j])])
+    picked = [max(g, key=lambda p: p[1]) for g in groups]
+    picked.sort(key=lambda p: -p[1])
+    picked = picked[:n_want]
+    picked.sort()
+    return (np.array([j for j, _ in picked]) / FPS + t0,
+            np.array([s for _, s in picked]))
 
 
 def entered_balls(states: list[dict], innings: int) -> list[float]:
@@ -210,4 +255,4 @@ def shot_times(src: str, states: list[dict], innings: int,
     curve = motion_curve(src, t0, t1, cache)
     times, strength = candidates(curve, t0, int(len(entries) * CANDIDATES_PER_BALL))
     pairs = align(entries, times, strength)
-    return {entries[k]: float(times[j] - PEAK_TO_SHOT) for k, j in pairs.items()}
+    return {entries[k]: float(times[j] + ONSET_TO_SHOT) for k, j in pairs.items()}

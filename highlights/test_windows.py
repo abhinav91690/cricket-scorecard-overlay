@@ -16,7 +16,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from cut import WINDOWS, windows_for
+from cut import DEFAULT_LEAD, DEFAULT_TRAIL, WINDOWS, windows_for
 
 fails = []
 
@@ -29,10 +29,11 @@ def check(desc, cond):
 
 w = windows_for(19, 45)
 a, b = w["four"]
-check(f"lag 19: four window {a:g}..{b:g} is 5s long", abs((b - a) - 5) < 1e-9)
+span = DEFAULT_LEAD + DEFAULT_TRAIL
+check(f"lag 19: four window {a:g}..{b:g} is {span:g}s long", abs((b - a) - span) < 1e-9)
 check("the shot (-19) is inside the four window", a < -19 < b)
-check("2s of run-up before the shot", abs((-19) - a - 2) < 1e-9)
-check("3s after the shot", abs(b - (-19) - 3) < 1e-9)
+check(f"{DEFAULT_LEAD:g}s before the shot", abs((-19) - a - DEFAULT_LEAD) < 1e-9)
+check(f"{DEFAULT_TRAIL:g}s after the shot", abs(b - (-19) - DEFAULT_TRAIL) < 1e-9)
 
 a, b = w["wicket"]
 check("the dismissal (-45) is inside the wicket window", a < -45 < b)

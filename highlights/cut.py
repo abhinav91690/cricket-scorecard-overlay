@@ -27,8 +27,13 @@ WINDOWS = {            # seconds relative to the card appearing
 # scorer entered balls in bursts. A window built for 5 s lands entirely in the aftermath at
 # 19 s: the clip holds the batters talking and the crowd cheering, and never the shot.
 # Always measure the lag for a new match — see docs/highlights.md §6b.
-DEFAULT_LEAD = 2.0     # seconds of run-up kept before the shot
-DEFAULT_TRAIL = 3.0    # seconds kept after it
+# An 8 s clip, split for an ACCURATE shot time. `deliveries.py` locates the ball to within
+# about a quarter-second, so the lead no longer has to buy insurance against a bad estimate:
+# 3 s is the delivery stride (1 s before bat on ball) plus the ball arriving, and the 5 s
+# after is the shot, the ball travelling and the reaction. ⚠ With a *guessed* lag instead,
+# weight the other way — early is a clip of the run-up, late loses the shot altogether.
+DEFAULT_LEAD = 3.0     # seconds kept before the shot
+DEFAULT_TRAIL = 5.0    # seconds kept after it
 
 
 def windows_for(lag_bat: float, lag_bowl: float,
