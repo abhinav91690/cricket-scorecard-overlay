@@ -340,6 +340,18 @@ describe('updateTeamLogos', () => {
         expect((DOM.battingTeamLogo as HTMLImageElement).src).toBe('https://cricclubs.com/g.jpg');
     });
 
+    it('keeps the first placeholder when CricClubs rotates them, but still loads a real logo', async () => {
+        // A team with no logo gets a random no-image-team1..4 on every response (recorded, matches 4669,
+        // 4671, 4674): four different colours, so reloading each one made the badge flicker.
+        const ph = (n: number) => `https://static.cricclubs.com/utilsv2/img/icons/no-image-team${n}.jpg`;
+        await updateTeamLogos(data('/real-i.jpg', ph(3)));
+        for (const n of [1, 4, 2, 3, 1]) await updateTeamLogos(data('/real-i.jpg', ph(n)));
+        expect(loadImageMock.mock.calls.filter(([u]) => u.includes('no-image'))).toHaveLength(1);
+        expect((DOM.bowlingTeamLogo as HTMLImageElement).src).toBe(ph(3));
+        await updateTeamLogos(data('/real-i.jpg', '/real-j.jpg'));                    // the team uploads a logo
+        expect((DOM.bowlingTeamLogo as HTMLImageElement).src).toBe('https://cricclubs.com/real-j.jpg');
+    });
+
     it('does not attempt to load an empty logo URL', async () => {
         await updateTeamLogos(data(undefined, '/h.jpg'));
         await updateTeamLogos(data(undefined, '/h.jpg'));
