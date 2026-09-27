@@ -36,8 +36,10 @@ const reachable = async (url: string) => { try { const r = await fetch(url); ret
 
 // ---------- the recording as a fake CricClubs ----------
 let view = 1;
-const startWall = Date.now();
-const recNow = () => t0 + (Date.now() - startWall) * SPEED;
+// The clock starts at the overlay's FIRST request, not at launch: Chrome and Vite take a few seconds
+// to come up, and at x15 that alone skipped 45 s of the recording — the whole wait for the openers.
+let startWall = 0;
+const recNow = () => t0 + (startWall ? Date.now() - startWall : 0) * SPEED;
 const events: { wall: number; rec: number; kind: string; detail: unknown }[] = [];
 const latest = (pred: (r: Row) => boolean, at: number) => { let hit: Row | undefined; for (const r of frames) { if (r.t > at) break; if (pred(r)) hit = r; } return hit; };
 function frameFor(v: number, at: number): Row {
@@ -52,7 +54,7 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://x');
     const json = (body: unknown, status = 200) => { res.writeHead(status, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
     if (req.method === 'OPTIONS') { res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET,POST' }); return res.end(); }
-    if (url.pathname === '/liveScoreOverlayData.do') return json(frameFor(view, recNow()).data);
+    if (url.pathname === '/liveScoreOverlayData.do') { startWall ||= Date.now(); return json(frameFor(view, recNow()).data); }
     if (url.pathname === '/matchOverlayConfig.do') {
         const v = Number(url.searchParams.get('viewId'));
         if (v > 0) { view = v; events.push({ wall: Date.now(), rec: recNow(), kind: 'view', detail: { view } }); }
