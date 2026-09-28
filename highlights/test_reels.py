@@ -549,18 +549,29 @@ def test_em_dashes_stay_under_the_cap():
         f"{body.count(chr(8212))} em dashes in {words} words")
 
 
-def test_there_is_exactly_one_call_to_action():
-    """⚠ Load-bearing: two asks is no ask. Also no engagement bait."""
+def test_no_call_to_action_and_no_provenance_line():
+    """🛑 Both were removed at the owner's request. Do not reinstate either.
+
+    The ig-caption-writer skill asks for one CTA; this overrides it deliberately, so the
+    test pins the absence rather than leaving a future edit to quietly add one back.
+    """
     body = _sample_caption()["description"].lower()
-    assert body.count("send this to") == 1, body
-    for bait in ("double tap", "comment yes", "what do you think", "tag a friend"):
+    for gone in ("send this to", "score.abhinav.dev", "scrubbing the footage",
+                 "burnt into the stream"):
+        assert gone not in body, f"{gone!r} came back into the caption"
+
+
+def test_still_no_engagement_bait():
+    body = _sample_caption()["description"].lower()
+    for bait in ("double tap", "comment yes", "what do you think", "tag a friend",
+                 "like and share"):
         assert bait not in body, f"engagement bait: {bait!r}"
 
 
-def test_the_cta_differs_by_role():
-    """Nine reels off one match must not ship an identical closing line."""
-    from reels import cta
-    assert len({cta(["bat"]), cta(["bowl"]), cta(["bat", "bowl"])}) == 3
+def test_the_caption_ends_on_the_hashtags():
+    """With the CTA and link gone, the tag line is the last thing in the caption."""
+    body = _sample_caption()["description"].rstrip()
+    assert body.split("\n")[-1].startswith("#"), body.split("\n")[-1]
 
 
 def test_a_caption_survives_having_no_states():

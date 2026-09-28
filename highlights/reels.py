@@ -449,19 +449,6 @@ def hook(player: str, moments: list[dict], states: list[dict] | None,
     return cands[0][:limit - 1] + "…"
 
 
-def cta(roles: list[str]) -> str:
-    """One specific send prompt. ⚠ Never "what do you think?" or a double-tap ask.
-
-    Varied by role so nine reels off one match do not ship the same closing line, which
-    reads as automated.
-    """
-    if roles == ["bowl"]:
-        return "send this to whoever was keeping the book."
-    if len(roles) > 1:
-        return "send this to someone who watched both innings."
-    return "send this to someone who was at the ground."
-
-
 def hashtags(team: str, match: str, roles: list[str]) -> list[str]:
     """3-5 sized tags: 2 niche, 1-2 mid, at most 1 broad.
 
@@ -521,7 +508,10 @@ def metadata(player: str, moments: list[dict], segs: list, match: str, team: str
     The title stays scorecard-shaped, which is what reads well on YouTube. The description
     is written Instagram-first, because both publishers post it verbatim and Instagram is
     the harsher of the two: hook inside 125 characters, short lines, one call to action,
-    3-5 sized hashtags. See `hook()`, `cta()` and `hashtags()`.
+    3-5 sized hashtags. See `hook()` and `hashtags()`.
+
+    ⚠ No call to action and no provenance line: removed at the owner's request,
+    which overrides the ig-caption-writer rule asking for one CTA.
 
     ⚠ The ball-by-ball list sits BELOW the call to action on purpose. Instagram truncates
     at the fold so it costs nothing there, while YouTube shows it in full.
@@ -567,17 +557,16 @@ def metadata(player: str, moments: list[dict], segs: list, match: str, team: str
                       f"{over(fw['balls'])} overs, {economy(fw):.1f} an over.")
     if match:
         detail.append(match + ".")
-    body += detail + ["", cta(rs), ""]
+    body += detail + [""]
 
     # 🛑 The support lines above are the player's figures for the whole innings; the reel
     # holds only what the recording caught. Those differ whenever the stream started late,
     # so the tally is labelled rather than left for a reader to reconcile.
     if lines:
         body += [f"in this reel: {tally(moments)}", *lines, ""]
-    # The one mention of the next step the voice rules allow: a real link, a real reason.
-    body += ["every clip here was found by reading the scorecard burnt into the stream, "
-             "not by scrubbing the footage.",
-             "score.abhinav.dev", ""]
+    # ⚠ No call to action and no provenance line, by the owner's decision. The
+    # ig-caption-writer skill asks for one CTA; this overrides it. Do not reinstate either
+    # without being asked — they were removed on purpose, not lost.
     tags = ([t if t.startswith("#") else "#" + t
              for t in tag_override.replace(",", " ").split()] if tag_override
             else hashtags(team, match, rs))

@@ -768,7 +768,7 @@ follow the `instagram-skills` bundle (installed at `~/.claude/skills/instagram-s
 |---|---|
 | hook inside **125 chars**, standing alone | `hook()` |
 | a real number in the hook, never an adjective | `hook()` |
-| **one** call to action, no engagement bait | `cta()` |
+| ~~one call to action~~ | 🛑 **removed by request** — see below |
 | **3-5 sized** hashtags: 2 niche, 1-2 mid, at most 1 broad | `hashtags()` |
 | em dashes under about 1 per 100 words | `ball_line()` uses parentheses |
 | no `leverage`, `unlock`, `elevate`, `game-changer`, `dive in` | tested |
@@ -791,6 +791,11 @@ total if a strict set matters.
 Instagram app, so check the two niche tags there before leaning on them. All nine reels from
 one match share three tags, which is legitimate for one fixture but should rotate between
 matches — identical sets across many posts read as automated.
+
+🛑 **No call to action and no provenance line.** Both were removed at the owner's request,
+which overrides the skill's "one clear CTA" rule. The caption now ends on the hashtags.
+⚠ Do not reinstate either — they were taken out on purpose, not lost in an edit, and
+`test_no_call_to_action_and_no_provenance_line` fails if the strings come back.
 
 ✅ **`--captions-only` rewrites the sidecars without re-encoding.** Iterating on wording
 otherwise costs a full re-cut of every reel.
