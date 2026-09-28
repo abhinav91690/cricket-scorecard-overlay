@@ -133,6 +133,7 @@ worker/.dev.vars
 
 # Match recordings used for highlight detection. Large, and this repo is public.
 test video/
+Game footage/
 *.mp4
 *.mov
 *.mkv
