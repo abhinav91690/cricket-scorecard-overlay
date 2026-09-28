@@ -134,11 +134,401 @@ instead of 3818, and 66:34 as 3962 instead of 3994 — two of three timestamps w
 silently shifting the window earlier. Combined with hand-rolling the cut, the clip missed
 twice over.
 
+### 6b. 🛑 The lag is the SCORER's, not cricket's — measure it every match
+
+The windows are relative to the state change, and the state changes when the **scorer
+enters the ball**, not when it is bowled. That delay is a property of the person scoring:
+
+| Match | Boundary entered after the shot |
+|---|---|
+| reference (`Topguns vs Bazzigarz`) | **~5 s** |
+| `vs ATX Panthers`, innings 1 | median **10.7 s**, range **2-40 s** |
+| `vs ATX Panthers`, innings 2 | median **8.6 s**, range **2-45 s** |
+
+🛑 **A single measured lag is not a match constant.** "19 s on `vs ATX Panthers`" was one
+ball, and it became a fixed `--lag-bat 19` that was right for that ball and wrong for the
+rest: the spread within one innings is 2-40 s, sd 7.4 s. Measuring one ball and generalising
+is what §6c exists to replace — prefer `--align`, and keep `--lag-bat`/`--lag-bowl` for a
+match whose video is too dark or too hand-held for motion detection.
+
+⚠ **A window built for 5 s lands entirely in the aftermath at 19 s.** The first pass on
+`vs ATX Panthers` cut 22 s clips with `four: (-18, +4)`; every one of them held the batters
+talking and the crowd cheering, and none of them held the shot. The reels looked completely
+fine — right length, right crop, real cricket, no error anywhere.
+
+`windows_for(lag_bat, lag_bowl, lead, trail)` derives the windows instead: the shot sits at
+`-lag`, so keeping `lead` before and `trail` after gives a clip centred on the action.
+`reels.py --lag-bat 19 --lag-bowl <n>` cut one batter's reel from **308 s to 70 s** and put
+the delivery in every clip.
+
+⚠ **This scorer entered balls in bursts**, so the lag is not perfectly constant — at the
+shot the overlay still read a state from 19 s earlier. A 5 s clip is therefore only as good
+as the lag's consistency; widen `trail` before `lead`, because the run-up is predictable
+and the aftermath is not.
+
+#### How to measure it
+
+1. Pick a boundary in `events.json` and note its `t` — that is the entry time.
+2. Scrub the recording back from `t` to where the bat meets the ball.
+3. `lag = t - shot`. Repeat for a wicket; dismissals take longer to enter.
+
+🛑 **Do not try to find the shot from the audio.** Bat on ball was attempted with a
+highpass-plus-onset detector: after restricting the search it looked convincing —
+median −7.7 s, 18/18 in a plausible range, sd 2.8 s — and it was wrong. Checking the frames
+at each detected onset showed between-ball moments every time. The DJI mic sits closer to
+the spectators than to the bat, so the detector locks onto chatter and applause. The
+statistics looked like a result; the pixels said otherwise.
+
+### 6c. ✅ `--align`: find the delivery in the video, don't guess the lag
+
+🛑 **This is the right way, and the only one that survived a reel-by-reel review.** No fixed
+lag can work when the scorer's own lag spreads 2-40 s inside one innings. `deliveries.py`
+finds the balls independently in the video and aligns the two sequences — the k-th ball
+bowled is the k-th ball entered, which is the one thing that always holds.
+
+The camera is on a tripod, so a frame difference over the pitch is almost entirely players
+moving. A delivery is a **rise out of a still field**, and the alignment is a monotonic
+dynamic program over (entry k -> delivery j). `reels.py --align` needs no lag argument.
+
+#### 🛑 The onset, never the peak
+
+The first version took the strongest motion peak per ball. It read beautifully — 122/144
+balls aligned, 29/29 boundaries, 0.0 s against the hand-measured ball — and it put one of
+one batter's two fours **nine seconds late**, showing the batters walking after the ball had
+gone. A boundary makes **two** humps, and on a four the second is the bigger one:
+
+```
+2235-2239   2.3-3.6   field set, nobody moving
+2240-2244   6.0-8.7   run-up, shot             <- the delivery,  peak 8.65
+2245-2270   5.8-10.2  chase, throw back, crowd <- the aftermath, peak 9.49  (it won)
+```
+
+Worse, suppressing peaks within a `MIN_GAP` then *discarded* the delivery in favour of the
+aftermath, so the right answer was not on the candidate list at all. That is why tuning
+could not fix it: every configuration tried pinned that ball at a 5.3 s lag, stably, because
+nothing better was available. ⚠ **A stable wrong answer is not evidence of a good model** —
+it took frame-level measurement of three balls to see the detector had the wrong target.
+
+The rising edge has no such failure mode. It is the bowler starting his run-up, it looks the
+same whether the ball goes to the fence or to cover, and it sits a measured **0.75 s** before
+bat on ball. Each local maximum is walked back to where its rise covered `RISE_FRAC` of the
+way up from the quiet before it; same-burst onsets merge, and the group keeps the onset of
+its **strongest** peak — ⚠ not its earliest, which re-broke the same ball when a small bump
+4 s earlier swallowed the real onset.
+
+Measured against three balls found frame by frame, 200 s apart:
+
+| ball | delivery stride | shot (measured) | aligner | error |
+|---|---|---|---|---|
+| four #1 | 2168 | 2169.7 | 2169.5 | **-0.22 s** |
+| four #2  (the disputed one) | 2240 | 2241.7 | 2241.7 | **+0.03 s** |
+| ground truth | 2378 | 2379.3 | 2379.5 | **+0.18 s** |
+
+The delivery stride is 1 s before the shot in all three, and the smoothed motion curve reads
+5.8-6.1 at the moment of contact — within 0.3 across balls three minutes apart.
+
+Coverage on `vs ATX Panthers`: **135/144** balls in innings 1, **73/79** in innings 2, and
+**39/39** of the moments that actually feed a reel.
+
+#### ✅ An outlying lag is the tell for a mis-alignment
+
+⚠ **The extreme tail of the lag distribution is where it fails.** Thirteen predicted instants
+were checked as frames, chosen to span the lag range rather than sampled uniformly:
+
+| verified | lags | what the frames show |
+|---|---|---|
+| good | 2.2-25.4 s | the bat coming through the ball (two a second or two late) |
+| **bad** | **39.6 s**, **45.3 s** | a still field; an empty pitch |
+
+Both failures were the **largest lag in their innings** and nothing else was. `shot_times()`
+therefore drops a ball whose lag exceeds `median + 4 x MAD`, floored at
+`LAG_OUTLIER_FLOOR = 30 s` — the floor matters, because the MAD of a tight distribution is
+small enough that a uniformly slow scorer would otherwise be discarded wholesale. On
+`vs ATX Panthers` it removes 1 ball from innings 1 and 3 from innings 2, including the empty
+pitch that was in a wicket reel. `--keep-suspect` turns it off.
+
+🛑 **A clip cut from a wrong match is worse than a missing clip.** That is the whole ordering
+this module is built around, and it is why the guard drops rather than warns.
+
+⚠ **This rests on two confirmed cases.** Re-check the threshold once a second match has been
+reviewed reel by reel — and keep reviewing, because the guard catches the failure mode that
+has been *seen*, not every one that exists.
+
+⚠ **`pitch_crop()` is a per-match input, like the reel crop.** It spans 31-76% of the width
+because the camera sat at 39-66% in one innings and 41-63% in the other. A differently framed
+match needs it re-measured; being generous costs only noise, because candidates are weighed
+by strength.
+
+### 6d. 🛑 The second innings needed more than a good detector
+
+The onset detector was verified on three **innings-1** balls and it is right there. It was not
+right in innings 2: a wicket landed **4.5 s late**, on a burst 5 s after the real delivery.
+Frame by frame, the delivery stride is at 10728 and bat on ball at 10729.3; the burst the
+aligner chose at 10733-10736 is the batter walking off and the fielders gathering.
+
+⚠ **The camera is repositioned at the innings break.** The motion centroid sits at 47-55% of
+the width in every 5-over block of both innings — so the **bowling end swapping every 5 overs
+does not move the action in frame**, because the camera is side-on and both ends sit either
+side of the same centre. What does change is the vertical framing between innings (centroid
+y 68% -> 62%): the second innings is framed tighter, so players walking fill more of the frame
+and an aftermath burst out-peaks a delivery more easily.
+🛑 A match shot from **behind the bowler's arm** would behave differently — there the end swap
+would move the action, and `pitch_crop()` would have to cover both ends. Check this before
+trusting `--align` on differently-filmed footage.
+
+#### Every global lever failed, and one of them was a trap
+
+Both candidates were in the list. The decoy was simply the stronger burst, 10.64 against 7.87.
+None of these moved it:
+
+| lever | result |
+|---|---|
+| peak height (shipped) | +4.5 s |
+| contrast over `BACKTRACK` | +4.5 s — the decoy reaches back *past* the delivery and claims the same quiet as its own trough |
+| contrast against the local level | +4.5 s |
+| quietness alone | +13.7 s, and it broke innings 1 |
+| `STRENGTH` halved | +4.5 s |
+| `SMOOTH` from 0.5 down to 0 | +4.5 s, and `SMOOTH = 0` broke innings 1 |
+
+🛑 **`SMOOTH` is the trap.** Lowering it looks like the obvious fix and is exactly wrong: that
+ball's true lag is 23 s against its neighbour's 8 s, so a smoothness prior *actively prefers*
+the decoy. The scorer's lag is bursty, so smoothness is a weak prior — but raising or removing
+it costs innings-1 accuracy, so it stays at 0.5.
+
+#### ✅ What worked: the field before the onset
+
+The two are trivially separable on a fact the cost model never used.
+
+| | onset | field in the 2.5 s before |
+|---|---|---|
+| real delivery | 10727.75 | **4.34** — set, still |
+| aftermath | 10733.00 | **6.29+** — previous ball still unwinding |
+
+`snap_to_quiet()` walks back up to `SNAP_WINDOW` from the chosen candidate for one preceded by
+a still field. It fixed the wicket (+4.5 s -> **-0.8 s**), left all three innings-1 balls
+untouched, and is stable for `QUIET_FRAC` 0.8-1.1. It moved 5 of 73 matches in innings 2.
+
+`drop_busy_preceded()` is the second line: when the snap finds nothing still-preceded, the
+match probably is not on a delivery at all. At `SUSPECT_PRE_FRAC = 1.35` it removed two wicket
+clips showing fielders milling with no batter at the crease, kept all five showing the bowler
+delivering, and cost 8 balls in innings 1 and 3 in innings 2.
+
+#### 🛑 Still not clean — review the bowling reels
+
+Of eight predicted wicket deliveries checked as frames: **five clearly show the delivery, two
+were wrong and are now dropped, and one remains wrong**. That third one has a pre-onset level
+of 5.22, *below* the innings median, so neither guard can see it and its lag is unremarkable.
+Batting reels (innings 1) are in much better shape than bowling reels (innings 2) — three
+measured balls at ±0.25 s and six of nine blind checks good. **Watch the bowling reels before
+publishing.**
+
+### 6e. 🛑 Widening a clip to cover doubt was tried and is WORSE — keep them tight
+
+**Reverted after a second reel-by-reel review.** The reasoning below was sound and the
+measurement supported it — 8 of 8 hand-measured deliveries landed inside their clip, against
+5 of 8 for the tight cut — and it was still the wrong trade. Watching the result found three
+distinct new failures that no coverage metric sees:
+
+| widened clip | what it actually showed |
+|---|---|
+| 28 s | the **previous batter** playing the ball before |
+| 52 s | a **different bowler's** over entirely |
+| 27 s | the delivery at **0:22 of 0:27** — read as "missing the boundary" |
+
+🛑 **A clip showing the wrong player is worse than an absent clip**, and 22 s of dead lead-in
+followed by a cut 5 s after contact is worse than a short reel. The metric said the shot was
+in the clip; the viewer said the clip was about someone else. ⚠ Coverage of the right
+*instant* is not coverage of the right *ball* — a wide window spans neighbouring deliveries,
+and the neighbours belong to other players.
+
+Tight 8 s clips are the default again, and a ball with no confident delivery is **omitted**.
+`--widen` keeps the widening behaviour for review passes, where seeing more matters more than
+seeing the right person.
+
+⚠ **An "omit anything ambiguous" rule was priced and rejected**: it removes 15 of 35 reel
+clips and takes three verified-correct boundaries with it, to catch three verified-wrong ones.
+
+#### What survived the revert
+
+Three changes from that round are unambiguous wins, because none of them lengthens a clip:
+
+- `prefer_cluster_start()` — moved 8 reel balls 9-15 s earlier, and made a wicket that had
+  been missing entirely land exactly right. The reels confirmed good beforehand were untouched.
+- `dedupe_moments()` — §6f.
+- `combine_all_rounders()` — §13aa.
+
+#### The original reasoning, kept because the measurement stands
+
+##### Superseded: clip width should carry the uncertainty
+
+
+🛑 **Dropping a doubtful clip was wrong, and the reel-by-reel review proved it.** The tight
+8 s aligned cut was *worse* for bowling than the old fixed-lag cut it replaced, and the reason
+is embarrassing once measured:
+
+| cut | seconds per clip |
+|---|---|
+| pre-alignment, batting | 22.0 (`-18…+4`) |
+| pre-alignment, bowling | 44.0 (`-40…+4`) |
+| aligned | 8.0 |
+
+A 44 s wicket clip starting 40 s before the entry brackets almost any lag and therefore
+**cannot miss**. It was never a better estimate — it was a wider net. So the thing worth
+keeping from it is not its timing but its width, as a fallback.
+
+Each ball now gets the narrowest clip its own evidence supports:
+
+| evidence | clip |
+|---|---|
+| one candidate clearly the delivery | **8 s** |
+| rival candidates that no rule separates | span them (`AMBIGUITY_WINDOW`, ~20-28 s) |
+| onset follows a busy field | span widened |
+| scorer stalled **and** the alignment is implausible for it | measured from the entry, `STALL_LEAD` |
+| no candidate at all | `FALLBACK_LEAD_BAT` / `FALLBACK_LEAD_BOWL` from the entry |
+
+Result on `vs ATX Panthers`: **8 of 8 hand-measured deliveries inside their clip**, 19 of 39
+reel clips still tight at 8 s, median 18.2 s.
+
+#### What the failures had in common
+
+Every mis-aligned clip in the review had an abnormally **small** lag — the aligner had locked
+onto a burst *after* the ball. Never once was it too early.
+
+| reviewed as | lag |
+|---|---|
+| good | 11.8, 26.1, 23.9, 8.7, 6.1 s |
+| **wrong** | **5.1, 7.3, 4.3, 4.0, 7.8 s** |
+
+⚠ But a small lag is not itself a fault — 8.7 s and 6.1 s balls were verified correct, so a
+blanket small-lag penalty breaks as much as it fixes. It only becomes a signal in combination:
+`prefer_cluster_start()` moves a match to the first burst of its cluster, and a stall only
+widens when the lag is *also* below the innings median.
+
+#### 🛑 The hardest case: a delivery that was never detected
+
+One wicket had a **46.7 s** lag and its delivery was not among the motion candidates at all —
+the nearest were 15 s early and 11 s late. No span, no cluster rule and no threshold can
+recover a ball the detector never saw; only a window measured from the scorer's entry can, and
+it has to reach past 50 s. Its one distinguishing feature was that the previous ball was
+entered 65.8 s earlier — the scorer had stalled.
+
+⚠ **Adaptive thresholds, not fractions of the median.** `QUIET_FRAC` and `SUSPECT_PRE_FRAC`
+as fractions of the curve median are nearly inert in the second innings, where tighter framing
+lifts every level: real deliveries measured 4.89-5.67 against a 4.84 threshold, so nearly
+every ball read as doubtful and got widened for nothing. `STILL_PCT`/`BUSY_PCT` take
+percentiles of the innings' own pre-onset distribution instead.
+
+### 6g. ✅ Hand-measured overrides, for the balls the video cannot place
+
+Some balls cannot be located from the video and no tuning will change that. `--overrides`
+takes a per-match JSON of shot times read frame by frame, keyed on the payload **entry** time
+(stable, because it comes from the scorecard rather than the video):
+
+```json
+{"shots": {"8862.4": 8836.5}, "drop": [13650.5]}
+```
+
+The four that needed it on `vs ATX Panthers`, with the lag each one actually had:
+
+| entry | aligner | measured | lag | why the aligner could not get it |
+|---|---|---|---|---|
+| 8862.4 | 8847.5 | **8836.5** | 25.9 s | the true burst is 11 s further back than `CLUSTER_GAP` reaches |
+| 11342.0 | *omitted* | **11315.5** | 26.5 s | dropped by the guards |
+| 13074.2 | 13070.2 | **13027.5** | 46.7 s | **the delivery was never among the motion candidates** |
+| 13650.5 | 13639.5 | **13510.5** | 140.0 s | a 240 s scorer stall; the aligner's estimate lands on the *next* bowler's over |
+| 6816.6 | *omitted* | **6807.3** | 9.3 s | the aligner had the **previous** ball; the neighbours all lag 4.6-8.1 s |
+| 14618.3 | *omitted* | **14539.3** | 79.0 s | a retraction `dedupe_moments()` cannot catch — see below |
+
+🛑 **Not every retraction is a duplicate.** The last one above was entered promptly as a dot
+(ov 10.4, `out=0`) at 14542.4 — only **3.1 s** after the ball — then walked back to ov 10.3 and
+re-entered as a *wicket* at 14618.3. `dedupe_moments()` cannot see it, because the corrected
+event genuinely differs: the wicket count changed, so the signature is not identical. Only the
+**timestamp** is wrong. ⚠ When a ball's outcome is corrected rather than merely re-entered,
+the event is real and its time is 60-80 s late, which looks exactly like a slow scorer.
+
+⚠ **A lag that is implausible against the wicket entry can be ordinary against the ball's
+first entry.** 79 s looks like a mis-alignment until you notice the same ball was logged 3.1 s
+after it was bowled. Check whether an earlier state covers the same ball before concluding the
+scorer was slow.
+
+🛑 **Never populate this from the aligner's own output.** An override that agrees with the
+estimate is noise; one that is itself estimated is worse than the estimate it replaces. Each
+line above was read as frames — run-up, delivery stride, ball in flight, bat on ball — and the
+file records what was seen, with the reasoning, in a `measured` block beside the numbers.
+
+⚠ **The aftermath is easy to mistake for the shot when measuring by hand.** An earlier reading
+put one of these at 11321; the frames show 11315 is the stroke, 11318 the follow-through and
+11321 the batters already crossing. Measure the *stroke*, not the reaction.
+
+`drop` removes a moment outright — for an event the video cannot support, or one the scorer
+attributed to the wrong player (§6f).
+
+### 6f. 🛑 A scorer retraction produces the SAME event twice
+
+A retracted-and-re-entered ball emits a second, identical moment carrying the **re-entry's**
+timestamp:
+
+```
+9080.7  213/3  10(5)   boundary entered
+9098.1  209/3   6(4)   retracted
+9118.2  213/3  10(5)   re-entered, outcome "4"   <- second moment, 256 s after the ball
+```
+
+Its clip showed a different player getting out. There were **18 retraction events** in this
+match, and two produced duplicate moments. `dedupe_moments()` keeps the earliest of any
+identical `(innings, ball, striker, strikerScore, score, outcome)`.
+
+⚠ **An independent check catches this without the state trace**: a batter credited with three
+fours whose figures read `10 (5)`. Three fours is 12 runs. When a reel's clip count disagrees
+with the player's own boundary count, suspect a duplicate before suspecting the timing.
+
+#### 🛑 A third retraction shape: the same ball re-entered with a DIFFERENT outcome
+
+A boundary was entered as a plain four, then retracted and re-entered as a **no-ball**
+boundary. `dedupe_moments()` cannot see it, because the ball number, the score and the outcome
+all differ — only `strikerScore` matches:
+
+```
+7622.5  balls=90  runs=180  striker=100(50)  fours=13  out=4     original
+7666.1  balls=89  runs=176  striker=96(49)   fours=12  out=2     retracted
+7670.2  balls=89  runs=181  striker=100(50)  fours=13  out=12    re-entered as 4nb
+```
+
+`strikerFours` reads **13 after both**, so it is one boundary. The reel had 14 clips for 13
+fours, one of them a duplicate of another.
+
+✅ **The caption is what caught it.** The title said *14 fours* (from the moment count) while
+the description said *13 fours* (from the scorecard), and the clip list ran `15.0 ov` before
+`14.5 ov` — a no-ball does not advance `ballsBowled`, so a correction can land out of
+sequence. ⚠ **Whenever a reel's clip count disagrees with the player's own boundary count,
+suspect a duplicate before suspecting the timing**, and read the over numbers for monotonicity.
+Neither check needs the video.
+
+There is no automatic fix for this shape yet: matching on `strikerScore` alone would collapse
+two genuinely different balls that happen to leave a batter on the same score. It is handled
+per match through the override file's `drop` list (§6g).
+
+⚠ **Bowler attribution is separately unreliable.** In one over the payload named two different
+bowlers for the same ball, and one bowler's four wickets span 28 minutes while their figures
+read 2.1 overs. That is the scorer's data, not a clip-timing fault, and `--align` cannot fix
+it — a reel can contain the right ball attributed to the wrong bowler.
+
 ### 6a. ✅ The overlay is its own witness: verify a clip before publishing it
 
 🛑 **"The cut succeeded" and "the shot is in the clip" are separate claims.** A clip that
 misses the ball looks perfectly fine — right length, right crop, real cricket, no error
 anywhere. Extracting one mid-clip frame proves only that the video is not black.
+
+🛑 **But do not check that the score changed inside the window — that check cannot fail.**
+The window is `[t-a, t+b]` around the state change, so `t` is inside it by construction and
+the delta is always there. On `vs ATX Panthers` this reported "28/28 clips confirmed" for
+reels that contained no shots at all. It was a tautology wearing the clothes of a
+verification.
+
+What the score *can* confirm is a clip cut around a KNOWN event time, as in the worked
+example below, where the window was chosen independently of the score. For per-player reels
+the only sound check is the lag measurement in §6b plus looking at a frame near the expected
+shot.
 
 Because the scorebar is **burnt into the footage**, the clip carries the evidence. Read the
 score at each end:
@@ -349,15 +739,168 @@ failure class this pipeline keeps getting caught by.
 aspect. Verified by re-scanning a finished reel: `qrscan.py` decoded **0 of 80** keyframes,
 against 13 of 13 on the source.
 
-### 13aa. 🛑 One player, two roles, two reels
+### 13aa. 🛑 One player, two roles — attributed separately, then combined on purpose
 
-Reels are keyed by **(player, role)**, and the role is in the filename —
-`v-kohli-batting.mp4`, `v-kohli-bowling.mp4`.
+Moments are attributed by **(player, role)**, and the role is in the filename —
+`v-kohli-batting.mp4`, `v-kohli-bowling.mp4`, `v-kohli-allrounder.mp4`.
 
-Keyed by name alone, an all-rounder who hit a four and later took a wicket got **one** reel
-holding both, and every caption helper reads the role off the first moment — so it would have
-been captioned with batting figures while containing a wicket. It also made the per-role crop
-above impossible to apply. Pinned by `test_an_all_rounder_gets_one_reel_per_role`.
+🛑 **The attribution key must stay (player, role).** Keyed by name alone, an all-rounder who
+hit a four and later took a wicket got one reel whose caption helpers all read the role off
+the *first* moment — captioned with batting figures while containing a wicket. Pinned by
+`test_an_all_rounder_gets_one_reel_per_role`.
+
+✅ **Combining the two reels afterwards is a different thing, and is now the default.**
+`combine_all_rounders()` merges the two moment lists in time order into one `(player, 'all')`
+reel, captioned with both sets of figures — `"A. Player 7 (4) & 4/10 (2.1 ov)"`. Every moment
+keeps its own `_role`, so clip widths and commentary lines stay role-correct; the bug above
+was never about one file, it was about reading one role off a mixed list.
+
+⚠ **The combined reel takes the batting crop**, because a single file can only have one and
+the per-role crop below cannot apply to both halves. `--split-roles` restores two reels when
+the crops matter more than having one file.
+
+### 13aaa. ✅ Captions are written to the ig-caption-writer rules
+
+The first captions were a scorecard line plus a data dump, and read as generated. They now
+follow the `instagram-skills` bundle (installed at `~/.claude/skills/instagram-skills`):
+
+| rule | where it lives |
+|---|---|
+| hook inside **125 chars**, standing alone | `hook()` |
+| a real number in the hook, never an adjective | `hook()` |
+| ~~one call to action~~ | 🛑 **removed by request** — see below |
+| hashtags: the club's own set, 7-8 | `hashtags()` — see below |
+| em dashes under about 1 per 100 words | `ball_line()` uses parentheses |
+| no `leverage`, `unlock`, `elevate`, `game-changer`, `dive in` | tested |
+
+🛑 **Instagram hides everything past ~125 characters.** `hook()` builds that line from a fact
+already in the scorecard — a strike rate, a consecutive-ball streak, a bowler hit repeatedly,
+a wicket in the first two overs — and falls through a list of shapes until one fits the limit.
+⚠ Every shape is written **without pronouns**: the payload carries names, never anyone's
+pronouns, so a hook that reaches for one would be guessing.
+
+⚠ **The ball-by-ball list sits below the call to action.** Instagram truncates at the fold so
+it costs nothing there, while YouTube shows it in full. One description serves both
+publishers, so it is written for the harsher of the two.
+
+⚠ **`#Shorts` makes six tags, not five.** It is a YouTube discovery token and means nothing on
+Instagram, but the same description feeds both. Pass `--hashtags` with four to land on five
+total if a strict set matters.
+
+#### The club's tag set, and what is deliberately absent
+
+```
+#Topguns #LPCL #LeatherBall|#TapeBall #<series> #clubcricket #cricketbatting|bowling #cricket
+```
+
+Set with `--league`, `--ball leather|tape` and `--series`. The club tag is the **first word**
+of `--team`, so "Topguns United" gives `#Topguns`, not `#TopgunsUnited`.
+
+⚠ **7-8 tags, against the skill's recommended 3-5.** That is the owner's call: the club wants
+its four on every post. The sizing logic still holds (four niche, one mid, one broad) and it is
+nowhere near the 30-tag block that reads as spam.
+
+🛑 **No per-fixture tag.** `#TopgunsVsATX` was dropped: it named the opponent in the tag itself,
+and a tag used once per season is noise rather than an archive.
+
+🛑 **`--series` cannot be derived, and the API is a red herring.** `seriesName` IS in the
+`liveScoreOverlayData.do` response, but the highlights pipeline never sees it: `events.json`
+comes from the QR payload, the payload is 42 bytes with every bit allocated, and it carries no
+match id either. So there is no path from the video to the series. Pass it.
+
+### 13aaaa. 🛑 No opposition player names in a caption
+
+The payload names opponents in two places, and the field differs by role: the **bowler** a
+boundary came off (our batter's reel) and the **batter** a wicket dismissed (our bowler's
+reel). Neither goes in a public caption.
+
+| line | before | now |
+|---|---|---|
+| boundary | `four off <opp bowler> (0.2 ov, 6/0)` | `four (0.2 ov, 6/0)` |
+| wicket | `<opp batter> 5(4) out (8.5 ov, 54/6)` | `wicket, 5(4) (8.5 ov, 54/6)` |
+| support | `2 of them came off <opp bowler>.` | `2 of the fours came off the same bowler.` |
+
+✅ **The dismissed batter's score stays.** It is the useful part, and a number is not a name.
+
+⚠ **The opposing TEAM stays too.** The fixture line "Topguns United vs ATX Panthers" is normal
+for a highlight caption and a club is not a person. `test_no_opposition_name_reaches_the_caption`
+asserts the team IS present and the players are not — an earlier draft of that test failed
+because it blocked both.
+
+⚠ `test_a_fielding_wicket_gives_the_score_but_NOT_the_batters_name` is the **inverted** form of
+a test that used to assert the batter *was* named. The old assertion is gone on purpose; do not
+restore it from an older revision.
+
+⚠ **The hashtag tiers are judgment calls.** A tag's real post count is only visible in the
+Instagram app, so check the two niche tags there before leaning on them. All nine reels from
+one match share three tags, which is legitimate for one fixture but should rotate between
+matches — identical sets across many posts read as automated.
+
+🛑 **No call to action and no provenance line.** Both were removed at the owner's request,
+which overrides the skill's "one clear CTA" rule. The caption now ends on the hashtags.
+⚠ Do not reinstate either — they were taken out on purpose, not lost in an edit, and
+`test_no_call_to_action_and_no_provenance_line` fails if the strings come back.
+
+✅ **`--captions-only` rewrites the sidecars without re-encoding.** Iterating on wording
+otherwise costs a full re-cut of every reel.
+
+### 13ab. ✅ The contact sheet — verify a reel without watching it
+
+`--contact-sheet` writes `<reel>-sheet.png` beside each reel: one tile per clip, each the frame
+at the **predicted delivery**, labelled `<n> <reel mm:ss> ov <over> +<lag>s`.
+
+🛑 **This is the fix for the review problem, and the review problem was the expensive one.**
+Three reel-by-reel passes were needed on `vs ATX Panthers` and every real fault came from
+watching, never from a metric. A wrong clip is obvious in a tile: an empty pitch, a batter
+walking away, fielders gathering. A right one shows a bowler in the act or a bat coming
+through with the keeper crouched.
+
+On its first run against the shipped reels it flagged four clips in the 13-clip reel (lags of
+39 s, 17 s, 16 s and 27 s) that show players standing. That reel had been reviewed as "good,
+some missing but too many to correctly tell" — the sheet turns that into four indices.
+
+⚠ **Read the lag column.** Both mis-alignments ever confirmed by eye were the largest lag in
+their innings, so a lag far from the median is the tile to look at twice.
+
+#### 🛑 The tiling trap
+
+`ffmpeg`'s `tile` filter tiles successive **frames of one input**. The first version passed one
+`-i` per tile, so ffmpeg tiled the *first* image and padded the rest — **every sheet came out
+byte-identical whatever the other tiles held**, while looking entirely correct: a valid PNG,
+right dimensions, first tile right. It was caught only by md5-ing two sheets that should have
+differed, and `test_two_different_shot_lists_give_different_sheets` now pins it. Use one
+numbered-sequence input (`-i t%03d.png`), and number tiles contiguously — a gap truncates the
+sequence.
+
+⚠ **`drawtext` needs its colons escaped.** A reel timestamp always contains one, and an
+unescaped colon is read as a filter-option separator: the whole filterchain fails with exit
+234 and no image at all. `esc()` handles `\`, `:`, `'` and `%`.
+
+⚠ A sheet never takes the reel cut down with it: every failure path returns `None`, including
+an unreadable source, because `probe()` raises rather than returning empty.
+
+### 13ac. ✅ One manifest per match
+
+`--manifest matches/<slug>.json` supplies every per-match setting, so a run is one argument
+instead of twelve. It doubles as the record of what a match was cut with.
+
+| in the manifest | why it cannot be a default |
+|---|---|
+| `aspect-*`, `crop-x-*` | measured per camera position; it moved at the innings break here |
+| `batting-innings` | 🛑 not inferable; wrong value credits every event to the opposition |
+| `league`, `ball`, `series` | caption inputs that do not exist in the payload |
+| `overrides` | hand-measured shot times for that match |
+
+🛑 **An explicit flag always beats the manifest.** That needs two parse passes — read
+`--manifest`, `set_defaults`, re-parse — because applying the manifest *after* parsing would
+clobber the flag instead.
+
+⚠ **Paths resolve against the manifest's own directory**, not the shell's cwd, so it works from
+anywhere. ⚠ `-o/--out` and `--batting-innings` are no longer argparse-`required`: that demands
+the flag on the command line even when the manifest supplies it, so they are checked by hand.
+
+⚠ An unknown key is an error, not a shrug. A typo would otherwise look like the setting
+silently not applying.
 
 ### 13b. Captions travel in a sidecar
 

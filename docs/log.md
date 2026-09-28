@@ -26,6 +26,172 @@ the recording at x60, where the two-second result no longer fit.
 
 The 20 recordings are committed gzipped in `sim/matches/` (1.2 MB) and replayed in CI.
 
+**The first `?data=1` match went out: 9 reels to YouTube and Instagram, all public.** Nine
+uploads on each platform, no failures. ✅ `videos.insert` has its own 100-call daily bucket, so
+nine was never near the limit — the old ~1600-units-against-10,000 figure that caps you at six
+a day is stale (§2 of `publishing.md`).
+
+⚠ One reel went up as a **video, not a Short**: 104 s for 14 boundaries, over the 60 s ceiling
+this tool holds to. `--target video` takes it, and YouTube will likely present a vertical
+sub-3-minute video as a Short anyway. The ceiling is our choice, not the platform's.
+
+The order was YouTube first, then Instagram, deliberately: 🛑 Instagram has no private-first
+option, so those nine could not be staged or walked back, while YouTube can be unlisted. Both
+publish streams were kept sequential rather than parallel for the same reason.
+
+✅ **Two documented limits turned out to be untested caution, and one upload settled each.**
+
+| claim | measured |
+|---|---|
+| YouTube Shorts cap 60 s "sources disagree, take the safe one" | a **104 s** vertical upload is presented as a Short. `SHORTS_MAX_SECONDS` 60 -> **180** |
+| Instagram Reels "5-90 s window" | **104 s / 136 MB** published without complaint |
+
+⚠ The Instagram figure was the worse of the two: these docs carried *both* "5-90 s" and
+"3 s-15 min" for the same limit, in different sections, and neither had been tested. The table
+was right. → `publishing.md` §6, §8
+
+⚠ R2 held **0 objects** afterwards, so `igpublish.py` cleaned up every staged file. Worth
+checking after a run that fails partway, where cleanup may not have reached.
+
+
+**Clip timing solved properly: `reels.py --align` locates the ball in the video.** The
+payload's timestamp is when the *scorer entered* the ball, and on `vs ATX Panthers` that lag
+spread **2-40 s within one innings** — so neither the stock windows nor a single measured
+`--lag-bat 19` could centre a clip. `highlights/deliveries.py` detects deliveries from frame
+differencing over the pitch and aligns the two sequences with a monotonic DP.
+
+🛑 **The first version targeted the strongest motion peak, and that was the wrong target.**
+It reported well — 122/144 aligned, 29/29 boundaries, 0.0 s against the one hand-measured
+ball — and still put the disputed four **nine seconds late**. A boundary makes two motion
+humps, and on a four the chase out-peaks the shot (8.65 vs 9.49); `MIN_GAP` suppression then
+*discarded* the delivery in favour of the aftermath, so the right answer was not on the
+candidate list. Every tuning configuration therefore reproduced the same 5.3 s lag, stably —
+⚠ a stable wrong answer read exactly like a confident model.
+
+What settled it was measuring three balls frame by frame instead of tuning: the shot always
+lands on the **rising edge**, 1 s after the delivery stride, with the smoothed motion curve
+at 5.8-6.1 on contact across balls three minutes apart. Rebuilt on burst onsets, with
+same-burst onsets keeping the **strongest** peak's onset (keeping the earliest re-broke the
+same ball):
+
+| ball | measured shot | aligner | error |
+|---|---|---|---|
+| four #1 | 2169.7 | 2169.5 | **-0.22 s** |
+| four #2  (the disputed one) | 2241.7 | 2241.7 | **+0.03 s** |
+| ground truth | 2379.3 | 2379.5 | **+0.18 s** |
+
+Coverage 135/144 and 73/79 by innings, and 39/39 of the moments that feed a reel.
+
+**Thirteen blind frame checks spanning the lag range found the failure mode and a tell for
+it.** Clips verified good ran 2.2-25.4 s of lag; the two bad ones — a still field and an
+empty pitch in a wicket reel — were **39.6 s and 45.3 s, the largest lag in each innings**,
+and nothing else was. `shot_times()` now drops a ball whose lag exceeds `median + 4 x MAD`,
+floored at 30 s so a uniformly slow scorer is not thrown away wholesale; `--keep-suspect`
+turns it off. It removes 4 balls across the match, including that empty pitch.
+
+⚠ The guard catches the failure mode that has been *seen*, on two confirmed cases. Keep
+reviewing reel by reel, and re-check the threshold after the next match.
+
+**Then the second innings turned out to need more than a good detector.** The onset detector
+was verified on three innings-1 balls and is right there; in innings 2 a wicket landed **4.5 s
+late**, on a burst 5 s after the real delivery (stride 10728, bat on ball 10729.3, chosen burst
+10733-10736 = the batter walking off). Both candidates were in the list and the decoy was
+simply stronger, 10.64 against 7.87, because the camera is framed tighter in the second
+innings.
+
+⚠ Asked whether the bowling end swapping every 5 overs was the cause: measured, and **no**.
+The motion centroid sits at 47-55% of the width in every 5-over block of both innings, because
+the camera is side-on and both ends share a centre. What changes is the vertical framing
+between innings (centroid y 68% -> 62%) — the camera is repositioned at the break, not at end
+swaps. 🛑 Footage shot from behind the bowler's arm would not have that property.
+
+🛑 **Every global lever failed and one was a trap.** Peak height, contrast over `BACKTRACK`,
+contrast against the local level, quietness alone, `STRENGTH` halved, and `SMOOTH` from 0.5
+down to 0 all left the ball at +4.5 s. `SMOOTH` looks like the obvious fix and is exactly
+wrong: that ball's true lag is 23 s against its neighbour's 8 s, so a smoothness prior
+*prefers* the decoy — and `SMOOTH = 0` breaks innings 1.
+
+✅ What worked is a fact the cost model never used: **a delivery rises out of a still field,
+the burst after one does not.** Pre-onset motion was 4.34 for the delivery and 6.29+ for the
+aftermath. `snap_to_quiet()` walks back for a still-preceded candidate (+4.5 s -> **-0.8 s**,
+innings-1 balls untouched, stable for `QUIET_FRAC` 0.8-1.1, moved 5 of 73 matches), and
+`drop_busy_preceded()` drops what the snap cannot rescue (removed 2 wrong wicket clips, kept
+all 5 right ones, cost 8 balls in innings 1 and 3 in innings 2).
+
+🛑 **Bowling reels are still weaker than batting reels.** Of eight predicted wicket deliveries
+checked as frames, five are clearly right, two are now dropped, and one remains wrong — its
+pre-onset level is 5.22, below the innings median, so neither guard can see it. Watch the
+bowling reels before publishing.
+
+⚠ Three synthetic test fixtures were built and discarded before the tests were written against
+the real curve: bursts too close and `ONSET_GAP` merged them, too far and `SNAP_WINDOW` could
+not reach, a flat baseline giving an unrealistically low median for `SUSPECT_PRE_FRAC`. Each
+failure was the fixture's fault, and one draft asserted the guard dropped a ball that the snap
+actually fixes — a false claim that passed review until the numbers were checked.
+
+**Then a reel-by-reel review of all ten reels showed the tight cut was worse for bowling than
+the fixed-lag cut it replaced**, and the reason was that the old cut was 44 s per wicket clip
+against 8 s. A 44 s window starting 40 s before the entry brackets almost any lag and cannot
+miss; it was never a better estimate, only a wider net. Asked whether to drop that data point
+or go hybrid: **hybrid, and what it contributes is width, not timing.** Clip width now carries
+the uncertainty — 8 s when one candidate is clearly the delivery, a span when rivals cannot be
+separated, and a window measured from the scorer's entry when no candidate was found at all.
+🛑 Nothing is dropped any more. 8 of 8 hand-measured deliveries now sit inside their clip, 19
+of 39 clips stay tight, median 18.2 s.
+
+Every mis-aligned clip the review found had too **small** a lag (4.0-7.8 s) and never too
+large (good ones ran 6.1-26.1 s) — the aligner had locked onto a burst after the ball. ⚠ Small
+lags are often correct though, so it only works as a signal in combination: `prefer_cluster_start()`
+takes the first burst of a cluster at a 10 s gap, and a scorer stall only widens a clip when
+the lag is also below the innings median. A 12 s cluster gap fixes one more ball and breaks a
+reel that had been confirmed perfect, so 10 s it is.
+
+🛑 The hardest ball had a **46.7 s** lag and its delivery was never detected at all — nearest
+candidates 15 s early and 11 s late. Nothing derived from candidates can recover it; only the
+entry-measured fallback, reaching past 50 s. Its only tell was a 65.8 s gap to the previous
+entry.
+
+🛑 **A scorer retraction emits the same event twice.** 18 retractions in this match; two
+produced duplicate moments carrying the re-entry's timestamp, 256 s after the ball, and one of
+those clips showed a different player getting out. `dedupe_moments()` keeps the earliest of an
+identical `(innings, ball, striker, strikerScore, score, outcome)`. ⚠ The independent tell: a
+batter credited with three fours whose figures read `10 (5)`.
+
+⚠ **Bowler attribution is the scorer's own data and is sometimes wrong** — one over named two
+different bowlers, and one bowler's four wickets span 28 minutes against figures of 2.1 overs.
+`--align` cannot fix that; a reel can hold the right ball under the wrong name.
+
+🛑 **A second reel-by-reel review reverted the widening.** It had raised coverage from 5 of 8
+to 8 of 8 hand-measured deliveries, and it was still wrong: watching found three failures no
+coverage metric can see — a 28 s clip showing the **previous batter**, a 52 s clip showing a
+**different bowler's over**, and a 27 s clip with the delivery at **0:22 of 0:27**, which reads
+as missing even though it is there. A wrong-player clip is worse than an absent one.
+⚠ Coverage of the right *instant* is not coverage of the right *ball*: a wide window spans
+neighbouring deliveries, and the neighbours belong to other players. Tight 8 s clips are the
+default again and an unplaceable ball is omitted; `--widen` opts back in for review passes.
+
+⚠ An "omit anything ambiguous" rule was priced and rejected too — it removes 15 of 35 reel
+clips and takes three verified-correct boundaries to catch three verified-wrong ones.
+
+✅ Three changes from that round survived, because none of them lengthens a clip:
+`prefer_cluster_start()` (moved 8 reel balls 9-15 s earlier and made a previously-missing
+wicket land exactly right, leaving every confirmed-good reel untouched), `dedupe_moments()`
+and `combine_all_rounders()`. The reels confirmed good in the first review come out
+byte-identical.
+
+**All-rounders now get one combined reel** (captioned `"7 (4) & 4/10 (2.1 ov)"`), reversing
+§13aa's two-reel decision at the owner's request. Each moment keeps its own `_role` so clip
+widths and commentary lines stay role-correct; the reel takes the batting crop, since a file
+can only have one. `--split-roles` restores the old behaviour.
+
+`DEFAULT_LEAD`/`DEFAULT_TRAIL` are now **3 s / 5 s**. With the shot located to a quarter-second
+the lead no longer buys insurance against a bad estimate, so the time goes after the ball.
+
+`test_deliveries.py` was checked against the old detector rather than read green: it rejects
+peak-picking with the real symptom ("the delivery at 100.0s was not found; got [110, 179.5]").
+⚠ The first attempt to verify that patched `deliveries.candidates`, which the test module had
+already bound by name — the check passed and proved nothing. → `highlights.md` §6c
+
 ## 2026-09-26
 
 **Watching three live matches (4651, 4655, 4658) found five more faults**, all fixed together:

@@ -51,10 +51,14 @@ CONFIG_DIR = Path.home() / ".config" / "cricket-scorecard-overlay"
 # YouTube's own field limits.
 TITLE_MAX = 100
 DESC_MAX = 5000
-# A Short is vertical and short. Sources disagree on 60s vs 3 minutes, so the tool holds the
-# line at 60: it satisfies every version of the rule and Instagram's 5-90s window as well, so
-# one encode serves both.
-SHORTS_MAX_SECONDS = 60.0
+# ✅ MEASURED, not assumed. A 104s vertical reel uploaded with `--target video` was presented
+# by YouTube as a Short anyway, so the classifier goes on orientation plus the 3-minute limit
+# and ignores which target we asked for. The old 60s line was this tool's conservatism, kept
+# because "sources disagree on 60s vs 3 minutes" — they do, and the 3-minute reading is the
+# right one.
+# ⚠ Still a ceiling, not a target: a 3-minute reel of one player's boundaries is a worse watch
+# than a 40s one. It only exists so a genuinely long innings is not refused outright.
+SHORTS_MAX_SECONDS = 180.0
 # Make's custom-webhook payload ceiling, on every tier including paid. A full reel is well
 # over this, so --post-to is for the small-clip test; real reels need the file hosted where
 # Make can fetch it. See docs/publishing.md.

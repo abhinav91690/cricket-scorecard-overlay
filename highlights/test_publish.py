@@ -15,7 +15,7 @@ from publish import (shorts_problems, reel_metadata, video_metadata, clip,
 
 MOMENT = {
     "t": 1234.5, "types": ["six"], "anchor": "six", "ball": 57, "innings": 1,
-    "outcome": "6", "striker": "VENU S", "bowler": "ANKIT K",
+    "outcome": "6", "striker": "J. ROOT", "bowler": "ANKIT K",
     "score": "88/3", "strikerScore": "0(0)",
 }
 MATCH = "Topguns vs Bazzigarz — 2026 FTP20 Div-A"
@@ -52,14 +52,14 @@ def test_unreadable_dimensions_fail_closed():
 
 def test_reel_title_names_the_batter_the_shot_and_the_bowler():
     m = reel_metadata(MOMENT, MATCH)
-    assert "Venu S" in m["title"] and "six" in m["title"] and "Ankit K" in m["title"]
+    assert "J. Root" in m["title"] and "six" in m["title"] and "Ankit K" in m["title"]
     assert "88/3" in m["title"]
 
 
 def test_a_wicket_reads_as_a_dismissal_not_a_shot():
     m = reel_metadata({**MOMENT, "types": ["wicket"], "anchor": "wicket", "outcome": "W"}, MATCH)
     assert m["title"].startswith("WICKET:")
-    assert "Venu S" in m["title"] and "Ankit K" in m["title"]
+    assert "J. Root" in m["title"] and "Ankit K" in m["title"]
 
 
 def test_a_boundary_off_a_no_ball_says_so():

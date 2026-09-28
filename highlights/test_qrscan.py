@@ -16,7 +16,7 @@ from payload import OUTCOME
 
 BASE = dict(version=1, frameType=0, sequence=0, innings=0, teamRuns=50, wickets=1,
             ballsBowled=30, target=0, outcome=OUTCOME.index('1'),
-            strikerName="VENU S", strikerRuns=20, strikerBalls=15,
+            strikerName="J. ROOT", strikerRuns=20, strikerBalls=15,
             strikerFours=2, strikerSixes=0, nonStrikerRuns=10, nonStrikerBalls=12,
             bowlerName="ANKIT K", bowlerBalls=12, bowlerRuns=30, bowlerWickets=1,
             bowlerMaidens=0, partnershipRuns=20, partnershipBalls=18, extras=3)
@@ -81,7 +81,7 @@ def test_no_moment_when_nothing_happened():
 
 def test_milestone_ignores_a_new_batter():
     """Runs reset on dismissal; 20 -> 51 for a DIFFERENT batter is not a fifty."""
-    s = [st(0, strikerName="VENU S", strikerRuns=20),
+    s = [st(0, strikerName="J. ROOT", strikerRuns=20),
          st(5, strikerName="RAKESH G", strikerRuns=51, teamRuns=51, ballsBowled=31)]
     assert 'milestone' not in (types_at(s, 0) or [])
 
@@ -104,7 +104,7 @@ def test_innings_change_does_not_invent_events():
 def test_moment_carries_the_context_a_caption_needs():
     s = [st(0), st(5, teamRuns=56, ballsBowled=31, outcome=OUTCOME.index('6'))]
     m = moments(s)[0]
-    assert m['striker'] == "VENU S" and m['bowler'] == "ANKIT K"
+    assert m['striker'] == "J. ROOT" and m['bowler'] == "ANKIT K"
     assert m['score'] == "56/1" and m['outcome'] == '6' and m['innings'] == 1
     assert m['t'] == 5.0 and m['until'] == 10.0
 

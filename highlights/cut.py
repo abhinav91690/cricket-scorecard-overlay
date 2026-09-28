@@ -22,6 +22,38 @@ WINDOWS = {            # seconds relative to the card appearing
     'partnership': (-24,  4),
 }
 
+# 🛑 Those defaults are ONE scorer's lag, not a property of cricket. On the reference match
+# a boundary was entered ~5 s after the shot; on `vs ATX Panthers` it was **19 s**, and that
+# scorer entered balls in bursts. A window built for 5 s lands entirely in the aftermath at
+# 19 s: the clip holds the batters talking and the crowd cheering, and never the shot.
+# Always measure the lag for a new match — see docs/highlights.md §6b.
+# An 8 s clip, split for an ACCURATE shot time. `deliveries.py` locates the ball to within
+# about a quarter-second, so the lead no longer has to buy insurance against a bad estimate:
+# 3 s is the delivery stride (1 s before bat on ball) plus the ball arriving, and the 5 s
+# after is the shot, the ball travelling and the reaction. ⚠ With a *guessed* lag instead,
+# weight the other way — early is a clip of the run-up, late loses the shot altogether.
+DEFAULT_LEAD = 3.0     # seconds kept before the shot
+DEFAULT_TRAIL = 5.0    # seconds kept after it
+
+
+def windows_for(lag_bat: float, lag_bowl: float,
+                lead: float = DEFAULT_LEAD, trail: float = DEFAULT_TRAIL) -> dict:
+    """Windows relative to the state change, derived from the measured overlay lag.
+
+    `lag_*` is how long the scorer took to enter the ball, so the shot itself sits at
+    `-lag`. Keeping `lead` before it and `trail` after gives a clip of `lead + trail`
+    seconds that is genuinely centred on the action rather than on the data entry.
+
+    ⚠ A tight window is only as good as the lag is consistent. A scorer who enters balls in
+    bursts has a lag that varies per ball, and a 5 s clip can then miss. Widen `trail`
+    before `lead`: the run-up is predictable, the aftermath is not.
+    """
+    def w(lag):
+        return (-(lag + lead), -(lag - trail))
+    return {'four': w(lag_bat), 'six': w(lag_bat),
+            'milestone': w(lag_bat), 'partnership': w(lag_bat),
+            'wicket': w(lag_bowl)}
+
 
 def segments(events, types=None, windows=WINDOWS):
     """One clip per ball, never one per card.
@@ -47,6 +79,48 @@ def segments(events, types=None, windows=WINDOWS):
         else:
             merged.append(s)
     return merged
+
+
+# The widest a fallback clip gets when no delivery was located at all, measured from the
+# scorer's entry. 🛑 These are the old fixed-lag windows, kept for exactly this job: they are
+# wide enough that the ball is in there somewhere, which is why the pre-alignment cut caught
+# events the tight aligned cut missed. Bowling needs more because a dismissal is entered
+# slowly — measured wicket lags on `vs ATX Panthers` ran 6-45 s.
+FALLBACK_LEAD_BAT = 30.0
+FALLBACK_LEAD_BOWL = 44.0
+FALLBACK_TRAIL = 4.0
+
+
+def merge_clips(clips):
+    """Merge overlapping [start, end, label] clips, unioning their labels.
+
+    One ball can raise two events (a four that also brings up a fifty), and a widened clip can
+    overlap its neighbour. Either way the footage belongs in the reel once.
+    """
+    merged = []
+    for a, b, k in sorted(clips):
+        if merged and a <= merged[-1][1] + 1.0:
+            merged[-1][1] = max(merged[-1][1], b)
+            for part in str(k).split('+'):
+                if part not in merged[-1][2].split('+'):
+                    merged[-1][2] += '+' + part
+        else:
+            merged.append([a, b, str(k)])
+    return merged
+
+
+def segments_at(shots, lead=DEFAULT_LEAD, trail=DEFAULT_TRAIL, labels=None):
+    """Clips around ABSOLUTE shot times, rather than offsets from the scorer's entry.
+
+    🛑 This is the correct way to cut once `deliveries.py` has found when each ball was
+    actually bowled. `segments()` measures from the state change, which is when the ball was
+    ENTERED — a delay of 5-44 s on `vs ATX Panthers`, so no fixed offset can centre the clip.
+
+    Overlapping clips are merged, exactly as `segments()` does, so two events on one ball
+    (a four that also brings up a fifty) do not put the same footage in twice.
+    """
+    return merge_clips([[max(0.0, t - lead), t + trail, (labels or {}).get(t, 'shot')]
+                        for t in sorted(shots)])
 
 
 def cut(video, segs, out, height=1080, bitrate='10M', keep_clips=False, vf=None):

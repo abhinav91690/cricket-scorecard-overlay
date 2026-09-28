@@ -311,11 +311,19 @@ checks before uploading and refuses unless `--force`:
 | Check | Rule |
 |---|---|
 | Orientation | height ≥ width — 1:1 square counts |
-| Duration | ≤ **60 s** |
+| Duration | ≤ **180 s** |
 
-⚠ **The 60 s ceiling is a deliberate choice, not the platform limit.** Sources disagree on
-whether the cap is 60 s or 3 minutes. 60 satisfies every version of the rule *and* Instagram's
-5–90 s window, so one encode serves both targets and there is nothing to decide later.
+✅ **Measured 2026-09-27: 3 minutes is the real line, not 60 s.** A **104 s** vertical reel was
+uploaded with `--target video` because the old 60 s gate refused it as a Short — and YouTube
+presented it as a Short regardless. The classifier goes on orientation plus the 3-minute limit
+and ignores the target we ask for.
+
+⚠ This is the second time a ceiling here turned out to be our own caution rather than a
+platform rule (§0 is the first). The old note said "sources disagree on whether the cap is 60 s
+or 3 minutes" and picked the safe one without testing; one upload settled it.
+
+⚠ **180 s is a ceiling, not a target.** A 3-minute reel of one player's boundaries is a worse
+watch than a 40 s one. It exists so a genuinely long innings is not refused outright.
 
 ## 7. Captions come from the QR payload
 
@@ -476,6 +484,11 @@ Host is **`graph.instagram.com`** — the Instagram Login path, not `graph.faceb
 | Horizontal pixels | 1920 | 1080 ✅ |
 | Audio | 128 kbps AAC | 128 kbps ✅ |
 | Aspect | 0.01:1–10:1 required | 1:1 / 4:5 ✅ accepted |
+
+✅ **Measured 2026-09-27: a 104 s / 136 MB reel published fine.** So the duration column above
+is right and the "5-90 s" figure quoted elsewhere is not a hard limit. ⚠ Two numbers for the
+same thing were carried in these docs at once, one of them wrong, and neither had been tested;
+prefer the table, and re-measure rather than trusting either.
 
 ⚠ **A secondary source claimed 8 MB.** That is the **image** limit, mis-attributed — it
 appears alongside image-only specs like sRGB conversion. Meta's own `ig-user/media`

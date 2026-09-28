@@ -27,6 +27,20 @@ and paints a fixed-position DOM, driven entirely by URL query params (`matchId`,
 - ⚠ **Never write a secret to the Keychain with `security add-generic-password -w`** — the
   prompt truncates at 128 chars silently, and passing the value inline puts it in argv. →
   `publishing.md` §4a
+- ✅ **A pre-commit hook blocks a name reaching this repo.** Install once with
+  `git config core.hooksPath .githooks`. It reads the names from gitignored local sources
+  (`highlights/events.json`, `~/.config/cricket-scorecard-overlay/names.txt`) so no list is
+  ever committed, and ⚠ it **fails OPEN** — with no source present it warns and allows the
+  commit, so a green run is not a clean bill. Bypass with `--no-verify`.
+- 🛑 **A league member's real name reached the test fixtures and is still on `main`.** It was
+  the batting fixture across `highlights/test_*.py`, renamed to the placeholder `J. ROOT` on
+  `fix/clip-alignment`, and it remains in **5 places on the TypeScript side**:
+  `src/dataCode.vectors.json`, `src/dataCode.test.ts`, `src/dataQr.test.ts`,
+  `src/tools/genDataVectors.ts`. Diff `highlights/test_reels.py` against `main` to see which
+  name, rather than repeating it here. ⚠ The vector is generated and its bytes ARE the wire
+  format, so renaming means regenerating with `genDataVectors.ts`, never editing the JSON —
+  load `data-code.md` first. Use an obvious placeholder (`V. KOHLI`, `J. ROOT`) for any new
+  fixture.
 - 🛑 **Player rows in the CricClubs card views carry email addresses.** They must never be
   rendered or stored. `stripPii()` runs first in `renderFrame()`, and the fixtures in
   `mockData.ts` were captured live with emails removed.
@@ -58,6 +72,9 @@ npm run replay -- sim/matches/<file>.jsonl.gz --speed 60    # replay a real matc
 
 cd worker && npm run dev | test:run | typecheck | db:migrate | deploy
 cd highlights && .venv/bin/python qrscan.py "<video>" -o events.json
+# one argument per match; --contact-sheet writes a per-reel verification grid
+cd highlights && .venv/bin/python reels.py --manifest matches/<slug>.json
+git config core.hooksPath .githooks          # once: blocks a name reaching this public repo
 ```
 
 ## Where things live
@@ -151,6 +168,60 @@ not that the network is broken. Homebrew is unusable through the same proxy. →
 ⚠ **A phone cannot load `localhost` or anything behind a login.** Use a Netlify deploy preview
 (`deploy-preview-<N>--score-overlay.netlify.app`) or `npm run dev -- --host 0.0.0.0`. →
 `deployment.md` §2
+
+🛑 **The clip lag is the SCORER's, not cricket's, and it is not constant — cut with
+`reels.py --align`.** It spread 2-40 s inside one innings of `vs ATX Panthers`, so both the
+default windows and a single measured `--lag-bat` put clips in the aftermath: batters
+talking, crowd cheering, no shot. ⚠ And never "verify" a clip by checking the score moved
+inside its own window — the window contains the state change by construction, so that check
+cannot fail. → `highlights.md` §6b, §6c
+
+🛑 **A delivery is the ONSET of a motion burst, never its strongest peak.** A boundary makes
+two humps and the chase out-peaks the shot, so peak-picking put a four nine seconds late and
+`MIN_GAP` suppression then deleted the real delivery from the candidate list — which is why
+every tuning attempt reproduced the same stable wrong answer. → `highlights.md` §6c
+
+🛑 **A delivery is preceded by a STILL field; the burst after one is not — that is the only
+thing that separates them.** In innings 2 a wicket landed 4.5 s late on the aftermath, and
+every global lever failed to move it: peak height, contrast, quietness, `STRENGTH`, and
+`SMOOTH` from 0.5 to 0. ⚠ `SMOOTH` is the trap — that ball's true lag is 23 s against its
+neighbour's 8 s, so a smoothness prior *prefers* the wrong answer, and removing it breaks
+innings 1. → `highlights.md` §6d
+
+⚠ **The camera is repositioned at the innings break, not at end swaps.** The bowling end
+changes every 5 overs but the action does not move in frame — side-on, both ends share a
+centre (centroid 47-55% in every block). Footage shot from behind the bowler's arm would not
+have that property. → `highlights.md` §6d
+
+🛑 **Keep clips tight and omit a ball you cannot place — widening was tried and is worse.**
+It raised measured coverage from 5/8 to 8/8 hand-measured deliveries and was still reverted:
+a 28 s clip showed the previous batter, a 52 s one a different bowler's over, and a 27 s one
+put the shot at 0:22 of 0:27. A wrong-player clip is worse than an absent one, and coverage of
+the right *instant* is not coverage of the right *ball*. `--widen` opts back in for review
+passes only. → `highlights.md` §6e
+
+⚠ **A coverage metric cannot see who is in the clip.** Every widening change looked like an
+improvement by the numbers and was rejected on sight. Watch the reels before believing a
+metric about them. → `highlights.md` §6e
+
+🛑 **A scorer retraction emits the same event twice**, the duplicate carrying the re-entry's
+timestamp — 256 s after the ball in the case that was caught, so its clip showed a different
+player getting out. `dedupe_moments()` keeps the earliest. ⚠ The tell without a state trace:
+a batter credited with three fours whose figures read `10 (5)`. → `highlights.md` §6f
+
+⚠ **Bowler attribution is the scorer's data and is sometimes wrong** — one over named two
+bowlers, and one bowler's four wickets span 28 minutes against figures of 2.1 overs. No clip
+timing can fix that. → `highlights.md` §6f
+
+⚠ **Every mis-aligned clip found by review had too SMALL a lag**, never too large — the
+aligner had locked onto a burst after the ball. But small lags are often correct (6.1 s and
+8.7 s balls verified good), so it is only a signal in combination. → `highlights.md` §6e
+
+⚠ **An outlying scorer lag is the tell for a mis-aligned clip.** Both mis-alignments ever
+confirmed by eye were the largest lag in their innings and nothing else was, so `shot_times()`
+drops them — floored at 30 s, because a uniformly slow scorer is not a mis-alignment. It
+catches the failure seen, not every one that exists; keep reviewing reel by reel.
+→ `highlights.md` §6c
 
 🛑 **Never cut a clip with raw ffmpeg — go through `cut.segments()`.** The `WINDOWS` are the
 only thing that knows the scorer's graphic lags the ball (a six by ~5 s, a wicket by ~35 s), so

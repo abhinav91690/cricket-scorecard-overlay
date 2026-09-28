@@ -1,0 +1,22 @@
+{
+  "_note": "Per-match settings for reels.py --manifest. Keys are the flag names. An explicit flag on the command line beats anything here. PATHS ARE RELATIVE TO THIS FILE, so the manifest works from any working directory.",
+  "_captured": "2026-09-27",
+  "video": "../../game footage/vs ATX Panthers.mp4",
+  "events": "../events.json",
+  "out": "../reels-aligned",
+  "batting-innings": 1,
+  "team": "Topguns United",
+  "match": "Topguns United vs ATX Panthers",
+  "_caption_inputs": "Not derivable from the footage: the 42-byte QR payload carries no match id and no strings, so seriesName from the API never reaches events.json. Note these on match day.",
+  "league": "LPCL",
+  "ball": "leather",
+  "series": "T20 Fall 2026",
+  "_crop": "Measured for THIS camera position. The framing changes between matches and was repositioned at the innings break here. Re-measure with crop.py before reusing.",
+  "aspect-bat": "4:5",
+  "aspect-bowl": "4:5",
+  "crop-x-bat": 0.5,
+  "crop-x-bowl": 0.5,
+  "align": true,
+  "overrides": "../overrides/vs-atx-panthers.json",
+  "contact-sheet": true
+}
