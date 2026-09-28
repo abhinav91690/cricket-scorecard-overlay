@@ -1,5 +1,50 @@
 # Update Log
 
+## 2026-09-28
+
+**Session length is measurable now — page loads became sessions.** A load count answered "how
+often was the overlay opened", never "was anyone watching", which matters because ~87% of loads
+point at matches that already finished. `startSessionPings()` sets one 300 s interval that sends
+`overlay_ping`; the Worker upserts one row per load in a new `sessions` table and duration is
+`last_seen - first_seen`. Measured cost for a three-hour match: 36 pings of 134 bytes against
+the 2,160 CricClubs polls the page makes anyway — +1.7% of requests, 4.7 KB uploaded, 0.48% of
+the D1 free daily write allowance. The 3 September decision that cut session tracking was about
+keeping the collector **off the poll path**, which an independent timer is not; §5b records that
+so the ping is not "re-fixed" away.
+
+The heartbeat starts **after** the first successful live `feed.read()`, not beside
+`overlay_start`. Started at page load it would have reported hours of use for a home view or a
+wrong `matchId` — precisely the reading the table exists to correct.
+
+**A mutation that zeroes every duration passed the entire Worker suite.** Making the session
+`ON CONFLICT` overwrite `first_seen` as well as `last_seen` is a one-line change that makes
+every session zero seconds long, and the mocked-D1 tests could not see it: they assert which
+statement was prepared and with what, never what SQLite does with it. `worker/src/sessions.test.ts`
+now runs the real migration and the real statements against real SQLite via `node:sqlite`. It
+caught the mutation five ways — and found a live bug on its first run.
+
+**`CAST` was quietly losing a second from every session.** `julianday` returns a float, so a
+30-minute session is 1799.9999… and `CAST(… AS INTEGER)` truncated it to **1799**. Every total
+built from those numbers was short. `ROUND` before `CAST`. Only the real-SQLite test could have
+found this; the mocked tests never execute the arithmetic.
+
+**`{ once: true }` does not prevent a listener leak.** The `pagehide` handler that sends a final
+mark was registered on every `startSessionPings()`, and a listener that never fires is never
+dropped — so each stop/start cycle left another handler attached and one `pagehide` sent a ping
+per cycle ever started. Found because a test expecting 2 beacons saw 5. `stopSessionPings()` now
+removes it.
+
+**The session queries run in their own D1 batch.** A batch fails as a unit, so folding them into
+`QUERIES` would have blanked the whole stats page in the window between deploying the Worker and
+applying the migration — two manual steps that are not simultaneous. `sessionData()` swallows a
+missing table and the page omits the section. The Worker test tsconfig also split in two, so
+`src/` still typechecks against `@cloudflare/workers-types` alone and cannot reach a Node API
+that does not exist in workerd.
+
+🛑 **Not deployed.** `worker/npm run db:migrate` and `npm run deploy` are manual by decision and
+are the owner's to run; until then the client sends pings that the deployed Worker rejects as an
+unknown event, which is harmless.
+
 ## 2026-09-27
 
 **A team with no logo flickered through four badges.** CricClubs answers a missing logo with a

@@ -23,7 +23,8 @@ actually use the overlay. No cookies, no third parties, no persistent identifier
 It falls back to a `keepalive` fetch and swallows every error.
 
 ⚠ **Use `trackOnce()` for anything called from the poll loop.** There is deliberately **no
-heartbeat and no per-poll event**, which is why session length cannot be reported — see §5.
+per-poll event**: the only repeating call is the 5-minute session ping of §5, and every other
+event fires at most once per load.
 
 `isTrackingEnabled()` returns false on **localhost**, with **`?debug=`**, with
 **`?mode=replay`**, with **`?nostats`**, and when **Do Not Track** is on. Nothing you do locally
@@ -42,6 +43,10 @@ report, so use `?debug=1` or `?mode=replay`, which suppress it anyway.
 | `overlay_start` | once per page load with a real `matchId` | club ID, match ID, theme, logo, client and version, OS, screen size |
 | `home_view` | the home screen is shown | client, OS, screen size |
 | `link_stream_submit` | the Link Live Stream form is submitted | club ID, match ID, YouTube video ID, outcome |
+| `overlay_ping` | every 5 minutes while a live overlay is on screen, plus a best-effort mark on `pagehide` | session ID, club ID, match ID, theme, client and version, OS, screen size |
+
+⚠ **`overlay_ping` is the one event that does not write to `events`.** It upserts a single row
+in `sessions` instead — see §5.
 
 🛑 **Adding an event means adding it to `EVENTS` in `worker/src/collect.ts`** — the Worker
 rejects unknown names — **and**, if it needs new columns, a new file in `worker/migrations/`.
@@ -74,21 +79,85 @@ Wrangler needs a logged-in session (`npx wrangler login`). See
 [deployment.md](./deployment.md) §3 for the corporate-CA problem that makes it fail in a fresh
 shell.
 
-## 5. ⚠ Stream duration is not measurable, and that was a decision
+## 5. Session length, and what a load count does not tell you
 
-The natural question — "how long did each stream last?" — cannot be answered from this data.
-There is no heartbeat and no session ID, and the per-day visitor hash deliberately cannot be
-joined across time. Answering it would need a periodic ping, which was cut on 3 September to
-keep the collector off the poll path.
+⚠ **About 87% of loads point at matches that had already finished** — people leave a stale
+`matchId` in the browser-source field because editing a long URL in a mobile app is awkward. A
+load count therefore says how often the overlay was *opened*, not how much it was *used*, which
+is what the session ping is for.
 
-What *is* answerable is load counts, and ⚠ **about 87% of loads point at matches that had
-already finished** — people leave a stale `matchId` in the browser-source field because editing
-a long URL in a mobile app is awkward. Treat raw load counts accordingly.
+### 5a. The 5-minute ping
+
+`startSessionPings()` (`src/analytics.ts`) sets one `setInterval` at **`PING_MS` = 300 s** that
+sends `overlay_ping`. `SESSION_ID` is 8 random bytes as 16 hex characters, generated per page
+load. The Worker upserts one row per session id in `sessions`; duration is
+`last_seen - first_seen`.
+
+🛑 **The heartbeat starts *after* the first successful live `feed.read()`, not beside
+`overlay_start`.** `app.ts` calls it in the live branch once the feed has answered. Starting it
+at page load would report hours of "use" for a home view or a wrong `matchId` — the opposite of
+the question the table exists to answer, given the 87% above.
+
+⚠ **`session_id` is never persisted** — no cookie, no `localStorage`. It groups the pings of one
+load and nothing else: it cannot join two loads, follow an operator across days, or be tied to a
+person. That is the same property the per-day `visitor` hash was built for, and it is the reason
+a session id is acceptable at all here.
+
+### 5b. ⚠ Why 300 s, and what the earlier decision actually said
+
+Session tracking was cut on **3 September** *to keep the collector off the poll path* — a
+per-poll event is 12 requests a minute. That rationale is about the poll loop, **not** about an
+independent timer, which is why this ping does not contradict it. 🛑 **Do not "re-fix" the 3
+September decision by deleting the ping.**
+
+The measured cost, per three-hour match:
+
+| | Pings | Polls |
+|---|---|---|
+| Requests | 36 | 2,160 |
+| Bytes each | 134 | 5,247 (CricClubs response) |
+
+That is **+1.7% of requests and 4.7 KB uploaded** for a whole match — and on the D1 free tier,
+**483 writes a day ≈ 0.48%** of the 100k/day allowance at current volumes, about **0.7 MB a
+year** of storage. 🛑 **Shortening `PING_MS` invalidates that arithmetic. Re-do it before
+changing the interval.**
+
+### 5c. ⚠ Every duration is a floor
+
+Resolution is one ping, so a session's length is measured to its **last ping, not its real
+end**: a source destroyed four minutes after a ping reads four minutes short, and a session
+under five minutes has no ping at all and reads `<5m` rather than `0m`.
+
+⚠ **`pagehide` is a bonus, never the source of truth.** An OBS browser source does not reliably
+fire it when a scene is destroyed or OBS is killed, so the interval is the mechanism and the
+final mark is best-effort.
+
+⚠ **A session keeps pinging while the page is open, whether or not the match is live.** "Overlay
+hours" therefore includes an overlay left up on a finished match. The club and match id are on
+the row, so those sessions can be identified — but the headline number is page-open time.
+
+### 5d. 🛑 Traps in the session SQL
+
+🛑 **`ON CONFLICT` must update `last_seen` and `pings` only.** Touching `first_seen` makes every
+duration zero. A mutation that did exactly that **passed the entire mocked Worker suite**, which
+is why `worker/src/sessions.test.ts` runs the real statements against real SQLite
+(`node:sqlite`). Keep it doing so; the mocked tests cannot see SQL semantics at all.
+
+⚠ **`ROUND` before `CAST`, never `CAST` alone.** `julianday` returns a float, so a 30-minute
+session comes out as 1799.9999… and a truncating `CAST` reports **1799** — a second lost per
+session and every total short.
+
+⚠ **The session queries run in their own D1 batch.** A batch fails as a unit, so folding them
+into `QUERIES` would blank the whole stats page in the window between deploying the Worker and
+applying the migration — two manual steps that are not simultaneous. `sessionData()` swallows a
+missing table and the page simply omits the section.
 
 ## 6. The stats page
 
 `https://score.abhinav.dev/stats?days=30` runs the aggregate queries in `stats.ts` as one D1
-batch and renders HTML server-side. It is protected by Cloudflare Access (JWT verified in
+batch — plus the session queries as a second, tolerant one (§5d) — and renders HTML
+server-side. The **Session length** section shows sessions, how many reached five minutes,
+median and longest, overlay hours, time on air per match, and the most recent sessions. It is protected by Cloudflare Access (JWT verified in
 `access.ts` against the team JWKS) or, until Access is configured, by a `STATS_KEY` secret
 passed as `?key=`.
 

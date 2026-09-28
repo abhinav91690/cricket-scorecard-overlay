@@ -12,7 +12,7 @@ import { fetchScoreData, switchView } from './api';
 import { updateTeamLogos, updateScoreboard } from './ui';
 import { CricketAPIData } from './types';
 import { linkLiveStream, LinkLiveStreamError, extractYouTubeVideoId } from './liveStream';
-import { trackOnce, track, LinkOutcome } from './analytics';
+import { trackOnce, track, startSessionPings, LinkOutcome } from './analytics';
 import { showToast } from './toast';
 import { detectEvents, OverlayEvent } from './events';
 import { ensureDataQr, renderDataCode, resetDataQrForTests } from './dataQr';
@@ -336,6 +336,11 @@ export async function updateScore() {
             trackOnce('overlay_start', { clubId: params.clubId, matchId: params.matchId, theme: params.theme, logo: params.logo });
             feed = liveFeed(params.clubId, params.matchId!);
             data = await feed.read();
+            // 🛑 After the read, not before it. The heartbeat is what turns a page load into a
+            // session length, so it must only start once the feed has actually answered —
+            // starting it beside `overlay_start` would report hours of "use" for a home view
+            // or a wrong matchId, which is the opposite of the question it answers.
+            startSessionPings({ clubId: params.clubId, matchId: params.matchId, theme: params.theme });
         }
 
         if (isFullFrame(data)) await updateTeamLogos(data);

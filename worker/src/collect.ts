@@ -1,6 +1,6 @@
 /** Validation and normalisation of incoming events. Pure functions, unit-tested. */
 
-export const EVENTS = ['overlay_start', 'home_view', 'link_stream_submit'] as const;
+export const EVENTS = ['overlay_start', 'home_view', 'link_stream_submit', 'overlay_ping'] as const;
 export const CLIENTS = ['obs', 'vmix', 'streamlabs', 'prism', 'browser'] as const;
 export const OUTCOMES = ['submitted', 'invalid_url', 'popup_blocked', 'error'] as const;
 
@@ -8,6 +8,12 @@ export type EventName = typeof EVENTS[number];
 
 export interface NormalizedEvent {
     event: EventName;
+    /**
+     * Groups the pings of ONE page load. ⚠ Generated per load and never persisted by the
+     * client, so it cannot join two loads or follow anyone across days — see
+     * `worker/migrations/0002_sessions.sql`.
+     */
+    sessionId: string | null;
     clubId: string | null;
     matchId: string | null;
     theme: string | null;
@@ -40,6 +46,16 @@ function id(value: unknown): string | null {
 }
 
 /**
+ * 16 lowercase hex characters, which is what `analytics.ts` generates. 🛑 Allow-listed rather
+ * than length-capped: this value is a PRIMARY KEY, so anything that is not the exact shape we
+ * issue is dropped instead of being allowed to create rows.
+ */
+function sessionId(value: unknown): string | null {
+    const s = str(value, 32);
+    return s && /^[0-9a-f]{16}$/.test(s) ? s : null;
+}
+
+/**
  * Turns an untrusted JSON body into a row-ready event, or null if it isn't one we accept.
  * Every field is allow-listed or length-capped so the table can't be used as free storage.
  */
@@ -52,6 +68,7 @@ export function normalizeEvent(input: unknown): NormalizedEvent | null {
 
     const normalized: NormalizedEvent = {
         event,
+        sessionId: sessionId(body.sessionId),
         clubId: id(body.clubId),
         matchId: id(body.matchId),
         theme: str(body.theme, 32),
@@ -63,6 +80,10 @@ export function normalizeEvent(input: unknown): NormalizedEvent | null {
         videoId: null,
         outcome: null,
     };
+
+    // 🛑 A ping exists only to move one session's `last_seen`. Without a usable session id it
+    // has nothing to update, so it is rejected rather than written somewhere harmless.
+    if (event === 'overlay_ping' && !normalized.sessionId) return null;
 
     if (event === 'link_stream_submit') {
         const videoId = str(body.videoId, 32);

@@ -47,6 +47,37 @@ describe('normalizeEvent', () => {
     });
 });
 
+describe('session ids', () => {
+    it('accepts exactly the 16 lowercase hex characters analytics.ts issues', () => {
+        expect(normalizeEvent({ event: 'home_view', sessionId: 'a1b2c3d4e5f60718' })?.sessionId).toBe('a1b2c3d4e5f60718');
+    });
+
+    it('drops anything else, because the value is a PRIMARY KEY', () => {
+        const bad = ['A1B2C3D4E5F60718', 'a1b2c3d4e5f6071', 'a1b2c3d4e5f607189', 'a1b2c3d4-e5f6-0718',
+                     'zzzzzzzzzzzzzzzz', '', '  ', 'a1b2c3d4e5f60718 or 1=1'];
+        for (const sessionId of bad) {
+            expect(normalizeEvent({ event: 'home_view', sessionId })?.sessionId, sessionId).toBeNull();
+        }
+        expect(normalizeEvent({ event: 'home_view', sessionId: 42 })?.sessionId).toBeNull();
+        expect(normalizeEvent({ event: 'home_view' })?.sessionId).toBeNull();
+    });
+
+    it('accepts a ping with a session id and rejects one without', () => {
+        expect(normalizeEvent({ event: 'overlay_ping', sessionId: 'a1b2c3d4e5f60718' })).toMatchObject({
+            event: 'overlay_ping', sessionId: 'a1b2c3d4e5f60718',
+        });
+        // 🛑 A ping with no usable session id has nothing to update, so it is refused outright
+        // rather than written somewhere harmless.
+        expect(normalizeEvent({ event: 'overlay_ping' })).toBeNull();
+        expect(normalizeEvent({ event: 'overlay_ping', sessionId: 'NOPE' })).toBeNull();
+    });
+
+    it('carries the overlay context on a ping, so a session needs no join', () => {
+        const e = normalizeEvent({ event: 'overlay_ping', sessionId: '0000000000000001', clubId: '1089463', matchId: '4670', theme: 'kkr', client: 'obs', os: 'windows', screen: '1920x1080' });
+        expect(e).toMatchObject({ clubId: '1089463', matchId: '4670', theme: 'kkr', client: 'obs', os: 'windows' });
+    });
+});
+
 describe('visitorHash', () => {
     it('is stable for the same inputs and changes with the day', async () => {
         const a = await visitorHash('1.2.3.4', 'ua', '2026-09-03', 'salt');

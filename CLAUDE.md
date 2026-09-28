@@ -131,8 +131,14 @@ re-measuring. → `data-code.md` §1
 `CLOUDFLARE_API_TOKEN` secret exists, and not adding it is a decision. Don't add it without
 asking. → `analytics.md` §4
 
-⚠ **Stream duration is not measurable**, and ~87% of loads point at matches that already
-finished. Treat raw load counts accordingly. → `analytics.md` §5
+⚠ **~87% of loads point at matches that already finished**, so a load count is opens, not use.
+Session length exists now, from a 5-minute ping — but every figure is a floor, measured to the
+last ping. → `analytics.md` §5
+
+🛑 **A mocked D1 cannot see SQL semantics.** A one-line mutation making the session `ON CONFLICT`
+overwrite `first_seen` — which zeroes every duration — passed the entire Worker suite.
+`worker/src/sessions.test.ts` runs the real statements against real SQLite; keep it that way.
+→ `analytics.md` §5d
 
 🛑 **Never record an untested platform restriction as a tripwire.** This slot used to say an
 unverified API project cannot publish publicly to YouTube. Google documents that, but it was
