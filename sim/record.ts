@@ -13,7 +13,7 @@
  * 🛑 Frames are anonymised (sim/anonymise.ts) before they touch disk; sim/recordings/ is gitignored.
  */
 import { spawn } from 'node:child_process';
-import { appendFileSync, mkdirSync } from 'node:fs';
+import { appendFileSync, mkdirSync, rmSync } from 'node:fs';
 import { Anonymiser, loadSalt } from './anonymise.ts';
 
 const arg = (k: string, d: string) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
@@ -99,7 +99,8 @@ async function recordMatch(match: string) {
 async function main() {
     mkdirSync(DIR, { recursive: true });
     const chrome = spawn(CHROME, [`--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${DIR}/.chrome-${CDP_PORT}`, '--headless=new', '--disable-gpu', '--no-first-run', '--hide-scrollbars', '--window-size=1920,1080', 'about:blank'], { stdio: 'ignore' });
-    const stop = () => { chrome.kill(); process.exit(0); };
+    // The profile is only a cache (~150 MB each): remove it, or a day of recorders leaves gigabytes.
+    const stop = () => { chrome.kill(); setTimeout(() => { rmSync(`${DIR}/.chrome-${CDP_PORT}`, { recursive: true, force: true }); process.exit(0); }, 1000); };
     process.on('SIGINT', stop); process.on('SIGTERM', stop);
     for (let i = 0; i < 240 && !(await reachable(`http://localhost:${CDP_PORT}/json/version`)); i++) await sleep(250);
     await Promise.all(MATCHES.map(m => recordMatch(m).catch(e => console.error(`${m}: ${e}`))));
