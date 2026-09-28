@@ -436,6 +436,20 @@ The four that needed it on `vs ATX Panthers`, with the lag each one actually had
 | 11342.0 | *omitted* | **11315.5** | 26.5 s | dropped by the guards |
 | 13074.2 | 13070.2 | **13027.5** | 46.7 s | **the delivery was never among the motion candidates** |
 | 13650.5 | 13639.5 | **13510.5** | 140.0 s | a 240 s scorer stall; the aligner's estimate lands on the *next* bowler's over |
+| 6816.6 | *omitted* | **6807.3** | 9.3 s | the aligner had the **previous** ball; the neighbours all lag 4.6-8.1 s |
+| 14618.3 | *omitted* | **14539.3** | 79.0 s | a retraction `dedupe_moments()` cannot catch — see below |
+
+🛑 **Not every retraction is a duplicate.** The last one above was entered promptly as a dot
+(ov 10.4, `out=0`) at 14542.4 — only **3.1 s** after the ball — then walked back to ov 10.3 and
+re-entered as a *wicket* at 14618.3. `dedupe_moments()` cannot see it, because the corrected
+event genuinely differs: the wicket count changed, so the signature is not identical. Only the
+**timestamp** is wrong. ⚠ When a ball's outcome is corrected rather than merely re-entered,
+the event is real and its time is 60-80 s late, which looks exactly like a slow scorer.
+
+⚠ **A lag that is implausible against the wicket entry can be ordinary against the ball's
+first entry.** 79 s looks like a mis-alignment until you notice the same ball was logged 3.1 s
+after it was bowled. Check whether an earlier state covers the same ball before concluding the
+scorer was slow.
 
 🛑 **Never populate this from the aligner's own output.** An override that agrees with the
 estimate is noise; one that is itself estimated is worse than the estimate it replaces. Each

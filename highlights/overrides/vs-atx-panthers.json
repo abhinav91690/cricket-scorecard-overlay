@@ -4,12 +4,16 @@
     "8862.4": 8836.5,
     "11342.0": 11315.5,
     "13074.2": 13027.5,
-    "13650.5": 13510.5
+    "13650.5": 13510.5,
+    "6816.6": 6807.3,
+    "14618.3": 14539.3
   },
   "measured": {
     "8862.4": "aligner 8847.5 (14.9s lag); true 8836.5 (25.9s). 8836 shows the batter mid-stroke with the keeper crouched; 8847 and 8857 are both aftermath.",
     "11342.0": "omitted by the guards. True 11315.5 (26.5s lag): 11315 is the batter mid-stroke, keeper crouched. 11318 is the follow-through, 11321 the batters crossing - an earlier estimate of 11321 was the aftermath, not the shot.",
     "13074.2": "aligner 13070.2 (4.0s lag); true 13027.5 (46.7s). 13021 run-up, 13027 delivery stride with the ball lofted. The delivery was never among the motion candidates, so no tuning could reach it. The 36s before the entry holds no delivery at all - a new batter walking in.",
-    "13650.5": "aligner 13639.5 (11.0s lag); true 13510.5 (140.0s). Followed a 240s scorer stall. 13508 is the delivery, 13511 bat on ball, 13530-13575 the celebration. By 13635 the NEXT bowler is running in, which is what the aligner's estimate showed."
+    "13650.5": "aligner 13639.5 (11.0s lag); true 13510.5 (140.0s). Followed a 240s scorer stall. 13508 is the delivery, 13511 bat on ball, 13530-13575 the celebration. By 13635 the NEXT bowler is running in, which is what the aligner's estimate showed.",
+    "6816.6": "omitted by the guards. True 6807.3 (9.3s lag, in line with the neighbouring balls at 4.6-8.1s): 6806 is the delivery stride, 6807 the bowler's follow-through with the bat coming down, 6808 the bat high in follow-through. The aligner had 6790.7, which is the PREVIOUS ball.",
+    "14618.3": "omitted by the guards. True 14539.3: 14537 is the delivery stride, 14539 the batter mid-swing. 79.0s before the wicket entry but only 3.1s before the ball's FIRST entry at 14542.4 - the scorer logged it promptly as a dot (ov 10.4, out=0), walked back to 10.3 at 14612.3, then re-entered it as a wicket at 14618.3. A retraction that dedupe_moments() cannot catch, because the corrected event differs (the wicket count changed), so only the timestamp is wrong."
   }
 }

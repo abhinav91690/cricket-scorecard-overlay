@@ -3,7 +3,7 @@
 🛑 The bug this exists to stop. A boundary makes two motion humps: the run-up and the shot,
 then the chase, the throw back and the crowd. On a four the second is the bigger one. The
 first version of `deliveries.py` picked the strongest peak and suppressed everything within
-12 s of it, so on Abhinav's second four it kept the aftermath at 2253 and *discarded* the
+12 s of it, so on one batter's second four it kept the aftermath at 2253 and *discarded* the
 delivery at 2244 — the right answer was not even on the candidate list, so no amount of
 alignment tuning could recover it. The clip was nine seconds late: batters walking, ball long
 gone.

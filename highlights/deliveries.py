@@ -189,7 +189,7 @@ def candidates(curve: np.ndarray, t0: float, n_want: int) -> tuple[np.ndarray, n
     """-> (times, strengths) of delivery onsets: the rising edge of each motion burst.
 
     🛑 Do not go back to picking the strongest peak. That is what this did first, and it
-    put Abhinav's second four nine seconds late. A delivery that goes to the boundary has
+    put one batter's second four nine seconds late. A delivery that goes to the boundary has
     TWO motion humps — the run-up and shot, then the chase, the throw back and the crowd —
     and on a four the second is the bigger one:
 
