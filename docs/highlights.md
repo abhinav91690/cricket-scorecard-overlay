@@ -482,6 +482,32 @@ identical `(innings, ball, striker, strikerScore, score, outcome)`.
 fours whose figures read `10 (5)`. Three fours is 12 runs. When a reel's clip count disagrees
 with the player's own boundary count, suspect a duplicate before suspecting the timing.
 
+#### 🛑 A third retraction shape: the same ball re-entered with a DIFFERENT outcome
+
+A boundary was entered as a plain four, then retracted and re-entered as a **no-ball**
+boundary. `dedupe_moments()` cannot see it, because the ball number, the score and the outcome
+all differ — only `strikerScore` matches:
+
+```
+7622.5  balls=90  runs=180  striker=100(50)  fours=13  out=4     original
+7666.1  balls=89  runs=176  striker=96(49)   fours=12  out=2     retracted
+7670.2  balls=89  runs=181  striker=100(50)  fours=13  out=12    re-entered as 4nb
+```
+
+`strikerFours` reads **13 after both**, so it is one boundary. The reel had 14 clips for 13
+fours, one of them a duplicate of another.
+
+✅ **The caption is what caught it.** The title said *14 fours* (from the moment count) while
+the description said *13 fours* (from the scorecard), and the clip list ran `15.0 ov` before
+`14.5 ov` — a no-ball does not advance `ballsBowled`, so a correction can land out of
+sequence. ⚠ **Whenever a reel's clip count disagrees with the player's own boundary count,
+suspect a duplicate before suspecting the timing**, and read the over numbers for monotonicity.
+Neither check needs the video.
+
+There is no automatic fix for this shape yet: matching on `strikerScore` alone would collapse
+two genuinely different balls that happen to leave a batter on the same score. It is handled
+per match through the override file's `drop` list (§6g).
+
 ⚠ **Bowler attribution is separately unreliable.** In one over the payload named two different
 bowlers for the same ball, and one bowler's four wickets span 28 minutes while their figures
 read 2.1 overs. That is the scorer's data, not a clip-timing fault, and `--align` cannot fix

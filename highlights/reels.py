@@ -366,7 +366,9 @@ def metadata(player: str, moments: list[dict], segs: list, match: str, team: str
     # what the recording caught. Those differ whenever the stream started mid-innings, so
     # say which is which rather than leaving a reader to think one of them is wrong.
     body += ["", f"In this reel: {tally(moments)}", *lines, ""]
-    body.append("Every " + ("boundary" if role == "bat" else "wicket")
+    # A combined all-rounder reel holds both, so it cannot say "every wicket".
+    what = {"bat": "boundary", "bowl": "wicket"}.get(role, "moment")
+    body.append("Every " + what
                 + " here was found automatically from the scorecard overlay burnt into "
                   "the broadcast — no manual logging.")
     body += ["", "Scorecard overlay: https://score.abhinav.dev", ""]
