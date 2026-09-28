@@ -31,7 +31,7 @@ export const SESSION_UPSERT = `
         pings     = sessions.pings + excluded.pings`;
 
 export async function touchSession(env: Env, event: NormalizedEvent, ts: string, day: string,
-                            visitor: string, cf: IncomingRequestCfProperties | undefined): Promise<void> {
+                                   visitor: string, cf: IncomingRequestCfProperties | undefined): Promise<void> {
     if (!event.sessionId) return;
     await env.DB.prepare(SESSION_UPSERT)
         .bind(event.sessionId, ts, day, event.event === 'overlay_ping' ? 1 : 0,
