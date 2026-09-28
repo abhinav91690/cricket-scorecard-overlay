@@ -45,6 +45,27 @@ that does not exist in workerd.
 are the owner's to run; until then the client sends pings that the deployed Worker rejects as an
 unknown event, which is harmless.
 
+**CI's "flaky" replay was a real bug: the harness skipped frames.** `Replay ...4674...` failed
+`19 queued for 20` on the GitHub runner while passing every local run, and it had already failed
+the same way on the default branch, so the first read was flakiness. It is not. `replay.ts` picked
+the frame to serve by wall clock (`t0 + elapsed * SPEED`), while the page is loaded with
+`refresh = 5000 / SPEED` — one poll per recorded frame by intent. Any poll slower than `refresh`
+let the clock run ahead and skip frames, and a skipped frame can carry the only state a card would
+have come from. Measured on 4674's 2,380 frames: **342 skipped on an idle laptop**, passing only
+because no skip landed on a wicket, and **491 under 16 busy cores, giving 16 cards for 20**. The
+cursor now advances one frame per scorebar poll, so nothing can be skipped and a slow machine
+merely takes longer; a peek does not advance it, which retires the "play the first minute in real
+time" hack. Under the load that made the old harness produce CI's exact `19 queued for 20`, the new
+one gave 20 of 20 twice.
+
+⚠ The first attempt to prove this failed to break anything: 8 busy processes left the old harness
+passing, which would have been read as "it is just CI" if the run had stopped there. 16 broke it.
+The run to believe is the one that fails.
+
+The wait for the end of a run is now a 90 s stall check rather than a budget scaled to the
+recording, which for the longest file would have been ~18 min against CI's 20-minute job cap —
+the same machine-speed dependence one level up.
+
 ## 2026-09-27
 
 **A team with no logo flickered through four badges.** CricClubs answers a missing logo with a

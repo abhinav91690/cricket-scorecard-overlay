@@ -245,6 +245,12 @@ nickname in one dismissal string. `record.ts` does both; a hand-made file does n
 ⚠ **Run `sim/` after any change to `views.ts`, `cards.ts`, `events.ts` or `app.ts`** — unit tests
 did not catch the three bugs it found on its first runs. → `overlay.md` §13
 
+🛑 **A replay must advance per poll, never against a clock, and a "flaky" replay is a real bug.**
+Wall-clock sampling skipped 342 of 4674's 2,380 frames on an idle laptop and 491 under load, and a
+skipped frame can carry the only state a card would have come from — so CI failed `19 queued for
+20` on the runner while every local run passed. It looked like flakiness for two runs on `main`
+before anyone measured it. → `overlay.md` §13a
+
 🛑 **Decide which side is batting with `battingSecond()`, never `isSecondInningsStarted` directly.**
 During a super over that flag may stay the main match's, and four modules reading it on their own
 named the wrong side for the whole first super-over innings. Super-over overs are also a ball count —

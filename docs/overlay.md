@@ -436,8 +436,25 @@ photos, so a determined reader can tie a pseudonym to a photo.
 ⚠ **What real scorers do, now in the grader** (each from a recording): rewrite who was out without the
 count moving (no card is due); undo and redo a ball, crossing 100 twice (one card); pick the openers
 before the overlay loads (no line-up); name the award minutes later (the result is redrawn).
-⚠ The replay plays the first minute in real time: the overlay's pre-match peeks run on real-time
-delays that do not scale with `--speed`.
+🛑 **The recording advances one frame per poll — it is not played against a clock.** A recording
+keeps only frames that CHANGED, so serving them in order is exactly what the recording overlay
+was served. `--speed` sets the page's poll interval (`refresh = 5000 / speed`, floor 100 ms) and
+so the pace of the run; it no longer decides which frames are seen. A peek does not advance the
+cursor, so the match stands still while the overlay is off on a data view — which is what the old
+"play the first minute in real time" rule was reaching for, and it can now be deleted.
+
+⚠ **It used to sample by wall clock, and that silently dropped cards on a busy machine.** The
+intent was the same one-frame-per-poll pace, but a poll slower than `refresh` let the clock run
+ahead and skip frames — and a skipped frame can carry the only state a card would have come from.
+Measured on 4674 (2,380 frames): **342 frames skipped on an idle laptop** (passing only because no
+skip landed on a wicket) and **491 under load, giving 16 wicket cards for 20**. The GitHub runner
+is the slow machine, which is why `4674` failed there while passing locally on every attempt — on
+`main` as much as on a branch. Under a load that made the old harness produce CI's exact
+`19 queued for 20`, the cursor produced 20 of 20 twice.
+
+⚠ **The run ends on a stall, not a time budget** (`STALL_MS`, 90 s without a frame served). A
+budget scaled to the recording length would be ~18 min for the longest file against CI's
+20-minute job cap, so a merely slow runner would be killed instead of reporting.
 
 ## 14. Views and panels (`src/views.ts`)
 

@@ -7,6 +7,8 @@
  *
  * Serves the recording through the CricClubs endpoints, honouring the overlay's view switches:
  * a peek is answered with the data view the recording overlay received at about that moment.
+ * One recorded frame per poll, so no frame can be skipped whatever the machine's speed — see
+ * the cursor below. `--speed` sets the page's poll interval and so the pace of the run.
  * Needs the Vite dev server (started if :5173 is not answering) and Google Chrome.
  * Output: sim/out/replay-<match>-<timestamp>/report.md and events.json.
  */
@@ -40,33 +42,51 @@ const reachable = async (url: string) => { try { const r = await fetch(url); ret
 
 // ---------- the recording as a fake CricClubs ----------
 let view = 1;
-// The clock starts at the overlay's FIRST request, not at launch: Chrome and Vite take a few seconds
-// to come up, and at x15 that alone skipped 45 s of the recording — the whole wait for the openers.
-let startWall = 0;
-// ⚠ The first minute plays in REAL time. The overlay's pre-match decisions (squad peeks, then the
-// line-up until the openers are in) run on real-time delays that do not scale with SPEED, so at x15
-// the peeks alone ate 14 s of match: on 4678 the openers were picked 18 s in and the line-up was
-// (correctly) skipped. After that minute the recording runs at SPEED.
-const REAL_MS = 60_000;
-const recNow = () => {
-    const e = startWall ? Date.now() - startWall : 0;
-    return t0 + (e < REAL_MS ? e : REAL_MS + (e - REAL_MS) * SPEED);
-};
+
+/**
+ * Every scorebar frame in the recording, in order. A recording keeps only frames that CHANGED,
+ * so this is the exact sequence the recording overlay itself was served.
+ */
+const scorebar = frames.filter(r => r.view === 1 && r.data);
+
+/**
+ * 🛑 The cursor advances ONE frame per scorebar poll — it is not a clock.
+ *
+ * It used to be `t0 + elapsed * SPEED`, sampled by wall clock. The intent was the same thing:
+ * the page is loaded with `refresh = 5000 / SPEED`, so one poll is meant to cover one recorded
+ * frame. But a poll that takes longer than `refresh` — which is what a slower machine does —
+ * let the clock run ahead and SKIPPED a frame, and two wickets inside one skip reach the
+ * overlay as a single diff, so it cards one of them. That is how `4674` failed on the GitHub
+ * runner (19 wicket cards for 20) while passing every time on a developer's laptop, on `main`
+ * as well as on a branch. Per-poll advancement cannot skip: a slow machine just takes longer.
+ *
+ * ⚠ A peek does not advance it. While the overlay is off on a data view the match stands still,
+ * which is what the old "play the first minute in real time" hack was reaching for — it existed
+ * because real-time pre-match delays ate accelerated match time. Nothing is eaten now.
+ */
+let cursor = Math.max(0, scorebar.findIndex(r => r.t >= t0));
+const at = () => scorebar[Math.min(cursor, scorebar.length - 1)];
+const recNow = () => at().t;
+const done = () => cursor >= scorebar.length - 1;
+
 const events: { wall: number; rec: number; kind: string; detail: unknown }[] = [];
-const latest = (pred: (r: Row) => boolean, at: number) => { let hit: Row | undefined; for (const r of frames) { if (r.t > at) break; if (pred(r)) hit = r; } return hit; };
-function frameFor(v: number, at: number): Row {
-    const full = latest(r => r.view === 1, at) ?? frames.find(r => r.view === 1)!;
+function frameFor(v: number): Row {
+    const full = at();
     if (v === 1) return full;
-    // a peek: the data view the recording overlay got nearest to now, else nothing new (the overlay gives up)
+    // a peek: the data view the recording overlay got nearest to here, else nothing new (the overlay gives up)
     const views = frames.filter(r => r.view === v);
     if (!views.length) return full;
-    return views.reduce((best, r) => Math.abs(r.t - at) < Math.abs(best.t - at) ? r : best);
+    return views.reduce((best, r) => Math.abs(r.t - full.t) < Math.abs(best.t - full.t) ? r : best);
 }
 const server = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://x');
     const json = (body: unknown, status = 200) => { res.writeHead(status, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
     if (req.method === 'OPTIONS') { res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET,POST' }); return res.end(); }
-    if (url.pathname === '/liveScoreOverlayData.do') { startWall ||= Date.now(); return json(frameFor(view, recNow()).data); }
+    if (url.pathname === '/liveScoreOverlayData.do') {
+        const frame = frameFor(view);
+        if (view === 1 && !done()) cursor++;          // serve this frame, then step on
+        return json(frame.data);
+    }
     if (url.pathname === '/matchOverlayConfig.do') {
         const v = Number(url.searchParams.get('viewId'));
         if (v > 0) { view = v; events.push({ wall: Date.now(), rec: recNow(), kind: 'view', detail: { view } }); }
@@ -157,9 +177,19 @@ async function main() {
         const refresh = Math.max(100, Math.round(5000 / SPEED));
         const url = `${DEV}/?matchId=rec&clubId=rec&api=${encodeURIComponent(`http://localhost:${PORT}`)}&refresh=${refresh}&e2e&data=1`;
         await cdp.send('Page.navigate', { url });
-        const realMs = Math.min(tEnd - t0, REAL_MS) + Math.max(0, tEnd - t0 - REAL_MS) / SPEED + 20_000;
-        console.log(`replaying ${MATCH}: ${frames.length} frames, ${Math.round((tEnd - t0) / 60000)} min of match in ${Math.round(realMs / 1000)} s at x${SPEED}`);
-        await sleep(realMs - 20_000);
+        // The run ends when the overlay has been served the last frame, however long that takes.
+        // ⚠ The guard is a STALL check, not a time budget. A budget scaled to the recording length
+        // would be ~18 min for the longest file against CI's 20-minute job cap, so a merely slow
+        // runner would be killed rather than reporting — the machine-speed dependence this cursor
+        // removes, reintroduced one level up. Progress is what matters: if no frame has been served
+        // for STALL_MS the page has stopped polling, and nothing else can make the run finish.
+        const STALL_MS = 90_000;
+        console.log(`replaying ${MATCH}: ${scorebar.length} scorebar frames, ${Math.round((tEnd - t0) / 60000)} min of match, one frame per ${refresh} ms poll (~${Math.round(scorebar.length * refresh / 1000)} s)`);
+        for (let seen = cursor, since = Date.now(); !done() && Date.now() - since < STALL_MS; ) {
+            await sleep(250);
+            if (cursor !== seen) { seen = cursor; since = Date.now(); }
+        }
+        if (!done()) console.error(`⚠ stalled with ${scorebar.length - 1 - cursor} of ${scorebar.length} frames unserved — did the page stop polling?`);
         // Past the last frame, keep serving it until the result is queued (or 90 s): recordings keep
         // only frames that change, so the result is near the very end, and a slow runner (CI, 4685)
         // had not finished the end-of-match peeks when a fixed 20 s ran out.
