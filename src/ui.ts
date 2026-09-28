@@ -21,6 +21,8 @@ export function resetUiStateForTests() {
     lastBallState = { balls: '', overs: '' };
 }
 
+const PLACEHOLDER = /\/no-image-team\d*\.\w+$/;
+
 function getFullLogoUrl(path?: string): string {
     if (!path) return '';
     if (path.startsWith('http://') || path.startsWith('https://')) {
@@ -34,8 +36,12 @@ function getFullLogoUrl(path?: string): string {
  * Failures (and empty URLs) are remembered so the same URL isn't retried on every poll.
  */
 async function updateTeamLogo(slot: LogoSlot, url: string, target: HTMLImageElement, label: string) {
-    if (slot.attemptedUrl === url) return;
-    slot.attemptedUrl = url;
+    // 🛑 A team with no logo gets a RANDOM placeholder on every response — no-image-team1..4.jpg, four
+    // differently coloured shields (seen in recordings of matches 4669, 4671 and 4674). Treating each
+    // as a new logo swapped the badge's colour every poll. Any placeholder counts as the same one.
+    const key = PLACEHOLDER.test(url) ? 'placeholder' : url;
+    if (slot.attemptedUrl === key) return;
+    slot.attemptedUrl = key;
 
     if (!url) {
         target.removeAttribute('src');
