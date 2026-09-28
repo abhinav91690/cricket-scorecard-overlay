@@ -2,6 +2,34 @@
 
 ## 2026-09-27
 
+**The first `?data=1` match went out: 9 reels to YouTube and Instagram, all public.** Nine
+uploads on each platform, no failures. ✅ `videos.insert` has its own 100-call daily bucket, so
+nine was never near the limit — the old ~1600-units-against-10,000 figure that caps you at six
+a day is stale (§2 of `publishing.md`).
+
+⚠ One reel went up as a **video, not a Short**: 104 s for 14 boundaries, over the 60 s ceiling
+this tool holds to. `--target video` takes it, and YouTube will likely present a vertical
+sub-3-minute video as a Short anyway. The ceiling is our choice, not the platform's.
+
+The order was YouTube first, then Instagram, deliberately: 🛑 Instagram has no private-first
+option, so those nine could not be staged or walked back, while YouTube can be unlisted. Both
+publish streams were kept sequential rather than parallel for the same reason.
+
+✅ **Two documented limits turned out to be untested caution, and one upload settled each.**
+
+| claim | measured |
+|---|---|
+| YouTube Shorts cap 60 s "sources disagree, take the safe one" | a **104 s** vertical upload is presented as a Short. `SHORTS_MAX_SECONDS` 60 -> **180** |
+| Instagram Reels "5-90 s window" | **104 s / 136 MB** published without complaint |
+
+⚠ The Instagram figure was the worse of the two: these docs carried *both* "5-90 s" and
+"3 s-15 min" for the same limit, in different sections, and neither had been tested. The table
+was right. → `publishing.md` §6, §8
+
+⚠ R2 held **0 objects** afterwards, so `igpublish.py` cleaned up every staged file. Worth
+checking after a run that fails partway, where cleanup may not have reached.
+
+
 **Clip timing solved properly: `reels.py --align` locates the ball in the video.** The
 payload's timestamp is when the *scorer entered* the ball, and on `vs ATX Panthers` that lag
 spread **2-40 s within one innings** — so neither the stock windows nor a single measured
