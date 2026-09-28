@@ -759,6 +759,42 @@ was never about one file, it was about reading one role off a mixed list.
 the per-role crop below cannot apply to both halves. `--split-roles` restores two reels when
 the crops matter more than having one file.
 
+### 13aaa. ✅ Captions are written to the ig-caption-writer rules
+
+The first captions were a scorecard line plus a data dump, and read as generated. They now
+follow the `instagram-skills` bundle (installed at `~/.claude/skills/instagram-skills`):
+
+| rule | where it lives |
+|---|---|
+| hook inside **125 chars**, standing alone | `hook()` |
+| a real number in the hook, never an adjective | `hook()` |
+| **one** call to action, no engagement bait | `cta()` |
+| **3-5 sized** hashtags: 2 niche, 1-2 mid, at most 1 broad | `hashtags()` |
+| em dashes under about 1 per 100 words | `ball_line()` uses parentheses |
+| no `leverage`, `unlock`, `elevate`, `game-changer`, `dive in` | tested |
+
+🛑 **Instagram hides everything past ~125 characters.** `hook()` builds that line from a fact
+already in the scorecard — a strike rate, a consecutive-ball streak, a bowler hit repeatedly,
+a wicket in the first two overs — and falls through a list of shapes until one fits the limit.
+⚠ Every shape is written **without pronouns**: the payload carries names, never anyone's
+pronouns, so a hook that reaches for one would be guessing.
+
+⚠ **The ball-by-ball list sits below the call to action.** Instagram truncates at the fold so
+it costs nothing there, while YouTube shows it in full. One description serves both
+publishers, so it is written for the harsher of the two.
+
+⚠ **`#Shorts` makes six tags, not five.** It is a YouTube discovery token and means nothing on
+Instagram, but the same description feeds both. Pass `--hashtags` with four to land on five
+total if a strict set matters.
+
+⚠ **The hashtag tiers are judgment calls.** A tag's real post count is only visible in the
+Instagram app, so check the two niche tags there before leaning on them. All nine reels from
+one match share three tags, which is legitimate for one fixture but should rotate between
+matches — identical sets across many posts read as automated.
+
+✅ **`--captions-only` rewrites the sidecars without re-encoding.** Iterating on wording
+otherwise costs a full re-cut of every reel.
+
 ### 13b. Captions travel in a sidecar
 
 A per-player reel spans several balls, so no single moment describes it and

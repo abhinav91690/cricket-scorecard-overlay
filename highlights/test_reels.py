@@ -21,7 +21,7 @@ from reels import (attribute, breakdown, build_title, figures, metadata, over,
                    parse_aspects, slug, tally, titlecase)
 
 
-def mo(t, types, innings, striker="VENU S", bowler="ANKIT K", **rest):
+def mo(t, types, innings, striker="J. ROOT", bowler="ANKIT K", **rest):
     m = {"t": float(t), "until": float(t) + 5.0, "types": list(types),
          "anchor": types[0], "ball": 30, "innings": innings, "outcome": "4",
          "striker": striker, "bowler": bowler, "score": "50/1",
@@ -34,7 +34,7 @@ def mo(t, types, innings, striker="VENU S", bowler="ANKIT K", **rest):
 
 def test_our_boundary_goes_to_the_striker():
     got = attribute([mo(10, ["four"], 1)], batting_innings=1)
-    assert list(got) == [("VENU S", "bat")], got
+    assert list(got) == [("J. ROOT", "bat")], got
 
 
 def test_our_wicket_is_not_a_batting_highlight():
@@ -45,7 +45,7 @@ def test_our_wicket_is_not_a_batting_highlight():
 
 def test_a_boundary_that_also_broke_a_partnership_is_still_one_clip():
     got = attribute([mo(10, ["four", "partnership"], 1)], batting_innings=1)
-    assert got[("VENU S", "bat")][0]["_kinds"] == ["four"], got
+    assert got[("J. ROOT", "bat")][0]["_kinds"] == ["four"], got
 
 
 # ---------------------------------------------------------------- fielding side
@@ -81,7 +81,7 @@ def test_the_batting_innings_flag_inverts_everything():
     ours = [mo(10, ["four"], 1), mo(20, ["wicket"], 2)]
     right = attribute(ours, batting_innings=1)
     wrong = attribute(ours, batting_innings=2)
-    assert sorted(right) == [("ANKIT K", "bowl"), ("VENU S", "bat")], right
+    assert sorted(right) == [("ANKIT K", "bowl"), ("J. ROOT", "bat")], right
     # With the flag flipped, the four is read as the opposition's and the wicket as
     # ours-while-batting, so neither survives.
     assert wrong == {}, wrong
@@ -89,41 +89,41 @@ def test_the_batting_innings_flag_inverts_everything():
 
 def test_second_innings_batting_works_the_same_way():
     got = attribute([mo(10, ["six"], 2), mo(20, ["wicket"], 1)], batting_innings=2)
-    assert got[("VENU S", "bat")][0]["_kinds"] == ["six"]
+    assert got[("J. ROOT", "bat")][0]["_kinds"] == ["six"]
     assert got[("ANKIT K", "bowl")][0]["_kinds"] == ["wicket"]
 
 
 def test_several_players_group_separately():
-    ms = [mo(10, ["four"], 1, striker="VENU S"),
+    ms = [mo(10, ["four"], 1, striker="J. ROOT"),
           mo(20, ["six"], 1, striker="HEMANTH B"),
-          mo(30, ["four"], 1, striker="VENU S")]
+          mo(30, ["four"], 1, striker="J. ROOT")]
     got = attribute(ms, batting_innings=1)
-    assert len(got[("VENU S", "bat")]) == 2 and len(got[("HEMANTH B", "bat")]) == 1, got
+    assert len(got[("J. ROOT", "bat")]) == 2 and len(got[("HEMANTH B", "bat")]) == 1, got
 
 
 def test_an_all_rounder_gets_one_reel_per_role():
     """🛑 Keyed by name alone, a four and a wicket would share one reel and the caption
     would read the role off the first moment — batting figures over a wicket."""
-    ms = [mo(10, ["four"], 1, striker="VENU S"),
-          mo(60, ["wicket"], 2, bowler="VENU S")]
+    ms = [mo(10, ["four"], 1, striker="J. ROOT"),
+          mo(60, ["wicket"], 2, bowler="J. ROOT")]
     got = attribute(ms, batting_innings=1)
-    assert sorted(got) == [("VENU S", "bat"), ("VENU S", "bowl")], got
-    assert got[("VENU S", "bat")][0]["_kinds"] == ["four"]
-    assert got[("VENU S", "bowl")][0]["_kinds"] == ["wicket"]
+    assert sorted(got) == [("J. ROOT", "bat"), ("J. ROOT", "bowl")], got
+    assert got[("J. ROOT", "bat")][0]["_kinds"] == ["four"]
+    assert got[("J. ROOT", "bowl")][0]["_kinds"] == ["wicket"]
 
 
 def test_each_role_keeps_its_own_role_marker():
-    ms = [mo(10, ["four"], 1, striker="VENU S"), mo(60, ["wicket"], 2, bowler="VENU S")]
+    ms = [mo(10, ["four"], 1, striker="J. ROOT"), mo(60, ["wicket"], 2, bowler="J. ROOT")]
     got = attribute(ms, batting_innings=1)
-    assert got[("VENU S", "bat")][0]["_role"] == "bat"
-    assert got[("VENU S", "bowl")][0]["_role"] == "bowl"
+    assert got[("J. ROOT", "bat")][0]["_role"] == "bat"
+    assert got[("J. ROOT", "bowl")][0]["_role"] == "bowl"
 
 
 # ---------------------------------------------------------------- presentation
 
 def test_tally_reads_naturally_and_puts_the_best_first():
     ms = attribute([mo(10, ["four"], 1), mo(20, ["four"], 1), mo(30, ["six"], 1)],
-                   batting_innings=1)[("VENU S", "bat")]
+                   batting_innings=1)[("J. ROOT", "bat")]
     assert tally(ms) == "1 six, 2 fours", tally(ms)
 
 
@@ -144,7 +144,7 @@ def test_slug_is_filesystem_safe():
 
 def stt(**over_):
     """A state for figures(): only the fields figures() reads."""
-    f = dict(strikerName="VENU S", strikerRuns=0, strikerBalls=0, strikerFours=0,
+    f = dict(strikerName="J. ROOT", strikerRuns=0, strikerBalls=0, strikerFours=0,
              strikerSixes=0, bowlerName="ANKIT K", bowlerBalls=0, bowlerRuns=0,
              bowlerWickets=0, bowlerMaidens=0)
     f.update(over_)
@@ -159,13 +159,13 @@ def test_figures_take_the_batters_highest_score_not_the_last_boundary():
     """A batter whose last four came at 20 but finished on 60 must read 60."""
     states = [stt(strikerRuns=20, strikerBalls=15, strikerFours=2),
               stt(strikerRuns=60, strikerBalls=40, strikerFours=5, strikerSixes=2)]
-    fig = figures(states, "VENU S", "bat")
+    fig = figures(states, "J. ROOT", "bat")
     assert (fig["runs"], fig["balls"], fig["sixes"]) == (60, 40, 2), fig
 
 
 def test_figures_ignore_other_players_states():
     states = [stt(strikerName="OTHER", strikerRuns=99), stt(strikerRuns=12)]
-    assert figures(states, "VENU S", "bat")["runs"] == 12
+    assert figures(states, "J. ROOT", "bat")["runs"] == 12
 
 
 def test_figures_read_bowling_as_wickets_for_runs():
@@ -177,14 +177,14 @@ def test_figures_read_bowling_as_wickets_for_runs():
 
 def test_figures_are_none_without_states():
     """detect.py output has no states; captions must degrade, not invent numbers."""
-    assert figures([], "VENU S", "bat") is None
+    assert figures([], "J. ROOT", "bat") is None
 
 
 def test_title_reads_like_a_scorecard_line():
-    ms = attribute([mo(10, ["six"], 1), mo(20, ["four"], 1)], batting_innings=1)[("VENU S", "bat")]
+    ms = attribute([mo(10, ["six"], 1), mo(20, ["four"], 1)], batting_innings=1)[("J. ROOT", "bat")]
     fig = {"runs": 46, "balls": 28, "fours": 1, "sixes": 1}
-    t = build_title("VENU S", ms, fig, "Topguns vs Bazzigarz")
-    assert t == "Venu S 46 (28) — 1 six, 1 four | Topguns vs Bazzigarz", t
+    t = build_title("J. ROOT", ms, fig, "Topguns vs Bazzigarz")
+    assert t == "J. Root 46 (28) — 1 six, 1 four | Topguns vs Bazzigarz", t
 
 
 def test_bowling_title_reads_as_figures_over_an_over_count():
@@ -204,42 +204,42 @@ def test_bowling_title_does_not_say_the_wicket_count_twice():
 
 
 def test_title_does_not_repeat_the_tally_when_there_are_no_figures():
-    ms = attribute([mo(10, ["six"], 1)], batting_innings=1)[("VENU S", "bat")]
-    t = build_title("VENU S", ms, None, "Topguns vs Bazzigarz")
-    assert t == "Venu S — 1 six | Topguns vs Bazzigarz", t
+    ms = attribute([mo(10, ["six"], 1)], batting_innings=1)[("J. ROOT", "bat")]
+    t = build_title("J. ROOT", ms, None, "Topguns vs Bazzigarz")
+    assert t == "J. Root — 1 six | Topguns vs Bazzigarz", t
 
 
 def test_title_drops_the_fixture_before_the_players_own_figures():
     """A long team name must not push the scorecard line out of the title."""
-    ms = attribute([mo(10, ["six"], 1)], batting_innings=1)[("VENU S", "bat")]
+    ms = attribute([mo(10, ["six"], 1)], batting_innings=1)[("J. ROOT", "bat")]
     fig = {"runs": 46, "balls": 28, "fours": 0, "sixes": 1}
-    t = build_title("VENU S", ms, fig, "M" * 120)
-    assert t.startswith("Venu S 46 (28)"), t
+    t = build_title("J. ROOT", ms, fig, "M" * 120)
+    assert t.startswith("J. Root 46 (28)"), t
     assert len(t) <= 100 and "MMM" not in t, t
 
 
 def test_metadata_names_the_player_and_tags_the_team():
-    ms = attribute([mo(10, ["six"], 1)], batting_innings=1)[("VENU S", "bat")]
-    meta = metadata("VENU S", ms, [[0.0, 10.0, "six"]], "Topguns vs Bazzigarz", "Topguns")
-    assert "Venu S" in meta["title"] and "Topguns vs Bazzigarz" in meta["title"]
+    ms = attribute([mo(10, ["six"], 1)], batting_innings=1)[("J. ROOT", "bat")]
+    meta = metadata("J. ROOT", ms, [[0.0, 10.0, "six"]], "Topguns vs Bazzigarz", "Topguns")
+    assert "J. Root" in meta["title"] and "Topguns vs Bazzigarz" in meta["title"]
     assert "six" in meta["tags"] and "topguns" in meta["tags"]
     assert "shorts" in meta["tags"]
 
 
 def test_description_stamps_each_ball_with_the_over_and_score():
     ms = attribute([mo(10, ["four"], 1, ball=13), mo(40, ["six"], 1, ball=20)],
-                   batting_innings=1)[("VENU S", "bat")]
+                   batting_innings=1)[("J. ROOT", "bat")]
     segs = [[0.0, 20.0, "four"], [30.0, 50.0, "six"]]
-    body = metadata("VENU S", ms, segs, "", "Topguns")["description"]
-    assert "00:00  FOUR off Ankit K — 2.1 ov, 50/1" in body, body
-    assert "00:20  SIX off Ankit K — 3.2 ov, 50/1" in body, body
+    body = metadata("J. ROOT", ms, segs, "", "Topguns")["description"]
+    assert "0:00  four off Ankit K (2.1 ov, 50/1)" in body, body
+    assert "0:20  six off Ankit K (3.2 ov, 50/1)" in body, body
 
 
 def test_description_carries_the_batting_boundary_breakdown():
-    ms = attribute([mo(10, ["six"], 1)], batting_innings=1)[("VENU S", "bat")]
+    ms = attribute([mo(10, ["six"], 1)], batting_innings=1)[("J. ROOT", "bat")]
     states = [stt(strikerRuns=46, strikerBalls=28, strikerFours=3, strikerSixes=2)]
-    body = metadata("VENU S", ms, [[0.0, 10.0, "six"]], "", "T", states)["description"]
-    assert "Venu S 46 (28), 3 fours, 2 sixes" in body, body
+    body = metadata("J. ROOT", ms, [[0.0, 10.0, "six"]], "", "T", states)["description"]
+    assert "J. Root: 46 (28), 3 fours and 2 sixes" in body, body
 
 
 def test_breakdown_omits_zero_counts():
@@ -252,30 +252,30 @@ def test_breakdown_omits_zero_counts():
 
 def test_description_separates_the_innings_from_what_the_reel_holds():
     """🛑 If the stream started mid-innings the two legitimately differ; say which is which."""
-    ms = attribute([mo(10, ["six"], 1)], batting_innings=1)[("VENU S", "bat")]
+    ms = attribute([mo(10, ["six"], 1)], batting_innings=1)[("J. ROOT", "bat")]
     states = [stt(strikerRuns=46, strikerBalls=28, strikerFours=3, strikerSixes=2)]
-    body = metadata("VENU S", ms, [[0.0, 10.0, "six"]], "", "T", states)["description"]
-    assert "Venu S 46 (28), 3 fours, 2 sixes" in body   # the full innings
-    assert "In this reel: 1 six" in body, body          # only what was captured
+    body = metadata("J. ROOT", ms, [[0.0, 10.0, "six"]], "", "T", states)["description"]
+    assert "J. Root: 46 (28), 3 fours and 2 sixes" in body   # the full innings
+    assert "in this reel: 1 six" in body, body              # only what was captured
 
 
 def test_description_has_a_shorts_hashtag_for_discovery():
-    ms = attribute([mo(10, ["six"], 1)], batting_innings=1)[("VENU S", "bat")]
-    body = metadata("VENU S", ms, [[0.0, 10.0, "six"]], "", "Topguns")["description"]
+    ms = attribute([mo(10, ["six"], 1)], batting_innings=1)[("J. ROOT", "bat")]
+    body = metadata("J. ROOT", ms, [[0.0, 10.0, "six"]], "", "Topguns")["description"]
     assert "#Shorts" in body and "#Topguns" in body, body
 
 
 def test_metadata_says_when_a_boundary_came_off_a_no_ball():
     """The c455921 case has to survive all the way to the caption."""
-    ms = attribute([mo(10, ["six"], 1, outcome="6nb")], batting_innings=1)[("VENU S", "bat")]
-    meta = metadata("VENU S", ms, [[0.0, 10.0, "six"]], "", "Topguns")
+    ms = attribute([mo(10, ["six"], 1, outcome="6nb")], batting_innings=1)[("J. ROOT", "bat")]
+    meta = metadata("J. ROOT", ms, [[0.0, 10.0, "six"]], "", "Topguns")
     assert "off a no-ball" in meta["description"], meta["description"]
 
 
 def test_metadata_respects_youtube_field_limits():
-    ms = attribute([mo(10, ["four"], 1)] * 200, batting_innings=1)[("VENU S", "bat")]
+    ms = attribute([mo(10, ["four"], 1)] * 200, batting_innings=1)[("J. ROOT", "bat")]
     segs = [[float(i), float(i) + 5, "four"] for i in range(200)]
-    meta = metadata("VENU S", ms, segs, "M" * 200, "Topguns")
+    meta = metadata("J. ROOT", ms, segs, "M" * 200, "Topguns")
     assert len(meta["title"]) <= 100
     assert len(meta["description"]) <= 5000
 
@@ -284,7 +284,7 @@ def test_a_fielding_wicket_names_the_dismissed_batter_and_their_score():
     ms = attribute([mo(10, ["wicket"], 2, striker="R. SHARMA", strikerScore="34(32)")],
                    batting_innings=1)[("ANKIT K", "bowl")]
     body = metadata("ANKIT K", ms, [[0.0, 10.0, "wicket"]], "", "Topguns")["description"]
-    assert "WICKET — R. Sharma 34(32)" in body, body
+    assert "R. Sharma 34(32) out" in body, body
 
 
 # ---------------------------------------------------------------- the crop
@@ -493,6 +493,122 @@ def test_the_shipped_override_file_is_well_formed():
     for entry, shot in ov["shots"].items():
         assert shot < entry, f"shot {shot} must precede its entry {entry}"
         assert 0 < entry - shot < 300, f"implausible lag {entry - shot:.1f}s for {entry}"
+
+
+# --- the ig-caption-writer hard rules --------------------------------------------------
+# 🛑 These are the rules the Instagram skill enforces, and every one of them is
+# mechanically checkable, so a caption that breaks one fails here rather than on the feed.
+
+FORBIDDEN = ("leverage", "fundamentally", "streamline", "harness", "delve", "unlock",
+             "elevate", "empower", "dive in", "deep dive", "game-changer", "level up",
+             "next level", "must-have", "it's not just", "in today's fast-paced")
+
+
+def _sample_caption(states=None):
+    ms = attribute([mo(10, ["four"], 1, ball=13), mo(40, ["four"], 1, ball=14)],
+                   batting_innings=1)[("J. ROOT", "bat")]
+    segs = [[0.0, 8.0, "four"], [30.0, 38.0, "four"]]
+    return metadata("J. ROOT", ms, segs, "Topguns United vs ATX Panthers",
+                    "Topguns United", states)
+
+
+def test_the_hook_fits_inside_instagrams_fold():
+    """🛑 Instagram hides everything past ~125 chars. A hook needing line 2 is unread."""
+    body = _sample_caption()["description"]
+    first = body.split("\n")[0]
+    assert len(first) <= 125, f"hook is {len(first)} chars: {first!r}"
+    assert first.strip(), "hook line is empty"
+
+
+def test_the_hook_carries_a_number():
+    """Specific numbers beat adjectives — the voice rules' rule 5."""
+    body = _sample_caption()["description"]
+    first = body.split("\n")[0]
+    assert any(c.isdigit() for c in first), f"no number in the hook: {first!r}"
+
+
+def test_hashtags_are_sized_not_stacked():
+    """🛑 3-5 sized tags, never 30. The 30-tag block is the 2026 spam tell."""
+    meta = _sample_caption()
+    assert 3 <= len(meta["hashtags"]) <= 5, meta["hashtags"]
+    in_body = [w for w in meta["description"].split() if w.startswith("#")]
+    assert len(in_body) <= 6, f"{len(in_body)} hashtags in the body: {in_body}"
+
+
+def test_no_ai_vocabulary():
+    body = _sample_caption()["description"].lower()
+    hits = [w for w in FORBIDDEN if w in body]
+    assert not hits, f"forbidden vocabulary: {hits}"
+
+
+def test_em_dashes_stay_under_the_cap():
+    """About one per 100 words. A 13-clip list built from dashes blows this on its own."""
+    body = _sample_caption()["description"]
+    words = len(body.split())
+    assert body.count("\u2014") <= max(1, words // 100), (
+        f"{body.count(chr(8212))} em dashes in {words} words")
+
+
+def test_there_is_exactly_one_call_to_action():
+    """⚠ Load-bearing: two asks is no ask. Also no engagement bait."""
+    body = _sample_caption()["description"].lower()
+    assert body.count("send this to") == 1, body
+    for bait in ("double tap", "comment yes", "what do you think", "tag a friend"):
+        assert bait not in body, f"engagement bait: {bait!r}"
+
+
+def test_the_cta_differs_by_role():
+    """Nine reels off one match must not ship an identical closing line."""
+    from reels import cta
+    assert len({cta(["bat"]), cta(["bowl"]), cta(["bat", "bowl"])}) == 3
+
+
+def test_a_caption_survives_having_no_states():
+    """🛑 detect.py output has no states, so captions must degrade, not go contentless."""
+    body = _sample_caption(states=None)["description"]
+    first = body.split("\n")[0]
+    assert "highlights." != first, "fell back to a contentless hook"
+    assert len(first) <= 125 and first.strip()
+
+
+def test_counts_are_pluralised():
+    """⚠ "1 fours" reads as a bug to anyone who sees it on the feed."""
+    from reels import plural
+    assert plural(1, "four") == "1 four"
+    assert plural(3, "four") == "3 fours"
+    assert plural(1, "six", "sixes") == "1 six"
+    assert plural(2, "six", "sixes") == "2 sixes"
+    ms = attribute([mo(10, ["four"], 1, ball=13)], batting_innings=1)[("J. ROOT", "bat")]
+    states = [stt(strikerRuns=4, strikerBalls=1, strikerFours=1, strikerSixes=0)]
+    body = metadata("J. ROOT", ms, [[0.0, 8.0, "four"]], "", "T", states)["description"]
+    assert "1 fours" not in body, body
+    assert "1 four" in body, body
+
+
+def test_an_all_rounder_labels_each_discipline_once():
+    """An all-rounder reel must not print the player's name on both support lines."""
+    bat = [{"t": 10.0, "_role": "bat", "_kinds": ["four"], "types": ["four"],
+            "ball": 13, "bowler": "X", "score": "50/1", "strikerScore": "4(1)"}]
+    bowl = [{"t": 500.0, "_role": "bowl", "_kinds": ["wicket"], "types": ["wicket"],
+             "ball": 60, "striker": "Y", "score": "60/5", "strikerScore": "2(3)"}]
+    states = [stt(strikerName="J. ROOT", strikerRuns=7, strikerBalls=4, strikerFours=1,
+                  strikerSixes=0),
+              stt(bowlerName="J. ROOT", bowlerWickets=4, bowlerRuns=10, bowlerBalls=13,
+                  bowlerMaidens=0)]
+    body = metadata("J. ROOT", bat + bowl, [[0.0, 8.0, "four"], [30.0, 38.0, "wicket"]],
+                    "", "T", states)["description"]
+    assert "with the bat:" in body and "with the ball:" in body, body
+    assert body.count("J. Root:") == 0, "repeated the name instead of labelling"
+
+
+def test_the_support_line_does_not_echo_the_hooks_number():
+    """⚠ A caption that repeats itself in the first two lines reads as generated."""
+    ms = attribute([mo(10, ["four"], 1, ball=13), mo(40, ["four"], 1, ball=30)],
+                   batting_innings=1)[("J. ROOT", "bat")]
+    states = [stt(strikerRuns=31, strikerBalls=22, strikerFours=4, strikerSixes=0)]
+    body = metadata("J. ROOT", ms, [[0.0, 8.0, "four"], [30.0, 38.0, "four"]],
+                    "", "T", states)["description"]
+    assert body.lower().count("strike rate") <= 1, body
 
 
 if __name__ == "__main__":

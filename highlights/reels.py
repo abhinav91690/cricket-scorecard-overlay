@@ -303,7 +303,7 @@ def build_title(player: str, moments: list[dict], fig: dict | None, match: str,
     """
     head = headline(player, moments, fig, states)
     # Without figures, headline() already ends in the tally — appending it again would
-    # read "Venu S — 1 six — 1 six".
+    # read "J. Root — 1 six — 1 six".
     what = tally(moments) if fig else ""
     # "3/24 (4.0 ov) — 3 wickets" says it twice. But when the reel holds fewer wickets
     # than the innings figure (the stream started late), the count is real information,
@@ -325,65 +325,273 @@ def build_title(player: str, moments: list[dict], fig: dict | None, match: str,
     return head[:limit]
 
 
+def plural(n: int, one: str, many: str = "") -> str:
+    """'1 four' / '3 fours'. ⚠ Captions are read by people; "1 fours" reads as a bug."""
+    return f"{n} {one if n == 1 else (many or one + 's')}"
+
+
+def strike_rate(fig: dict) -> int:
+    return round(100 * fig["runs"] / fig["balls"]) if fig.get("balls") else 0
+
+
+def economy(fig: dict) -> float:
+    return fig["runs"] / (fig["balls"] / 6) if fig.get("balls") else 0.0
+
+
+def streak(moments: list[dict]) -> list[int]:
+    """The longest run of boundaries on CONSECUTIVE legal balls. -> ball numbers."""
+    balls = sorted(m["ball"] for m in moments if m.get("ball") is not None)
+    if not balls:
+        return []
+    runs, cur = [], [balls[0]]
+    for a, b in zip(balls, balls[1:]):
+        if b == a + 1:
+            cur.append(b)
+        else:
+            runs.append(cur)
+            cur = [b]
+    runs.append(cur)
+    return max(runs, key=len)
+
+
+def favourite_victim(moments: list[dict], key: str) -> tuple[str, int]:
+    """The name this player hit or dismissed most, and how many times."""
+    counts: dict[str, int] = {}
+    for m in moments:
+        who = m.get(key) or ""
+        if who:
+            counts[who] = counts.get(who, 0) + 1
+    if not counts:
+        return "", 0
+    name = max(counts, key=lambda k: counts[k])
+    return name, counts[name]
+
+
+def hook(player: str, moments: list[dict], states: list[dict] | None,
+         limit: int = 125) -> str:
+    """The first line, which has to do the whole job before Instagram's "more" fold.
+
+    🛑 Instagram hides everything past ~125 characters, so a hook that needs the second
+    line to make sense is unread. Each shape below is built from a fact already in the
+    scorecard — a strike rate, a consecutive-ball streak, a bowler hit repeatedly — because
+    a hook with a real number in it beats an adjective. ⚠ No pronouns: the payload gives
+    names, never anyone's pronouns, so every shape here is written around them.
+    """
+    rs = roles_in(moments)
+    bat = [m for m in moments if m["_role"] == "bat"]
+    bowl = [m for m in moments if m["_role"] == "bowl"]
+    fb = figures(states, player, "bat") if bat else None
+    fw = figures(states, player, "bowl") if bowl else None
+    cands = []
+
+    if len(rs) > 1 and fb and fw:
+        cands.append(f"{plural(fw['wickets'], 'wicket')} for {fw['runs']} runs in "
+                     f"{over(fw['balls'])} overs, plus a boundary with the bat.")
+
+    if fb and bat:
+        runs, balls = fb["runs"], fb["balls"]
+        st = streak(bat)
+        n4 = len(bat)
+        if len(st) >= 2 and st[0] <= 3:
+            cands.append(f"{plural(len(st), 'four')} off the first {st[-1]} balls of the "
+                         f"innings. {runs} off {balls}.")
+        if len(st) >= 3:
+            cands.append(f"{runs} off {balls} balls. {fb['fours']} fours, {len(st)} of them "
+                         f"on {len(st)} balls in a row.")
+        if len(bat) >= 2 and st and min(m["ball"] for m in bat) >= 90:
+            first_ov = min(m["ball"] for m in bat) // 6
+            cands.append(f"{plural(len(bat), 'boundary', 'boundaries')} after the "
+                         f"{first_ov}th over. {runs} off {balls}.")
+        name, n = favourite_victim(bat, "bowler")
+        if n >= 3:
+            cands.append(f"{runs} off {balls} with {plural(n4, 'four')} in this reel, "
+                         f"{n} of them off one bowler.")
+        if balls and strike_rate(fb) >= 140:
+            cands.append(f"{runs} off {balls} at a strike rate of {strike_rate(fb)}.")
+        cands.append(f"{runs} off {balls}, with {plural(n4, 'four')}.")
+
+    if fw and bowl:
+        w, r = fw["wickets"], fw["runs"]
+        balls = sorted(m["ball"] for m in bowl if m.get("ball") is not None)
+        if balls:
+            span = balls[-1] - balls[0] + 1
+            if len(bowl) >= 2 and span <= 24:
+                cands.append(f"{plural(len(bowl), 'wicket')} inside {span} balls. "
+                             f"{w} for {r} off {over(fw['balls'])} overs.")
+            if balls[0] <= 6:
+                cands.append(f"a wicket off ball {balls[0]} of the innings. "
+                             f"{w} for {r} in {over(fw['balls'])} overs.")
+            elif balls[0] <= 12:
+                cands.append(f"a wicket inside the first two overs. "
+                             f"{w} for {r} off {over(fw['balls'])} overs.")
+        cands.append(f"{w} for {r} in {over(fw['balls'])} overs, "
+                     f"at {economy(fw):.1f} an over.")
+
+    if not cands:
+        # ⚠ No states means no figures: `detect.py` output has none, and captions must
+        # degrade rather than fall back to something contentless. Build from the moments,
+        # which always carry the dismissed batter, the bowler and the ball number.
+        if bowl:
+            first = sorted(bowl, key=lambda m: m.get("ball") or 0)[0]
+            who_out = titlecase(first.get("striker", ""))
+            if len(bowl) == 1 and who_out:
+                cands.append(f"{who_out} {first.get('strikerScore', '')} out."
+                             .replace("  ", " "))
+            else:
+                cands.append(f"{tally(moments)} in this reel.")
+        if bat:
+            name, n = favourite_victim(bat, "bowler")
+            cands.append(f"{tally(moments)} from {titlecase(player)}"
+                         + (f", off {titlecase(name)}." if n == len(bat) and name else "."))
+    for c in cands:
+        if len(c) <= limit:
+            return c
+    return cands[0][:limit - 1] + "…"
+
+
+def cta(roles: list[str]) -> str:
+    """One specific send prompt. ⚠ Never "what do you think?" or a double-tap ask.
+
+    Varied by role so nine reels off one match do not ship the same closing line, which
+    reads as automated.
+    """
+    if roles == ["bowl"]:
+        return "send this to whoever was keeping the book."
+    if len(roles) > 1:
+        return "send this to someone who watched both innings."
+    return "send this to someone who was at the ground."
+
+
+def hashtags(team: str, match: str, roles: list[str]) -> list[str]:
+    """3-5 sized tags: 2 niche, 1-2 mid, at most 1 broad.
+
+    🛑 Sizing, not volume. A small account cannot rank in a 5M tag, so the niche tags do
+    the work and the broad one is a category label. ⚠ The tiers here are judgment calls —
+    a tag's real post count is only visible in the Instagram app, so check the two niche
+    tags there before leaning on them. `--hashtags` overrides the whole set.
+    """
+    def tag(*parts: str) -> str:
+        """CamelCase a multi-word tag. ⚠ Lowercase openers are native to caption prose, but
+        a club name is a proper noun and `#topgunsunited` is harder to read than
+        `#TopgunsUnited`. Generic tags below stay lowercase."""
+        words = [w for p in parts for w in p.split() if w]
+        return "#" + "".join(w[:1].upper() + w[1:] for w in words)
+
+    out = []
+    if team:                                      # niche: branded, definitely small
+        out.append(tag(team))
+    if match:                                     # niche: a per-match archive
+        opp = match.split(" vs ")[-1].split()
+        if opp:
+            # First word of each side keeps the tag short and searchable.
+            out.append(tag(team.split()[0] if team else "", "vs", opp[0]))
+    out.append("#clubcricket")                    # niche/mid: the actual community
+    out.append({"bat": "#cricketbatting", "bowl": "#cricketbowling"}
+               .get(roles[0] if len(roles) == 1 else "", "#allroundcricket"))
+    out.append("#cricket")                        # broad: one label, no more
+    seen, uniq = set(), []
+    for t in out:
+        if t not in seen and len(t) > 1:
+            seen.add(t)
+            uniq.append(t)
+    return uniq[:5]
+
+
 def ball_line(m: dict, t: float) -> str:
     """One stamped line per ball, in the language of a commentary log."""
-    stamp = f"{int(t) // 60:02d}:{int(t) % 60:02d}"
+    # ⚠ Kept free of em dashes: the voice rules cap them at about one per 100 words, and a
+    # 13-clip list built from dashes blows that on its own.
+    stamp = f"{int(t) // 60:01d}:{int(t) % 60:02d}"
     where = f"{over(m['ball'])} ov, {m.get('score', '')}".strip(", ")
     if m["_role"] == "bat":
-        shot = "SIX" if "six" in m["_kinds"] else "FOUR"
+        shot = "six" if "six" in m["_kinds"] else "four"
         detail = f"{shot} off {titlecase(m['bowler'])}"
         if str(m.get("outcome", "")).endswith("nb"):
-            detail += " (off a no-ball)"
+            detail += ", off a no-ball"
     else:
         out = titlecase(m.get("striker", ""))
-        detail = f"WICKET — {out} {m.get('strikerScore', '')}".rstrip()
-    return f"{stamp}  {detail} — {where}"
+        detail = f"{out} {m.get('strikerScore', '')} out".replace("  ", " ").strip()
+    return f"{stamp}  {detail} ({where})"
 
 
 def metadata(player: str, moments: list[dict], segs: list, match: str, team: str,
-             states: list[dict] | None = None) -> dict:
-    """Title, description and tags for one player's reel."""
+             states: list[dict] | None = None, tag_override: str = "") -> dict:
+    """Title, description and tags for one reel.
+
+    The title stays scorecard-shaped, which is what reads well on YouTube. The description
+    is written Instagram-first, because both publishers post it verbatim and Instagram is
+    the harsher of the two: hook inside 125 characters, short lines, one call to action,
+    3-5 sized hashtags. See `hook()`, `cta()` and `hashtags()`.
+
+    ⚠ The ball-by-ball list sits BELOW the call to action on purpose. Instagram truncates
+    at the fold so it costs nothing there, while YouTube shows it in full.
+    """
     rs = roles_in(moments)
     role = rs[0] if len(rs) == 1 else "all"
     fig = figures(states, player, rs[0]) if len(rs) == 1 else None
-    who = titlecase(player)
     title = build_title(player, moments, fig, match, states=states)
+    who = titlecase(player)
 
     lines, t = [], 0.0
     for (a, b, _), m in zip(segs, moments):
         lines.append(ball_line(m, t))
         t += b - a
 
-    head = headline(player, moments, fig, states)
-    extra = breakdown(fig, role)
-    if extra:
-        head += f", {extra}"
+    head_line = hook(player, moments, states)
+    body = [head_line, ""]
 
-    body = [head]
+    # One or two short lines of support, each carrying a number rather than an adjective.
+    detail = []
+    fb = figures(states, player, "bat") if any(m["_role"] == "bat" for m in moments) else None
+    fw = figures(states, player, "bowl") if any(m["_role"] == "bowl" for m in moments) else None
+    # ⚠ An all-rounder reel carries both, so each line names its discipline rather than
+    # repeating the player's name twice.
+    both = fb is not None and fw is not None
+    if fb:
+        lead = "with the bat: " if both else f"{who}: "
+        line = f"{lead}{fb['runs']} ({fb['balls']}), {plural(fb['fours'], 'four')}"
+        if fb["sixes"]:
+            line += f" and {plural(fb['sixes'], 'six', 'sixes')}"
+        # ⚠ Don't echo a number the hook already used; a caption that repeats itself in
+        # the first two lines reads as generated.
+        if "strike rate" in head_line:
+            detail.append(line + ".")
+        else:
+            detail.append(line + f", strike rate {strike_rate(fb)}.")
+        name, n = favourite_victim([m for m in moments if m["_role"] == "bat"], "bowler")
+        if n >= 2:
+            detail.append(f"{n} of the fours came off {titlecase(name)}.")
+    if fw:
+        lead = "with the ball: " if both else f"{who}: "
+        detail.append(f"{lead}{fw['wickets']} for {fw['runs']} off "
+                      f"{over(fw['balls'])} overs, {economy(fw):.1f} an over.")
     if match:
-        body.append(match)
-    # 🛑 The headline is the player's figures for the whole innings; the reel only holds
-    # what the recording caught. Those differ whenever the stream started mid-innings, so
-    # say which is which rather than leaving a reader to think one of them is wrong.
-    body += ["", f"In this reel: {tally(moments)}", *lines, ""]
-    # A combined all-rounder reel holds both, so it cannot say "every wicket".
-    what = {"bat": "boundary", "bowl": "wicket"}.get(role, "moment")
-    body.append("Every " + what
-                + " here was found automatically from the scorecard overlay burnt into "
-                  "the broadcast — no manual logging.")
-    body += ["", "Scorecard overlay: https://score.abhinav.dev", ""]
+        detail.append(match + ".")
+    body += detail + ["", cta(rs), ""]
 
-    tag_words = ["cricket", "highlights"]
+    # 🛑 The support lines above are the player's figures for the whole innings; the reel
+    # holds only what the recording caught. Those differ whenever the stream started late,
+    # so the tally is labelled rather than left for a reader to reconcile.
+    if lines:
+        body += [f"in this reel: {tally(moments)}", *lines, ""]
+    # The one mention of the next step the voice rules allow: a real link, a real reason.
+    body += ["every clip here was found by reading the scorecard burnt into the stream, "
+             "not by scrubbing the footage.",
+             "score.abhinav.dev", ""]
+    tags = ([t if t.startswith("#") else "#" + t
+             for t in tag_override.replace(",", " ").split()] if tag_override
+            else hashtags(team, match, rs))
+    body.append(" ".join(tags + ["#Shorts"]))     # #Shorts is what YouTube reads
+
+    # YouTube's own tag field: plain keywords, not hashtags, and 6-8 is plenty.
+    kw = ["cricket", "cricket highlights", "club cricket"]
     if team:
-        tag_words.append(team.lower())
-    tag_words += sorted({k for m in moments for k in m["_kinds"]})
-    tag_words.append("shorts")
-    # #Shorts in the description is what YouTube reads for Shorts discovery.
-    body.append(" ".join(f"#{w.replace(' ', '')}" for w in
-                         ["Shorts", "Cricket"] + ([team.replace(" ", "")] if team else [])))
+        kw.append(team.lower())
+    kw += sorted({k for m in moments for k in m["_kinds"]})
+    kw.append("shorts")
 
     return {"title": title[:100], "description": "\n".join(body)[:5000],
-            "tags": list(dict.fromkeys(tag_words))}
+            "tags": list(dict.fromkeys(kw)), "hashtags": tags}
 
 
 def main():
@@ -447,6 +655,13 @@ def main():
                     help="with --align, keep balls whose scorer lag is a wild outlier. "
                          "🛑 Both mis-alignments ever confirmed by eye were the largest lag "
                          "in their innings, so these are dropped by default")
+    ap.add_argument("--captions-only", action="store_true",
+                    help="rewrite the .json sidecars without re-encoding the .mp4 files. "
+                         "Iterating on captions otherwise costs a full re-cut")
+    ap.add_argument("--hashtags", default="", metavar="LIST",
+                    help="override the Instagram hashtag set, space or comma separated. "
+                         "The default is 2 niche + 1-2 mid + 1 broad; ⚠ the tiers are "
+                         "judgment calls, so check a tag's real post count in the app")
     ap.add_argument("--player", help="only this player (substring, case-insensitive)")
     ap.add_argument("--height", type=int, default=1080)
     a = ap.parse_args()
@@ -577,7 +792,7 @@ def main():
             segs = segments(ms, types=kinds, windows=wins)
         if not segs:
             continue
-        meta = metadata(player, ms, segs, a.match, a.team, states)
+        meta = metadata(player, ms, segs, a.match, a.team, states, a.hashtags)
         print(f"{titlecase(player)} — {ROLE_NAME[role]}  ({tally(ms)})")
         crop_role = "bat" if role in ("bat", "all") else "bowl"
         cx = a.crop_x_bat if crop_role == "bat" else a.crop_x_bowl
@@ -587,12 +802,18 @@ def main():
             base = os.path.join(a.out, f"{slug(player)}-{ROLE_NAME[role]}"
                                        + (f"-{aspect.replace(':', 'x')}" if aspect else ""))
             vf = crop_filter(m["w"], m["h"], aspect, cx) if aspect else None
-            cut(a.video, segs, base + ".mp4", a.height, vf=vf)
+            if a.captions_only:
+                if not os.path.exists(base + ".mp4"):
+                    print(f"     ⚠ {base}.mp4 missing; captions written, video not cut")
+            else:
+                cut(a.video, segs, base + ".mp4", a.height, vf=vf)
             # One sidecar per file, so --meta pairs with whichever variant is chosen.
             with open(base + ".json", "w") as fh:
                 json.dump(meta, fh, indent=1)
-            size = os.path.getsize(base + ".mp4") / 1e6
-            print(f"  -> {base}.mp4  ({size:.1f} MB)")
+            size = (os.path.getsize(base + ".mp4") / 1e6
+                    if os.path.exists(base + ".mp4") else 0.0)
+            print(f"  -> {base}.mp4  ({size:.1f} MB)"
+                  + ("  [caption only]" if a.captions_only else ""))
             written.append(base)
         print(f"     {meta['title']}\n")
 

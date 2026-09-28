@@ -27,6 +27,15 @@ and paints a fixed-position DOM, driven entirely by URL query params (`matchId`,
 - ⚠ **Never write a secret to the Keychain with `security add-generic-password -w`** — the
   prompt truncates at 128 chars silently, and passing the value inline puts it in argv. →
   `publishing.md` §4a
+- 🛑 **A league member's real name reached the test fixtures and is still on `main`.** It was
+  the batting fixture across `highlights/test_*.py`, renamed to the placeholder `J. ROOT` on
+  `fix/clip-alignment`, and it remains in **5 places on the TypeScript side**:
+  `src/dataCode.vectors.json`, `src/dataCode.test.ts`, `src/dataQr.test.ts`,
+  `src/tools/genDataVectors.ts`. Diff `highlights/test_reels.py` against `main` to see which
+  name, rather than repeating it here. ⚠ The vector is generated and its bytes ARE the wire
+  format, so renaming means regenerating with `genDataVectors.ts`, never editing the JSON —
+  load `data-code.md` first. Use an obvious placeholder (`V. KOHLI`, `J. ROOT`) for any new
+  fixture.
 - 🛑 **Player rows in the CricClubs card views carry email addresses.** They must never be
   rendered or stored. `stripPii()` runs first in `renderFrame()`, and the fixtures in
   `mockData.ts` were captured live with emails removed.
