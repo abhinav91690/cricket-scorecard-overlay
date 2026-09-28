@@ -418,6 +418,37 @@ lifts every level: real deliveries measured 4.89-5.67 against a 4.84 threshold, 
 every ball read as doubtful and got widened for nothing. `STILL_PCT`/`BUSY_PCT` take
 percentiles of the innings' own pre-onset distribution instead.
 
+### 6g. ✅ Hand-measured overrides, for the balls the video cannot place
+
+Some balls cannot be located from the video and no tuning will change that. `--overrides`
+takes a per-match JSON of shot times read frame by frame, keyed on the payload **entry** time
+(stable, because it comes from the scorecard rather than the video):
+
+```json
+{"shots": {"8862.4": 8836.5}, "drop": [13650.5]}
+```
+
+The four that needed it on `vs ATX Panthers`, with the lag each one actually had:
+
+| entry | aligner | measured | lag | why the aligner could not get it |
+|---|---|---|---|---|
+| 8862.4 | 8847.5 | **8836.5** | 25.9 s | the true burst is 11 s further back than `CLUSTER_GAP` reaches |
+| 11342.0 | *omitted* | **11315.5** | 26.5 s | dropped by the guards |
+| 13074.2 | 13070.2 | **13027.5** | 46.7 s | **the delivery was never among the motion candidates** |
+| 13650.5 | 13639.5 | **13510.5** | 140.0 s | a 240 s scorer stall; the aligner's estimate lands on the *next* bowler's over |
+
+🛑 **Never populate this from the aligner's own output.** An override that agrees with the
+estimate is noise; one that is itself estimated is worse than the estimate it replaces. Each
+line above was read as frames — run-up, delivery stride, ball in flight, bat on ball — and the
+file records what was seen, with the reasoning, in a `measured` block beside the numbers.
+
+⚠ **The aftermath is easy to mistake for the shot when measuring by hand.** An earlier reading
+put one of these at 11321; the frames show 11315 is the stroke, 11318 the follow-through and
+11321 the batters already crossing. Measure the *stroke*, not the reaction.
+
+`drop` removes a moment outright — for an event the video cannot support, or one the scorer
+attributed to the wrong player (§6f).
+
 ### 6f. 🛑 A scorer retraction produces the SAME event twice
 
 A retracted-and-re-entered ball emits a second, identical moment carrying the **re-entry's**

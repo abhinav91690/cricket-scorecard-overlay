@@ -63,6 +63,56 @@ def slug(name: str) -> str:
     return s or "unknown"
 
 
+def load_overrides(path: str | None) -> dict:
+    """Hand-measured corrections for one match. -> {"shots": {entry: shot}, "drop": {entry}}.
+
+    🛑 Why this exists. Some balls cannot be placed from the video at all, and no amount of
+    tuning will place them. The three that needed it on `vs ATX Panthers`:
+
+        entry 8862.4  -> shot 8836.5   the aligner had 8847.5; a 25.9 s lag
+        entry 13074.2 -> shot 13027.5  the aligner had 13070.2; a 46.7 s lag, and the
+                                       delivery was never among the motion candidates
+        entry 13650.5 -> shot 13510.5  a 140 s lag after a 240 s scorer stall; by the
+                                       aligner's estimate the NEXT bowler was already on
+
+    Each was read frame by frame — delivery stride, ball in flight, bat on ball — and the
+    file records the measurement, not a guess. ⚠ Never populate it from the aligner's own
+    output: an override that agrees with the estimate is noise, and one that is itself
+    estimated is worse than the estimate it replaces.
+
+    Format, with times in source seconds:
+
+        {"shots": {"8862.4": 8836.5}, "drop": [13650.5], "note": "..."}
+
+    `drop` removes a moment outright, for an event the video cannot support at all or that
+    the scorer attributed to the wrong player.
+    """
+    if not path:
+        return {"shots": {}, "drop": set()}
+    with open(path) as fh:
+        doc = json.load(fh)
+    shots = {float(k): float(v) for k, v in (doc.get("shots") or {}).items()}
+    return {"shots": shots, "drop": {float(x) for x in (doc.get("drop") or [])}}
+
+
+def apply_overrides(shots: dict, ov: dict) -> tuple[dict, int]:
+    """Replace aligned shot times with hand-measured ones. -> (shots, n applied).
+
+    Keyed on the ENTRY time, which is stable: it comes from the payload, not from the video.
+    ⚠ An override for an entry the aligner never placed still counts — that is the main case,
+    a ball the video could not supply.
+    """
+    out = dict(shots)
+    n = 0
+    for entry, shot in ov["shots"].items():
+        hit = [e for e in out if abs(e - entry) < 0.6]
+        for e in hit:
+            del out[e]
+        out[entry] = (shot, shot)
+        n += 1
+    return out, n
+
+
 def dedupe_moments(moments: list[dict]) -> tuple[list[dict], int]:
     """Drop moments the scorer entered twice. -> (kept, n dropped).
 
@@ -380,6 +430,9 @@ def main():
                          "aligning video motion to the scorer's entries (deliveries.py), "
                          "then cut around that. Needs no lag guess — the lag varied 5-44s "
                          "within one innings on vs ATX Panthers")
+    ap.add_argument("--overrides", metavar="JSON",
+                    help="hand-measured shot times for balls the video cannot place, and "
+                         "moments to drop. See load_overrides()")
     ap.add_argument("--widen", action="store_true",
                     help="🛑 widen a clip when the delivery is uncertain instead of omitting "
                          "the ball. Measured worse on `vs ATX Panthers`: wide clips showed the "
@@ -399,6 +452,12 @@ def main():
     doc = json.load(open(a.events))
     moments = doc.get("moments") or doc.get("events") or []
     moments, n_dup = dedupe_moments(moments)
+    _drop = load_overrides(a.overrides)["drop"]
+    if _drop:
+        before = len(moments)
+        moments = [m for m in moments
+                   if not any(abs(m["t"] - d) < 0.6 for d in _drop)]
+        print(f"  dropped {before - len(moments)} moment(s) listed in {a.overrides}")
     if n_dup:
         print(f"  dropped {n_dup} duplicate moment(s) — the scorer retracted and re-entered "
               f"the same ball, and the re-entry's timestamp is not the ball's")
@@ -428,6 +487,10 @@ def main():
             shots.update(got)
             n = len(dv.entered_balls(states, inn))
             print(f"  innings {inn + 1}: {len(got)}/{n} balls located in the video")
+        ov = load_overrides(a.overrides)
+        shots, n_ov = apply_overrides(shots, ov)
+        if n_ov:
+            print(f"  applied {n_ov} hand-measured override(s) from {a.overrides}")
         if not shots:
             raise SystemExit("--align found no deliveries; check the pitch crop")
 

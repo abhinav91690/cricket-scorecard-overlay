@@ -1,0 +1,15 @@
+{
+  "note": "Hand-measured shot times for balls --align could not place. Each was read frame by frame in the source: delivery stride, ball in flight, bat on ball. Times are source seconds. Keyed on the payload ENTRY time, which is stable. Do NOT add an entry copied from the aligner's own output.",
+  "shots": {
+    "8862.4": 8836.5,
+    "11342.0": 11315.5,
+    "13074.2": 13027.5,
+    "13650.5": 13510.5
+  },
+  "measured": {
+    "8862.4": "aligner 8847.5 (14.9s lag); true 8836.5 (25.9s). 8836 shows the batter mid-stroke with the keeper crouched; 8847 and 8857 are both aftermath.",
+    "11342.0": "omitted by the guards. True 11315.5 (26.5s lag): 11315 is the batter mid-stroke, keeper crouched. 11318 is the follow-through, 11321 the batters crossing - an earlier estimate of 11321 was the aftermath, not the shot.",
+    "13074.2": "aligner 13070.2 (4.0s lag); true 13027.5 (46.7s). 13021 run-up, 13027 delivery stride with the ball lofted. The delivery was never among the motion candidates, so no tuning could reach it. The 36s before the entry holds no delivery at all - a new batter walking in.",
+    "13650.5": "aligner 13639.5 (11.0s lag); true 13510.5 (140.0s). Followed a 240s scorer stall. 13508 is the delivery, 13511 bat on ball, 13530-13575 the celebration. By 13635 the NEXT bowler is running in, which is what the aligner's estimate showed."
+  }
+}

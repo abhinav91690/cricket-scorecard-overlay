@@ -437,6 +437,64 @@ def test_each_moment_keeps_its_own_role_in_a_combined_reel():
     assert [m["_role"] for m in out[("A", "all")]] == ["bat", "bowl"], "roles lost"
 
 
+# --- hand-measured overrides -----------------------------------------------------------
+
+def test_override_replaces_an_aligned_shot():
+    from reels import apply_overrides
+    ov = {"shots": {8862.4: 8836.5}, "drop": set()}
+    out, n = apply_overrides({8862.4: (8847.5, 8847.5)}, ov)
+    assert n == 1 and out[8862.4] == (8836.5, 8836.5), out
+
+
+def test_override_restores_a_ball_the_aligner_never_placed():
+    """⚠ The main case: a delivery the video could not supply at all."""
+    from reels import apply_overrides
+    ov = {"shots": {11342.0: 11315.5}, "drop": set()}
+    out, n = apply_overrides({}, ov)
+    assert n == 1 and out[11342.0] == (11315.5, 11315.5), out
+
+
+def test_override_leaves_other_balls_alone():
+    """🛑 Load-bearing: an override must not disturb a clip already confirmed good."""
+    from reels import apply_overrides
+    ov = {"shots": {8862.4: 8836.5}, "drop": set()}
+    before = {2182.2: (2169.5, 2169.5), 8862.4: (8847.5, 8847.5)}
+    out, _ = apply_overrides(before, ov)
+    assert out[2182.2] == (2169.5, 2169.5), "clobbered an untouched ball"
+
+
+def test_override_matches_on_a_nearby_entry_time():
+    """Entry times come from the payload at ~2 Hz, so an override may be off by a fraction."""
+    from reels import apply_overrides
+    ov = {"shots": {8862.4: 8836.5}, "drop": set()}
+    out, _ = apply_overrides({8862.55: (8847.5, 8847.5)}, ov)
+    assert 8862.55 not in out, "left the stale entry behind as a duplicate clip"
+    assert out[8862.4] == (8836.5, 8836.5)
+
+
+def test_no_override_file_is_a_no_op():
+    from reels import apply_overrides, load_overrides
+    ov = load_overrides(None)
+    before = {2182.2: (2169.5, 2169.5)}
+    out, n = apply_overrides(before, ov)
+    assert n == 0 and out == before
+
+
+def test_the_shipped_override_file_is_well_formed():
+    """⚠ It is hand-written, so a typo would silently mis-cut a clip."""
+    import os
+    from reels import load_overrides
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "overrides", "vs-atx-panthers.json")
+    if not os.path.exists(path):
+        return
+    ov = load_overrides(path)
+    assert ov["shots"], "no overrides in the file"
+    for entry, shot in ov["shots"].items():
+        assert shot < entry, f"shot {shot} must precede its entry {entry}"
+        assert 0 < entry - shot < 300, f"implausible lag {entry - shot:.1f}s for {entry}"
+
+
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     bad = 0
