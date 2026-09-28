@@ -816,9 +816,9 @@ reel). Neither goes in a public caption.
 
 | line | before | now |
 |---|---|---|
-| boundary | `four off Senthil M (0.2 ov, 6/0)` | `four (0.2 ov, 6/0)` |
-| wicket | `Dinesh V 5(4) out (8.5 ov, 54/6)` | `wicket, 5(4) (8.5 ov, 54/6)` |
-| support | `2 of them came off Senthil M.` | `2 of the fours came off the same bowler.` |
+| boundary | `four off <opp bowler> (0.2 ov, 6/0)` | `four (0.2 ov, 6/0)` |
+| wicket | `<opp batter> 5(4) out (8.5 ov, 54/6)` | `wicket, 5(4) (8.5 ov, 54/6)` |
+| support | `2 of them came off <opp bowler>.` | `2 of the fours came off the same bowler.` |
 
 ✅ **The dismissed batter's score stays.** It is the useful part, and a number is not a name.
 
