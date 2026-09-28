@@ -133,6 +133,7 @@ worker/.dev.vars
 
 # Match recordings used for highlight detection. Large, and this repo is public.
 test video/
+Game footage/
 *.mp4
 *.mov
 *.mkv
@@ -158,3 +159,6 @@ sim/out/
 # Session worktrees. Each is its own git checkout, so `git add -A` commits it as an
 # embedded repo (a gitlink pointing at nothing a clone can fetch). Never tracked.
 .claude/worktrees/
+
+# Anonymised live-match recordings (sim/record.ts) and the recorder's Chrome profile. Local only.
+sim/recordings/

@@ -11,7 +11,9 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "sim": "node --no-warnings sim/server.ts",
-    "sim:run": "node --no-warnings sim/run.ts"
+    "sim:run": "node --no-warnings sim/run.ts",
+    "record": "node --no-warnings sim/record.ts",
+    "replay": "node --no-warnings sim/replay.ts"
   },
   "repository": {
     "type": "git",

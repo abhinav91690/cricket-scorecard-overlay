@@ -10,6 +10,22 @@ the placeholder URL changed on 85-100% of polls. Any placeholder now counts as t
 panels already treated placeholders as no picture. No fixture or simulator run could have shown it,
 since each captured frame is a single response.
 
+**All 20 of today's LPCL matches recorded and replayed; the overlay was right in every one.**
+The new recorder (`sim/record.ts`) captured each match as the overlay saw it, anonymised, and
+`sim/replay.ts` graded 20 of 20 at 7 of 7 — wickets, fifties, three hundreds, two hauls, the line-up,
+break and result, two D/L matches and three abandoned. It found the placeholder-logo flicker above,
+and that **"Winner: X" results** (abandoned, forfeited, some D/L) never marked a winner on the result
+card; `resultWinner()` now reads both wordings. Along the way the grader learned how scorers really
+behave (§13a), and the anonymiser learned that one card view writes dismissals with nicknames.
+
+**A reopened match never got its result back.** On 4685 the scorer ended the match "won by 168
+runs", reopened it two seconds later and re-ended it "Abandoned." after the recording had closed. The
+result panel is shown once per load, so after a reopen no result card would ever return; it is now
+drawn again after a reopen and whenever the result text or the award changes. Found when CI replayed
+the recording at x60, where the two-second result no longer fit.
+
+The 20 recordings are committed gzipped in `sim/matches/` (1.2 MB) and replayed in CI.
+
 ## 2026-09-26
 
 **Watching three live matches (4651, 4655, 4658) found five more faults**, all fixed together:
@@ -660,3 +676,4 @@ a 2-second card. It cannot work: the strip's x position moves across the match, 
 calibration is wrong by construction, and light discs are nearly invisible against the card. The
 disc finder itself was correct; the grid assumption was what failed. The QR code solved the
 underlying problem properly. Kept in `highlights.md` §8 so it is not attempted again.
+

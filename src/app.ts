@@ -78,7 +78,7 @@ let panelsShown = new Set<MatchPhase>();
 let breakBatters: string | null = null;
 /** Every card already put on air this load, keyed by what it is about. See freshEvents(). */
 let cardsShown = new Set<string>();
-/** The player of the match the result panel was drawn with, so a late award redraws it. */
+/** What the result panel was drawn with — award and result text — so a change redraws it. */
 let resultAward: string | null = null;
 const gaveUp = () => new Set(Object.entries(peekAttempts).filter(([, n]) => n >= PEEK_ATTEMPTS).map(([v]) => Number(v)));
 
@@ -128,15 +128,19 @@ function renderFrame(data: CricketAPIData, quiet: boolean, showData = false) {
         const early = openersIn(phase, data.values);
         if (phase === 'pre' && early) dismissPanel('lineup');
         if (phase === 'break' && early) dismissPanel('innings-summary');
-        // The result stays up for good, so an award CricClubs names later means drawing it again.
-        const award = (data.values.manOfTheMatch ?? '').trim();
-        if (phase === 'ended' && panelsShown.has('ended') && award !== resultAward) {
+        // The result stays up for good, so it is drawn again whenever what it says changes: an award
+        // CricClubs names later, or a corrected result. 🛑 A scorer can also REOPEN a finished match:
+        // 4685 ended "won by 168 runs", went back to play, then ended "Abandoned." Once reopened, the
+        // next end must draw the result again, or no result card ever returns.
+        const said = `${(data.values.manOfTheMatch ?? '').trim()}|${(data.values.result ?? '').trim()}`;
+        if (phase !== 'ended' && panelsShown.has('ended')) { panelsShown.delete('ended'); resultAward = null; }
+        if (phase === 'ended' && panelsShown.has('ended') && said !== resultAward) {
             dismissPanel('match-summary');
             panelsShown.delete('ended');
         }
         if (phase !== 'play' && dataReady && isIdle('panel') && !panelsShown.has(phase) && !early) {
             panelsShown.add(phase);
-            if (phase === 'ended') resultAward = award;
+            if (phase === 'ended') resultAward = said;
             enqueueCards(phasePanels(phase, data.values, viewCache));
         }
     }

@@ -379,6 +379,35 @@ describe('views: peeks, dismissal and panels', () => {
         expect(cards).toEqual([4, 'Prashanth R', 'Prashanth B']);
     });
 
+    it('draws the result again after a scorer reopens the match and ends it differently (match 4685)', async () => {
+        // 4685 ended "won by 168 runs", went back to play for a while, then ended "Abandoned.".
+        setSearch('?matchId=2079&clubId=1');
+        const endedWith = (result: string) => ({ ...(mock_matchEnded as any), values: { ...(mock_matchEnded as any).values, isMatchEnded: '1', result, manOfTheMatch: '' } });
+        const reopened = { ...(mock_matchEnded as any), values: { ...(mock_matchEnded as any).values, isMatchEnded: '0', result: 'Abandoned.' }, balls: ['1'] };
+        const summaries = () => vi.mocked(enqueueCards).mock.calls.flat(2).filter((c: any) => c.type === 'match-summary');
+        vi.mocked(fetchScoreData).mockResolvedValue(endedWith('Lions won by 168 Runs'));
+        for (let i = 0; i < 20; i++) await updateScore();
+        expect(summaries()).toHaveLength(1);
+        vi.mocked(fetchScoreData).mockResolvedValue(reopened);
+        for (let i = 0; i < 3; i++) await updateScore();
+        vi.mocked(fetchScoreData).mockResolvedValue(endedWith('Abandoned.'));
+        for (let i = 0; i < 20; i++) await updateScore();
+        expect(summaries()).toHaveLength(2);
+        expect((summaries()[1] as any).result).toBe('Abandoned.');
+    });
+
+    it('draws the result again when the scorer corrects it without reopening', async () => {
+        setSearch('?matchId=2079&clubId=1');
+        const endedWith = (result: string) => ({ ...(mock_matchEnded as any), values: { ...(mock_matchEnded as any).values, isMatchEnded: '1', result, manOfTheMatch: '' } });
+        vi.mocked(fetchScoreData).mockResolvedValue(endedWith('Lions won by 6 Runs'));
+        const summaries = () => vi.mocked(enqueueCards).mock.calls.flat(2).filter((c: any) => c.type === 'match-summary');
+        for (let i = 0; i < 20; i++) await updateScore();
+        vi.mocked(fetchScoreData).mockResolvedValue(endedWith('Lions won by 16 Runs'));
+        for (let i = 0; i < 3; i++) await updateScore();
+        expect(summaries()).toHaveLength(2);
+        expect((summaries()[1] as any).result).toContain('16 runs');
+    });
+
     it('redraws the result when CricClubs names the player of the match later', async () => {
         setSearch('?matchId=2079&clubId=1');
         const base = { ...(mock_matchEnded as any), values: { ...(mock_matchEnded as any).values, isMatchEnded: '1', manOfTheMatch: '' } };

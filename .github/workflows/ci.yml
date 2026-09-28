@@ -34,3 +34,39 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run test:run
+
+  # Every recorded real match (sim/matches/*.jsonl.gz, see sim/record.ts) replayed through the
+  # overlay and graded against what the recording says happened. One job per match, in parallel.
+  replay-list:
+    name: Replays (list)
+    runs-on: ubuntu-latest
+    outputs:
+      files: ${{ steps.list.outputs.files }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: list
+        run: echo "files=$(ls sim/matches/*.jsonl.gz | jq -R -s -c 'split("\n")[:-1]')" >> "$GITHUB_OUTPUT"
+
+  replay:
+    name: Replay ${{ matrix.file }}
+    needs: replay-list
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        file: ${{ fromJSON(needs.replay-list.outputs.files) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: node --no-warnings sim/replay.ts ${{ matrix.file }} --speed ${REPLAY_SPEED:-60}
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: replay-${{ strategy.job-index }}
+          path: sim/out/replay-*/report.md
+          if-no-files-found: ignore
