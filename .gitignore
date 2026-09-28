@@ -141,7 +141,11 @@ test video/
 highlights/.venv/
 highlights/events.json
 highlights/clips/
-highlights/__pycache__/
+# ⚠ Unanchored on purpose. This was `highlights/__pycache__/`, which is path-anchored and
+# so missed `highlights/hooks/__pycache__/` the moment a subpackage was added — a .pyc
+# reached a commit before anyone noticed.
+__pycache__/
+*.py[cod]
 
 # publish.py --metadata-only output
 highlights/*-youtube.txt
