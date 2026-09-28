@@ -231,8 +231,9 @@ def test_description_stamps_each_ball_with_the_over_and_score():
                    batting_innings=1)[("J. ROOT", "bat")]
     segs = [[0.0, 20.0, "four"], [30.0, 50.0, "six"]]
     body = metadata("J. ROOT", ms, segs, "", "Topguns")["description"]
-    assert "0:00  four off Ankit K (2.1 ov, 50/1)" in body, body
-    assert "0:20  six off Ankit K (3.2 ov, 50/1)" in body, body
+    assert "0:00  four (2.1 ov, 50/1)" in body, body
+    assert "0:20  six (3.2 ov, 50/1)" in body, body
+    assert "Ankit" not in body, "named the opposition bowler"
 
 
 def test_description_carries_the_batting_boundary_breakdown():
@@ -280,11 +281,17 @@ def test_metadata_respects_youtube_field_limits():
     assert len(meta["description"]) <= 5000
 
 
-def test_a_fielding_wicket_names_the_dismissed_batter_and_their_score():
+def test_a_fielding_wicket_gives_the_score_but_NOT_the_batters_name():
+    """🛑 Inverted deliberately. This test used to assert the dismissed batter WAS named.
+
+    The club does not put opposition players in public captions, so the name goes and the
+    score stays: a number is the useful part and is not a name.
+    """
     ms = attribute([mo(10, ["wicket"], 2, striker="R. SHARMA", strikerScore="34(32)")],
                    batting_innings=1)[("ANKIT K", "bowl")]
     body = metadata("ANKIT K", ms, [[0.0, 10.0, "wicket"]], "", "Topguns")["description"]
-    assert "R. Sharma 34(32) out" in body, body
+    assert "34(32)" in body, body
+    assert "Sharma" not in body and "SHARMA" not in body, body
 
 
 # ---------------------------------------------------------------- the crop
@@ -620,6 +627,54 @@ def test_the_support_line_does_not_echo_the_hooks_number():
     body = metadata("J. ROOT", ms, [[0.0, 8.0, "four"], [30.0, 38.0, "four"]],
                     "", "T", states)["description"]
     assert body.lower().count("strike rate") <= 1, body
+
+
+def test_no_opposition_name_reaches_the_caption():
+    """🛑 Load-bearing. Opponents appear in the payload as the bowler a boundary came off and
+    the batter a wicket dismissed. Neither goes in a public caption.
+
+    ⚠ Checks a BATTING reel and a BOWLING reel, because the opponent sits in a different
+    field for each: `bowler` for our batter, `striker` for our bowler.
+    """
+    bat = attribute([mo(10, ["four"], 1, ball=13, bowler="ZZOPPBOWLER Q"),
+                     mo(40, ["four"], 1, ball=14, bowler="ZZOPPBOWLER Q")],
+                    batting_innings=1)[("J. ROOT", "bat")]
+    body = metadata("J. ROOT", bat, [[0.0, 8.0, "four"], [30.0, 38.0, "four"]],
+                    "Topguns vs Rivals", "Topguns", None, "", "LPCL", "leather",
+                    "T20 2026")["description"]
+    assert "ZZOPPBOWLER" not in body.upper(), body
+    # ⚠ The opposing TEAM stays: the fixture line is normal for a highlight caption and a
+    # club is not a person. Only opposition PLAYERS are withheld.
+    assert "Rivals" in body, "the fixture line should still name the opposing team"
+
+    # For a bowling reel the attributed player is the BOWLER, so name it explicitly; the
+    # striker is the opponent whose name must not survive.
+    bowl = attribute([mo(10, ["wicket"], 2, bowler="J. ROOT", striker="ZZOPPBAT R",
+                         strikerScore="7(9)")],
+                     batting_innings=1)[("J. ROOT", "bowl")]
+    body2 = metadata("J. ROOT", bowl, [[0.0, 8.0, "wicket"]], "Topguns vs Rivals",
+                     "Topguns", None, "", "LPCL", "leather", "T20 2026")["description"]
+    assert "ZZOPPBAT" not in body2.upper(), body2
+    assert "7(9)" in body2, "dropped the score along with the name"
+
+
+def test_the_tag_set_is_the_clubs_own():
+    from reels import hashtags
+    t = hashtags("Topguns United", "LPCL", "leather", "T20 Fall 2026", ["bat"])
+    assert t[0] == "#Topguns", t            # first word only, not #TopgunsUnited
+    assert "#LPCL" in t and "#LeatherBall" in t and "#T20Fall2026" in t, t
+    assert not any("vs" in x.lower() for x in t), "a per-fixture tag came back"
+    assert "#cricket" in t and "#clubcricket" in t, t
+    tape = hashtags("Topguns United", "LPCL", "tape", "", ["bowl"])
+    assert "#TapeBall" in tape and "#cricketbowling" in tape, tape
+
+
+def test_the_tag_set_degrades_without_the_new_flags():
+    """⚠ The flags are optional; omitting them must not leave a stray '#' or a blank tag."""
+    from reels import hashtags
+    t = hashtags("Topguns United", "", "", "", ["bat"])
+    assert all(len(x) > 1 and x.startswith("#") for x in t), t
+    assert "#Topguns" in t and "#cricket" in t, t
 
 
 if __name__ == "__main__":

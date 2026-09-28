@@ -769,7 +769,7 @@ follow the `instagram-skills` bundle (installed at `~/.claude/skills/instagram-s
 | hook inside **125 chars**, standing alone | `hook()` |
 | a real number in the hook, never an adjective | `hook()` |
 | ~~one call to action~~ | 🛑 **removed by request** — see below |
-| **3-5 sized** hashtags: 2 niche, 1-2 mid, at most 1 broad | `hashtags()` |
+| hashtags: the club's own set, 7-8 | `hashtags()` — see below |
 | em dashes under about 1 per 100 words | `ball_line()` uses parentheses |
 | no `leverage`, `unlock`, `elevate`, `game-changer`, `dive in` | tested |
 
@@ -786,6 +786,50 @@ publishers, so it is written for the harsher of the two.
 ⚠ **`#Shorts` makes six tags, not five.** It is a YouTube discovery token and means nothing on
 Instagram, but the same description feeds both. Pass `--hashtags` with four to land on five
 total if a strict set matters.
+
+#### The club's tag set, and what is deliberately absent
+
+```
+#Topguns #LPCL #LeatherBall|#TapeBall #<series> #clubcricket #cricketbatting|bowling #cricket
+```
+
+Set with `--league`, `--ball leather|tape` and `--series`. The club tag is the **first word**
+of `--team`, so "Topguns United" gives `#Topguns`, not `#TopgunsUnited`.
+
+⚠ **7-8 tags, against the skill's recommended 3-5.** That is the owner's call: the club wants
+its four on every post. The sizing logic still holds (four niche, one mid, one broad) and it is
+nowhere near the 30-tag block that reads as spam.
+
+🛑 **No per-fixture tag.** `#TopgunsVsATX` was dropped: it named the opponent in the tag itself,
+and a tag used once per season is noise rather than an archive.
+
+🛑 **`--series` cannot be derived, and the API is a red herring.** `seriesName` IS in the
+`liveScoreOverlayData.do` response, but the highlights pipeline never sees it: `events.json`
+comes from the QR payload, the payload is 42 bytes with every bit allocated, and it carries no
+match id either. So there is no path from the video to the series. Pass it.
+
+### 13aaaa. 🛑 No opposition player names in a caption
+
+The payload names opponents in two places, and the field differs by role: the **bowler** a
+boundary came off (our batter's reel) and the **batter** a wicket dismissed (our bowler's
+reel). Neither goes in a public caption.
+
+| line | before | now |
+|---|---|---|
+| boundary | `four off Senthil M (0.2 ov, 6/0)` | `four (0.2 ov, 6/0)` |
+| wicket | `Dinesh V 5(4) out (8.5 ov, 54/6)` | `wicket, 5(4) (8.5 ov, 54/6)` |
+| support | `2 of them came off Senthil M.` | `2 of the fours came off the same bowler.` |
+
+✅ **The dismissed batter's score stays.** It is the useful part, and a number is not a name.
+
+⚠ **The opposing TEAM stays too.** The fixture line "Topguns United vs ATX Panthers" is normal
+for a highlight caption and a club is not a person. `test_no_opposition_name_reaches_the_caption`
+asserts the team IS present and the players are not — an earlier draft of that test failed
+because it blocked both.
+
+⚠ `test_a_fielding_wicket_gives_the_score_but_NOT_the_batters_name` is the **inverted** form of
+a test that used to assert the batter *was* named. The old assertion is gone on purpose; do not
+restore it from an older revision.
 
 ⚠ **The hashtag tiers are judgment calls.** A tag's real post count is only visible in the
 Instagram app, so check the two niche tags there before leaning on them. All nine reels from

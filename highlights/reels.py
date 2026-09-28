@@ -433,76 +433,86 @@ def hook(player: str, moments: list[dict], states: list[dict] | None,
         # which always carry the dismissed batter, the bowler and the ball number.
         if bowl:
             first = sorted(bowl, key=lambda m: m.get("ball") or 0)[0]
-            who_out = titlecase(first.get("striker", ""))
-            if len(bowl) == 1 and who_out:
-                cands.append(f"{who_out} {first.get('strikerScore', '')} out."
-                             .replace("  ", " "))
+            sc = first.get("strikerScore", "")
+            if len(bowl) == 1 and sc:
+                cands.append(f"a wicket, the batter out for {sc}.")
             else:
                 cands.append(f"{tally(moments)} in this reel.")
         if bat:
-            name, n = favourite_victim(bat, "bowler")
-            cands.append(f"{tally(moments)} from {titlecase(player)}"
-                         + (f", off {titlecase(name)}." if n == len(bat) and name else "."))
+            cands.append(f"{tally(moments)} from {titlecase(player)}.")
     for c in cands:
         if len(c) <= limit:
             return c
     return cands[0][:limit - 1] + "…"
 
 
-def hashtags(team: str, match: str, roles: list[str]) -> list[str]:
-    """3-5 sized tags: 2 niche, 1-2 mid, at most 1 broad.
+def hashtags(team: str, league: str = "", ball: str = "", series: str = "",
+             roles: list[str] | None = None) -> list[str]:
+    """The club's tag set: club, league, ball type, series, then the generics.
 
-    🛑 Sizing, not volume. A small account cannot rank in a 5M tag, so the niche tags do
-    the work and the broad one is a category label. ⚠ The tiers here are judgment calls —
-    a tag's real post count is only visible in the Instagram app, so check the two niche
-    tags there before leaning on them. `--hashtags` overrides the whole set.
+    ⚠ This is the owner's set, not the skill's default. `ig-hashtag-strategist` recommends
+    3-5 sized tags; this lands on 7-8 because the club wants its own four on every post. Still
+    nowhere near the 30-tag block that reads as spam, and the sizing logic still holds: the
+    first four are niche (a club, a league, a format, one series), then one mid and one broad.
+
+    🛑 No per-fixture tag. `#TopgunsVsATX` was dropped — it named the opponent in the tag
+    itself, and a tag used once per season is not an archive, it is noise.
     """
-    def tag(*parts: str) -> str:
-        """CamelCase a multi-word tag. ⚠ Lowercase openers are native to caption prose, but
-        a club name is a proper noun and `#topgunsunited` is harder to read than
-        `#TopgunsUnited`. Generic tags below stay lowercase."""
-        words = [w for p in parts for w in p.split() if w]
+    roles = roles or ["bat"]
+
+    def tag(text: str) -> str:
+        words = [w for w in text.replace("-", " ").replace("_", " ").split() if w]
         return "#" + "".join(w[:1].upper() + w[1:] for w in words)
 
     out = []
-    if team:                                      # niche: branded, definitely small
-        out.append(tag(team))
-    if match:                                     # niche: a per-match archive
-        opp = match.split(" vs ")[-1].split()
-        if opp:
-            # First word of each side keeps the tag short and searchable.
-            out.append(tag(team.split()[0] if team else "", "vs", opp[0]))
-    out.append("#clubcricket")                    # niche/mid: the actual community
+    if team:
+        # First word only: the club is "Topguns", not "TopgunsUnited".
+        out.append(tag(team.split()[0]))
+    if league:
+        out.append("#" + league.replace(" ", "").replace("-", ""))
+    if ball:
+        out.append({"leather": "#LeatherBall", "tape": "#TapeBall"}.get(ball.lower(),
+                                                                       tag(ball)))
+    if series:
+        out.append(tag(series))
+    out.append("#clubcricket")
     out.append({"bat": "#cricketbatting", "bowl": "#cricketbowling"}
                .get(roles[0] if len(roles) == 1 else "", "#allroundcricket"))
-    out.append("#cricket")                        # broad: one label, no more
+    out.append("#cricket")
     seen, uniq = set(), []
     for t in out:
-        if t not in seen and len(t) > 1:
-            seen.add(t)
+        if t.lower() not in seen and len(t) > 1:
+            seen.add(t.lower())
             uniq.append(t)
-    return uniq[:5]
+    return uniq
 
 
 def ball_line(m: dict, t: float) -> str:
-    """One stamped line per ball, in the language of a commentary log."""
-    # ⚠ Kept free of em dashes: the voice rules cap them at about one per 100 words, and a
-    # 13-clip list built from dashes blows that on its own.
+    """One stamped line per ball.
+
+    🛑 No opponent names. The bowler a boundary came off and the batter a wicket dismissed are
+    both opposition players, and the club does not put them in public captions. The dismissed
+    batter's SCORE stays: it is the useful part, and a number is not a name.
+
+    ⚠ Kept free of em dashes: the voice rules cap them at about one per 100 words, and a
+    13-clip list built from dashes blows that on its own.
+    """
     stamp = f"{int(t) // 60:01d}:{int(t) % 60:02d}"
     where = f"{over(m['ball'])} ov, {m.get('score', '')}".strip(", ")
     if m["_role"] == "bat":
-        shot = "six" if "six" in m["_kinds"] else "four"
-        detail = f"{shot} off {titlecase(m['bowler'])}"
+        detail = "six" if "six" in m["_kinds"] else "four"
         if str(m.get("outcome", "")).endswith("nb"):
             detail += ", off a no-ball"
     else:
-        out = titlecase(m.get("striker", ""))
-        detail = f"{out} {m.get('strikerScore', '')} out".replace("  ", " ").strip()
+        # The score without the name: "wicket, 5(4)".
+        sc = m.get("strikerScore", "")
+        detail = f"wicket, {sc}" if sc else "wicket"
     return f"{stamp}  {detail} ({where})"
 
 
 def metadata(player: str, moments: list[dict], segs: list, match: str, team: str,
-             states: list[dict] | None = None, tag_override: str = "") -> dict:
+             states: list[dict] | None = None, tag_override: str = "", league: str = "",
+             ball: str = "", series: str = "") -> dict:
     """Title, description and tags for one reel.
 
     The title stays scorecard-shaped, which is what reads well on YouTube. The description
@@ -548,9 +558,10 @@ def metadata(player: str, moments: list[dict], segs: list, match: str, team: str
             detail.append(line + ".")
         else:
             detail.append(line + f", strike rate {strike_rate(fb)}.")
-        name, n = favourite_victim([m for m in moments if m["_role"] == "bat"], "bowler")
+        # ⚠ The count is the point, not who was hit. No opponent names in captions.
+        _, n = favourite_victim([m for m in moments if m["_role"] == "bat"], "bowler")
         if n >= 2:
-            detail.append(f"{n} of the fours came off {titlecase(name)}.")
+            detail.append(f"{n} of the fours came off the same bowler.")
     if fw:
         lead = "with the ball: " if both else f"{who}: "
         detail.append(f"{lead}{fw['wickets']} for {fw['runs']} off "
@@ -569,7 +580,7 @@ def metadata(player: str, moments: list[dict], segs: list, match: str, team: str
     # without being asked — they were removed on purpose, not lost.
     tags = ([t if t.startswith("#") else "#" + t
              for t in tag_override.replace(",", " ").split()] if tag_override
-            else hashtags(team, match, rs))
+            else hashtags(team, league, ball, series, rs))
     body.append(" ".join(tags + ["#Shorts"]))     # #Shorts is what YouTube reads
 
     # YouTube's own tag field: plain keywords, not hashtags, and 6-8 is plenty.
@@ -644,6 +655,14 @@ def main():
                     help="with --align, keep balls whose scorer lag is a wild outlier. "
                          "🛑 Both mis-alignments ever confirmed by eye were the largest lag "
                          "in their innings, so these are dropped by default")
+    ap.add_argument("--league", default="", metavar="NAME",
+                    help='league tag, e.g. "LPCL"')
+    ap.add_argument("--ball", default="", choices=["", "leather", "tape"],
+                    help="ball type, for #LeatherBall or #TapeBall")
+    ap.add_argument("--series", default="", metavar="NAME",
+                    help='series/season, e.g. "T20 Fall 2026". 🛑 Not derivable: the API '
+                         'carries seriesName but the 42-byte QR payload cannot, and it has '
+                         'no match id either, so events.json never sees it')
     ap.add_argument("--captions-only", action="store_true",
                     help="rewrite the .json sidecars without re-encoding the .mp4 files. "
                          "Iterating on captions otherwise costs a full re-cut")
@@ -781,7 +800,8 @@ def main():
             segs = segments(ms, types=kinds, windows=wins)
         if not segs:
             continue
-        meta = metadata(player, ms, segs, a.match, a.team, states, a.hashtags)
+        meta = metadata(player, ms, segs, a.match, a.team, states, a.hashtags,
+                        a.league, a.ball, a.series)
         print(f"{titlecase(player)} — {ROLE_NAME[role]}  ({tally(ms)})")
         crop_role = "bat" if role in ("bat", "all") else "bowl"
         cx = a.crop_x_bat if crop_role == "bat" else a.crop_x_bowl
