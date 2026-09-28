@@ -1,5 +1,15 @@
 # Update Log
 
+## 2026-09-27
+
+**A team with no logo flickered through four badges.** CricClubs answers a missing logo with a
+RANDOM placeholder on every response — `no-image-team1..4.jpg`, four differently coloured shields.
+The bar reloaded the logo whenever its URL changed, so the badge changed colour on most polls.
+Found by the new match recorder (branch `feature/match-recorder`): on 3 of today's first 8 matches
+the placeholder URL changed on 85-100% of polls. Any placeholder now counts as the same logo; the
+panels already treated placeholders as no picture. No fixture or simulator run could have shown it,
+since each captured frame is a single response.
+
 ## 2026-09-26
 
 **Watching three live matches (4651, 4655, 4658) found five more faults**, all fixed together:
