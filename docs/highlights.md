@@ -844,6 +844,64 @@ which overrides the skill's "one clear CTA" rule. The caption now ends on the ha
 ✅ **`--captions-only` rewrites the sidecars without re-encoding.** Iterating on wording
 otherwise costs a full re-cut of every reel.
 
+### 13ab. ✅ The contact sheet — verify a reel without watching it
+
+`--contact-sheet` writes `<reel>-sheet.png` beside each reel: one tile per clip, each the frame
+at the **predicted delivery**, labelled `<n> <reel mm:ss> ov <over> +<lag>s`.
+
+🛑 **This is the fix for the review problem, and the review problem was the expensive one.**
+Three reel-by-reel passes were needed on `vs ATX Panthers` and every real fault came from
+watching, never from a metric. A wrong clip is obvious in a tile: an empty pitch, a batter
+walking away, fielders gathering. A right one shows a bowler in the act or a bat coming
+through with the keeper crouched.
+
+On its first run against the shipped reels it flagged four clips in the 13-clip reel (lags of
+39 s, 17 s, 16 s and 27 s) that show players standing. That reel had been reviewed as "good,
+some missing but too many to correctly tell" — the sheet turns that into four indices.
+
+⚠ **Read the lag column.** Both mis-alignments ever confirmed by eye were the largest lag in
+their innings, so a lag far from the median is the tile to look at twice.
+
+#### 🛑 The tiling trap
+
+`ffmpeg`'s `tile` filter tiles successive **frames of one input**. The first version passed one
+`-i` per tile, so ffmpeg tiled the *first* image and padded the rest — **every sheet came out
+byte-identical whatever the other tiles held**, while looking entirely correct: a valid PNG,
+right dimensions, first tile right. It was caught only by md5-ing two sheets that should have
+differed, and `test_two_different_shot_lists_give_different_sheets` now pins it. Use one
+numbered-sequence input (`-i t%03d.png`), and number tiles contiguously — a gap truncates the
+sequence.
+
+⚠ **`drawtext` needs its colons escaped.** A reel timestamp always contains one, and an
+unescaped colon is read as a filter-option separator: the whole filterchain fails with exit
+234 and no image at all. `esc()` handles `\`, `:`, `'` and `%`.
+
+⚠ A sheet never takes the reel cut down with it: every failure path returns `None`, including
+an unreadable source, because `probe()` raises rather than returning empty.
+
+### 13ac. ✅ One manifest per match
+
+`--manifest matches/<slug>.json` supplies every per-match setting, so a run is one argument
+instead of twelve. It doubles as the record of what a match was cut with.
+
+| in the manifest | why it cannot be a default |
+|---|---|
+| `aspect-*`, `crop-x-*` | measured per camera position; it moved at the innings break here |
+| `batting-innings` | 🛑 not inferable; wrong value credits every event to the opposition |
+| `league`, `ball`, `series` | caption inputs that do not exist in the payload |
+| `overrides` | hand-measured shot times for that match |
+
+🛑 **An explicit flag always beats the manifest.** That needs two parse passes — read
+`--manifest`, `set_defaults`, re-parse — because applying the manifest *after* parsing would
+clobber the flag instead.
+
+⚠ **Paths resolve against the manifest's own directory**, not the shell's cwd, so it works from
+anywhere. ⚠ `-o/--out` and `--batting-innings` are no longer argparse-`required`: that demands
+the flag on the command line even when the manifest supplies it, so they are checked by hand.
+
+⚠ An unknown key is an error, not a shrug. A typo would otherwise look like the setting
+silently not applying.
+
 ### 13b. Captions travel in a sidecar
 
 A per-player reel spans several balls, so no single moment describes it and

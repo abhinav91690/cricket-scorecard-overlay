@@ -27,6 +27,11 @@ and paints a fixed-position DOM, driven entirely by URL query params (`matchId`,
 - ⚠ **Never write a secret to the Keychain with `security add-generic-password -w`** — the
   prompt truncates at 128 chars silently, and passing the value inline puts it in argv. →
   `publishing.md` §4a
+- ✅ **A pre-commit hook blocks a name reaching this repo.** Install once with
+  `git config core.hooksPath .githooks`. It reads the names from gitignored local sources
+  (`highlights/events.json`, `~/.config/cricket-scorecard-overlay/names.txt`) so no list is
+  ever committed, and ⚠ it **fails OPEN** — with no source present it warns and allows the
+  commit, so a green run is not a clean bill. Bypass with `--no-verify`.
 - 🛑 **A league member's real name reached the test fixtures and is still on `main`.** It was
   the batting fixture across `highlights/test_*.py`, renamed to the placeholder `J. ROOT` on
   `fix/clip-alignment`, and it remains in **5 places on the TypeScript side**:
@@ -65,6 +70,9 @@ npm run sim:run -- --super-over [--seed 1]    # a tie decided by a super over
 
 cd worker && npm run dev | test:run | typecheck | db:migrate | deploy
 cd highlights && .venv/bin/python qrscan.py "<video>" -o events.json
+# one argument per match; --contact-sheet writes a per-reel verification grid
+cd highlights && .venv/bin/python reels.py --manifest matches/<slug>.json
+git config core.hooksPath .githooks          # once: blocks a name reaching this public repo
 ```
 
 ## Where things live

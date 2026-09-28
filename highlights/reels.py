@@ -63,6 +63,36 @@ def slug(name: str) -> str:
     return s or "unknown"
 
 
+def load_manifest(path: str | None) -> dict:
+    """Per-match settings, so a run is one argument instead of twelve.
+
+    ✅ Every per-match input in one reviewable file: the crop that was measured for that
+    camera, the batting innings, the caption inputs that cannot be derived (league, ball type,
+    series) and the overrides that were hand-measured. It doubles as the record of what the
+    match was cut with.
+
+    ⚠ Keys are the argparse destinations with dashes, e.g. `"batting-innings"`, `"aspect-bat"`.
+    Unknown keys are reported rather than ignored: a typo in a manifest would otherwise look
+    like the setting silently not applying.
+
+    🛑 An explicit command-line flag always wins. The manifest supplies DEFAULTS, so a one-off
+    override does not mean editing the file.
+    """
+    if not path:
+        return {}
+    with open(path) as fh:
+        doc = json.load(fh)
+    man = {k.replace("-", "_"): v for k, v in doc.items() if not k.startswith("_")}
+    # ✅ Paths resolve against the MANIFEST's directory, not the shell's cwd, so a manifest
+    # works from anywhere and can be committed next to the match it describes.
+    base = os.path.dirname(os.path.abspath(path))
+    for key in ("video", "events", "out", "overrides"):
+        v = man.get(key)
+        if isinstance(v, str) and v and not os.path.isabs(v):
+            man[key] = os.path.normpath(os.path.join(base, v))
+    return man
+
+
 def load_overrides(path: str | None) -> dict:
     """Hand-measured corrections for one match. -> {"shots": {entry: shot}, "drop": {entry}}.
 
@@ -596,10 +626,13 @@ def metadata(player: str, moments: list[dict], segs: list, match: str, team: str
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("video")
-    ap.add_argument("events")
-    ap.add_argument("-o", "--out", required=True, help="output directory")
-    ap.add_argument("--batting-innings", type=int, required=True, choices=(1, 2),
+    # nargs="?" so a manifest can supply them; the check below still requires both.
+    ap.add_argument("video", nargs="?")
+    ap.add_argument("events", nargs="?")
+    # ⚠ Not argparse-`required`: that demands the flag on the command line even when
+    # --manifest supplies it. Checked by hand below instead.
+    ap.add_argument("-o", "--out", help="output directory")
+    ap.add_argument("--batting-innings", type=int, choices=(1, 2),
                     help="🛑 which innings OUR team batted. Not inferable; getting it "
                          "wrong credits every event to the opposition")
     ap.add_argument("--team", default="", help='e.g. "Topguns" — used in the tags')
@@ -663,6 +696,10 @@ def main():
                     help='series/season, e.g. "T20 Fall 2026". 🛑 Not derivable: the API '
                          'carries seriesName but the 42-byte QR payload cannot, and it has '
                          'no match id either, so events.json never sees it')
+    ap.add_argument("--contact-sheet", action="store_true",
+                    help="✅ also write <reel>-sheet.png: one tile per clip, each the frame "
+                         "at the predicted delivery. Verifies a whole reel at a glance "
+                         "instead of watching it. → highlights.md §13ab")
     ap.add_argument("--captions-only", action="store_true",
                     help="rewrite the .json sidecars without re-encoding the .mp4 files. "
                          "Iterating on captions otherwise costs a full re-cut")
@@ -672,8 +709,27 @@ def main():
                          "judgment calls, so check a tag's real post count in the app")
     ap.add_argument("--player", help="only this player (substring, case-insensitive)")
     ap.add_argument("--height", type=int, default=1080)
+    ap.add_argument("--manifest", metavar="JSON",
+                    help="per-match settings file; see load_manifest(). An explicit flag on "
+                         "the command line always beats the manifest")
+    # 🛑 Two passes on purpose. `set_defaults` then re-parsing is what makes an explicit flag
+    # win over the manifest — applying the manifest after parsing would clobber the flag.
+    pre, _ = ap.parse_known_args()
+    if pre.manifest:
+        man = load_manifest(pre.manifest)
+        known = {act.dest for act in ap._actions}
+        unknown = sorted(set(man) - known)
+        if unknown:
+            raise SystemExit(f"{pre.manifest}: unknown key(s) {unknown}. "
+                             f"Keys are the flag names, e.g. \"batting-innings\".")
+        ap.set_defaults(**man)
     a = ap.parse_args()
 
+    missing = [n for n, v in (("video", a.video), ("events", a.events),
+                              ("-o/--out", a.out),
+                              ("--batting-innings", a.batting_innings)) if not v]
+    if missing:
+        raise SystemExit(f"missing {', '.join(missing)} — pass it, or put it in --manifest")
     doc = json.load(open(a.events))
     moments = doc.get("moments") or doc.get("events") or []
     moments, n_dup = dedupe_moments(moments)
@@ -819,6 +875,21 @@ def main():
             # One sidecar per file, so --meta pairs with whichever variant is chosen.
             with open(base + ".json", "w") as fh:
                 json.dump(meta, fh, indent=1)
+            if a.contact_sheet:
+                import contact
+                rows, t0 = [], 0.0
+                for mom in ms:
+                    hit = [x for x in shots if abs(x - mom["t"]) < 0.6]
+                    if not hit:
+                        continue          # omitted from the reel, so not on the sheet
+                    lo, hi = shots[hit[0]]
+                    shot = hi
+                    rows.append((shot, t0 + (shot - (lo - a.lead)),
+                                 over(mom["ball"]) if mom.get("ball") is not None else "",
+                                 mom["t"] - shot))
+                    t0 += (hi + a.trail) - (lo - a.lead)
+                png = contact.sheet(a.video, rows, base + "-sheet.png")
+                print(f"     sheet: {png}" if png else "     ⚠ contact sheet failed")
             size = (os.path.getsize(base + ".mp4") / 1e6
                     if os.path.exists(base + ".mp4") else 0.0)
             print(f"  -> {base}.mp4  ({size:.1f} MB)"
