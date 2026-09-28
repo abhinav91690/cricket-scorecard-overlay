@@ -49,13 +49,27 @@ ALLOW = {"J. ROOT", "V. KOHLI", "R. SHARMA", "ANKIT K", "HEMANTH B", "A. PLAYER"
 MIN_LEN = 5
 
 
-def repo_root() -> str:
-    try:
-        out = subprocess.run(["git", "rev-parse", "--show-toplevel"],
-                             capture_output=True, text=True, check=True)
-        return out.stdout.strip()
-    except Exception:                                     # noqa: BLE001
-        return os.getcwd()
+def repo_roots() -> list[str]:
+    """This checkout, and the MAIN checkout when this is a worktree.
+
+    🛑 A worktree has no `highlights/events.json` — that file is gitignored and lives in the
+    main checkout. Looking only at `--show-toplevel` made the hook silently inert in exactly
+    the place the work happens: it printed "not a clean bill" and allowed the commit. The main
+    checkout is the parent of `--git-common-dir`.
+    """
+    roots = []
+    for args in (["git", "rev-parse", "--show-toplevel"],
+                 ["git", "rev-parse", "--git-common-dir"]):
+        try:
+            out = subprocess.run(args, capture_output=True, text=True, check=True)
+            path = out.stdout.strip()
+            if args[-1] == "--git-common-dir":
+                path = os.path.dirname(os.path.abspath(path))
+            if path and path not in roots:
+                roots.append(path)
+        except Exception:                                 # noqa: BLE001
+            pass
+    return roots or [os.getcwd()]
 
 
 def names_from_events(path: str) -> set[str]:
@@ -80,17 +94,18 @@ def names_from_events(path: str) -> set[str]:
     return out
 
 
-def load_names(root: str) -> tuple[set[str], list[str]]:
+def load_names(roots: list[str]) -> tuple[set[str], list[str]]:
     """-> (names, which sources were found)."""
     names: set[str] = set()
     found: list[str] = []
-    for rel in REPO_SOURCES:
-        p = os.path.join(root, rel)
-        if os.path.exists(p):
-            got = names_from_events(p)
-            if got:
-                names |= got
-                found.append(rel)
+    for root in roots:
+        for rel in REPO_SOURCES:
+            p = os.path.join(root, rel)
+            if os.path.exists(p):
+                got = names_from_events(p)
+                if got:
+                    names |= got
+                    found.append(os.path.relpath(p, roots[0]))
     if os.path.exists(HOME_SOURCE):
         try:
             with open(HOME_SOURCE) as fh:
@@ -137,8 +152,7 @@ def hits(names: set[str], rows: list[tuple[str, str]]) -> list[tuple[str, str, s
 
 
 def main() -> int:
-    root = repo_root()
-    names, sources = load_names(root)
+    names, sources = load_names(repo_roots())
     if not names:
         print("⚠ check_names: no local name source found "
               "(highlights/events.json or ~/.config/cricket-scorecard-overlay/names.txt).")
