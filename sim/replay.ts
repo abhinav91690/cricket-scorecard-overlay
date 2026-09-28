@@ -12,21 +12,25 @@
  */
 import http from 'node:http';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
 
 const arg = (k: string, d: string) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
 const FILE = process.argv[2];
 const SPEED = Number(arg('speed', '10'));
 const FROM_MIN = Number(arg('from', '0'));
 const PORT = 8789, CDP_PORT = 9335, DEV = 'http://localhost:5173';
-const CHROME = arg('chrome', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
+const MAC_CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+// macOS locally; on a Linux CI runner Chrome is on the PATH as google-chrome
+const CHROME = arg('chrome', process.env.CHROME || (existsSync(MAC_CHROME) ? MAC_CHROME : 'google-chrome'));
 if (!FILE) { console.error('usage: node sim/replay.ts <recording.jsonl> [--speed 10]'); process.exit(1); }
-const MATCH = FILE.replace(/^.*\//, '').replace(/\.jsonl$/, '');
+const MATCH = FILE.replace(/^.*\//, '').replace(/\.jsonl(\.gz)?$/, '');
 const OUT = `sim/out/replay-${MATCH}-${new Date().toISOString().replace(/[:.]/g, '-')}`;
 
 type V = Record<string, any>;
 interface Row { t: number; kind: 'frame' | 'switch' | 'error'; view?: number; data?: { view?: number; values?: V; balls?: string[] } & V; text?: string; }
-const rows: Row[] = readFileSync(FILE, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l));
+// committed recordings are gzipped (sim/matches/*.jsonl.gz): the frames compress ~60x
+const rows: Row[] = (FILE.endsWith('.gz') ? gunzipSync(readFileSync(FILE)).toString('utf8') : readFileSync(FILE, 'utf8')).split('\n').filter(Boolean).map(l => JSON.parse(l));
 const frames = rows.filter(r => r.kind === 'frame');
 const t0 = frames[0].t + FROM_MIN * 60_000;
 const tEnd = frames[frames.length - 1].t;
@@ -135,7 +139,7 @@ async function main() {
     server.listen(PORT);
     let vite: ChildProcess | null = null;
     if (!(await reachable(DEV))) { vite = spawn('npx', ['vite', '--port', '5173', '--strictPort'], { stdio: 'ignore' }); for (let i = 0; i < 60 && !(await reachable(DEV)); i++) await sleep(500); }
-    const chrome = spawn(CHROME, [`--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${OUT}/chrome-profile`, '--headless=new', '--disable-gpu', '--no-first-run', '--hide-scrollbars', '--window-size=1920,1080', 'about:blank'], { stdio: 'ignore' });
+    const chrome = spawn(CHROME, [`--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${OUT}/chrome-profile`, '--headless=new', '--disable-gpu', '--no-first-run', '--no-sandbox', '--hide-scrollbars', '--window-size=1920,1080', 'about:blank'], { stdio: 'ignore' });
     const cleanup = () => { chrome.kill(); vite?.kill(); server.close(); };
     process.on('SIGINT', () => { cleanup(); process.exit(130); });
     try {

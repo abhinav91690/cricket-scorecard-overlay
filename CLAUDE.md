@@ -53,6 +53,8 @@ npx vitest run -t "should return wicket"    # one test
 npm run sim            # fake CricClubs serving a simulated match (view switching included)
 npm run sim:run        # headless end-to-end run of a whole match; report in sim/out/
 npm run sim:run -- --super-over [--seed 1]    # a tie decided by a super over
+npm run record -- --match 4670,4671          # record live matches, anonymised, to sim/recordings/
+npm run replay -- sim/matches/<file>.jsonl.gz --speed 60    # replay a real match and grade it
 
 cd worker && npm run dev | test:run | typecheck | db:migrate | deploy
 cd highlights && .venv/bin/python qrscan.py "<video>" -o events.json
@@ -158,6 +160,10 @@ a hand-rolled `-ss` produces a clip of the batter waiting. → `highlights.md` �
 scorebar spreads the match 2079 capture, so an unset field carries 2079's value into the simulated
 game. It has happened twice — a live super over on every frame, then 2079's player of the match.
 → `docs/log.md` 2026-09-23
+
+🛑 **Never commit a recording that has not been through `sim/anonymise.ts`, then `sim/reanonymise.ts`.**
+Real frames carry player names and emails; the second pass catches a name first seen late, such as a
+nickname in one dismissal string. `record.ts` does both; a hand-made file does neither. → `overlay.md` §13a
 
 ⚠ **Run `sim/` after any change to `views.ts`, `cards.ts`, `events.ts` or `app.ts`** — unit tests
 did not catch the three bugs it found on its first runs. → `overlay.md` §13

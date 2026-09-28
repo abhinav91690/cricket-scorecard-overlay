@@ -1,5 +1,16 @@
 # Update Log
 
+## 2026-09-27
+
+**All 20 of today's LPCL matches recorded and replayed; the overlay was right in every one.**
+The new recorder (`sim/record.ts`) captured each match as the overlay saw it, anonymised, and
+`sim/replay.ts` graded 20 of 20 at 7 of 7 — wickets, fifties, three hundreds, two hauls, the line-up,
+break and result, two D/L matches and three abandoned. It found a team's placeholder logo flickering between four colours (fixed in PR #20),
+and that **"Winner: X" results** (abandoned, forfeited, some D/L) never marked a winner on the result
+card; `resultWinner()` now reads both wordings. Along the way the grader learned how scorers really
+behave (§13a), and the anonymiser learned that one card view writes dismissals with nicknames.
+The 20 recordings are committed gzipped in `sim/matches/` (1.2 MB) and replayed in CI.
+
 ## 2026-09-26
 
 **Watching three live matches (4651, 4655, 4658) found five more faults**, all fixed together:
@@ -650,3 +661,4 @@ a 2-second card. It cannot work: the strip's x position moves across the match, 
 calibration is wrong by construction, and light discs are nearly invisible against the card. The
 disc finder itself was correct; the grid assumption was what failed. The QR code solved the
 underlying problem properly. Kept in `highlights.md` §8 so it is not attempted again.
+

@@ -15,6 +15,7 @@
 import { spawn } from 'node:child_process';
 import { appendFileSync, mkdirSync, rmSync } from 'node:fs';
 import { Anonymiser, loadSalt } from './anonymise.ts';
+import { reanonymise } from './reanonymise.ts';
 
 const arg = (k: string, d: string) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
 const MATCHES = arg('match', '').split(',').map(s => s.trim()).filter(Boolean);
@@ -91,6 +92,7 @@ async function recordMatch(match: string) {
         await sleep(30_000);
         if (endedAt && Date.now() - endedAt > AFTER_END_MIN * 60_000) break;
     }
+    reanonymise(file);   // second pass: names learned late are hidden in the early frames too
     console.log(`${now()} ${match} done, ${frames} distinct frames`);
     cdp.close();
     await fetch(`http://localhost:${CDP_PORT}/json/close/${targetId}`);

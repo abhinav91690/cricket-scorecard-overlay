@@ -357,7 +357,10 @@ const bowled = (rows: BowlingStats[] | undefined) => (rows ?? []).filter(r => (r
  */
 export function resultWinner(result: string | undefined, teams: { name: string; code?: string }[]): 1 | 2 | undefined {
     // The capture cannot cross a full stop: "Match tied. TGN won" must yield "TGN", not the whole lot.
-    const m = /(?:^|[.!]\s+)([^.!]+?)\s+won\b/i.exec((result || '').trim());
+    const text = (result || '').trim();
+    // Two wordings: "Lions won by 12 runs", and for abandoned, forfeited and some D/L games
+    // "Abandoned. Winner: OG Cheetahs" / "Winner: Ground Breakers (D/L)" (recorded 2026-09-27).
+    const m = /(?:^|[.!]\s+)([^.!]+?)\s+won\b/i.exec(text) ?? /\bwinner:\s*([^.(!]+)/i.exec(text);
     if (!m) return undefined;
     const who = m[1].trim().toLowerCase();
     const i = teams.findIndex(t => [t.name, t.code].some(x => x && x.trim().toLowerCase() === who));

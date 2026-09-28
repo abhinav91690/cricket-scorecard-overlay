@@ -35,7 +35,7 @@ const PERSON_KEY = /^(batsman[12](Display|First|Last|Nick)?Name|bowler(First|Las
 const PERSON_ID = /^(batsman[12]ID|bowlerID|lastOutID|partnershipBatsman[12]ID|playerID|playerId)$/;
 const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 /** Words that appear next to names in dismissals and must survive: "c Sub b", "Retired Out". */
-const KEEP = new Set(['sub', 'substitute', 'retired', 'out', 'not', 'run', 'lbw', 'st', 'hit', 'wicket', 'obstructing', 'the', 'field', 'handled', 'ball', 'timed', 'absent', 'hurt', 'and']);
+const KEEP = new Set(['sub', 'substitute', 'retired', 'out', 'not', 'run', 'lbw', 'st', 'hit', 'wicket', 'obstructing', 'the', 'field', 'handled', 'ball', 'timed', 'absent', 'hurt', 'and', 'bowled', 'caught', 'stumped', 'retd', 'rtd', 'hw', 'mankad']);
 
 const CONS = 'bdfghjklmnprstvz', VOW = 'aeiou';
 
@@ -72,6 +72,10 @@ export class Anonymiser {
 
     fakeEmail(email: string): string { return `player-${this.h(`e:${email.toLowerCase()}`).toString('hex').slice(0, 8)}@example.invalid`; }
 
+    /** Learns the names in a payload without anonymising it: prime every frame of a recording first,
+     *  so a name first seen late in the match is hidden in the earlier frames too. */
+    prime(data: Json): void { this.anonymise(data); }
+
     /** Returns an anonymised deep copy. Team words are never replaced, even where they occur in a name. */
     anonymise<T extends Json>(data: T): T {
         const teamWords = new Set<string>();
@@ -84,6 +88,9 @@ export class Anonymiser {
             else if (PERSON_KEY.test(key)) names.push(v);
             // Fielders are named only inside the dismissal HTML: <span class='outname'>Vamshi K</span>
             for (const m of v.matchAll(/class=['"]?outname['"]?>([^<]+)</g)) names.push(m[1]);
+            // ...and the card views write whole dismissals as text, one of them with NICKNAMES
+            // (outStringNickNamesNoLink: "c †Zimi b ..."), a nickname in no name field (match 4686).
+            if (/^outString/i.test(key)) names.push(v.replace(/<[^>]*>|&#?\w+;/g, ' '));
         };
         walk(data);
         for (const n of names) for (const w of n.split(/[^\p{L}']+/u)) {

@@ -410,6 +410,35 @@ overrides; it does not fail on them.
 ⚠ The overlay hooks it relies on — `?api=`, `?refresh=`, `?e2e` in `src/e2e.ts` — are
 **localhost-only**, so none of this changes production behaviour.
 
+### 13a. Recorded real matches (`sim/record.ts`, `sim/replay.ts`)
+
+The simulator tests what we believe CricClubs does; recordings test what it did. `record.ts` opens the
+real overlay per match in headless Chrome and keeps every response it receives, its own peeks
+included, and every view switch — it makes no requests of its own. `replay.ts` serves a recording
+as CricClubs, runs the overlay against it and grades it on what the frames say happened: a card per
+wicket, fifty, hundred and haul, the line-up, the break summary and the result. CI replays every
+file in `sim/matches/` at x60, one job per match.
+
+```bash
+node sim/record.ts --match 4670,4671          # writes sim/recordings/<match>-<date>.jsonl (gitignored)
+gzip -9 -c sim/recordings/4670-*.jsonl > sim/matches/4670-2026-09-27.jsonl.gz   # to keep it
+node sim/replay.ts sim/matches/4670-2026-09-27.jsonl.gz --speed 60
+node sim/replay.ts <file> --grade sim/out/replay-*/events.json   # re-score without replaying
+```
+
+🛑 **Frames are anonymised before they touch disk** (`anonymise.ts`): player names become consistent
+made-up words keeping their initials, emails `player-…@example.invalid`, player IDs other numbers,
+with a salt kept at `~/.config/cricket-scorecard-overlay/anon_salt`. `reanonymise.ts` then makes a
+second pass over the whole file so a name first seen late — a nickname in one dismissal string, as on
+4686 — is hidden everywhere. ⚠ Profile-photo paths are kept on purpose and point at CricClubs' public
+photos, so a determined reader can tie a pseudonym to a photo.
+
+⚠ **What real scorers do, now in the grader** (each from a recording): rewrite who was out without the
+count moving (no card is due); undo and redo a ball, crossing 100 twice (one card); pick the openers
+before the overlay loads (no line-up); name the award minutes later (the result is redrawn).
+⚠ The replay plays the first minute in real time: the overlay's pre-match peeks run on real-time
+delays that do not scale with `--speed`.
+
 ## 14. Views and panels (`src/views.ts`)
 
 CricClubs serves the same match through numbered **views**, and the extra data in each comes at

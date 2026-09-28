@@ -327,6 +327,12 @@ describe('result card', () => {
     it('marks no winner when the result cannot be pinned to a side', () => {
         expect(resultWinner('Match tied', teams)).toBeUndefined();
         expect(resultWinner('No result', teams)).toBeUndefined();
+        // abandoned, forfeited and D/L games name the winner differently (recorded 2026-09-27)
+        expect(resultWinner('Abandoned. Winner: Lions', teams)).toBe(2);
+        expect(resultWinner(' Winner: TOPGUNS UNITED (D/L)', teams)).toBe(1);
+        expect(resultWinner('Forfeited. Winner: TGN', teams)).toBe(1);
+        expect(resultWinner('Abandoned.', teams)).toBeUndefined();
+        expect(resultWinner('Winner: Hippos', teams)).toBeUndefined();   // not either side
         expect(resultWinner('Hippos won by 3 runs', teams)).toBeUndefined();   // not either side
         expect(resultWinner(undefined, teams)).toBeUndefined();
     });

@@ -27,6 +27,20 @@ describe('Anonymiser', () => {
         expect(later.values.comments).not.toContain('Vamshi');
     });
 
+    it('hides a nickname that appears only in the dismissal text (match 4686)', () => {
+        const out = a().anonymise({ values: { outStringNickNamesNoLink: 'c &#8224;Zimi b Majazus M', outStringNoLink: 'c &#8224;Tipoh S b Majazus M' } } as any) as any;
+        expect(out.values.outStringNickNamesNoLink).not.toContain('Zimi');
+        expect(out.values.outStringNickNamesNoLink.startsWith('c &#8224;Z')).toBe(true);    // markup and initial kept
+    });
+
+    it('re-anonymising in two passes hides a name learned late in every frame', async () => {
+        const { Anonymiser } = await import('./anonymise.ts');
+        const an = new Anonymiser('s');
+        const early = { values: { comments: 'Vamshi to bowl' } }, late = { values: { lastOutString: "<span class='outname'>Vamshi K</span>" } };
+        an.prime(early as any); an.prime(late as any);
+        expect(JSON.stringify(an.anonymise(early as any))).not.toContain('Vamshi');
+    });
+
     it('replaces emails and player IDs, keeping their shape and type', () => {
         const out = a().anonymise({ values: { batsman1ID: 3061960, currentPartnershipMap: { partnershipBatsman1ID: '3061960' }, t1ID: 55, rows: [{ email: 'real.person@gmail.com', playerID: 12 }] } } as any) as any;
         expect(out.values.batsman1ID).not.toBe(3061960);
