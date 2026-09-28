@@ -9,6 +9,12 @@ break and result, two D/L matches and three abandoned. It found a team's placeho
 and that **"Winner: X" results** (abandoned, forfeited, some D/L) never marked a winner on the result
 card; `resultWinner()` now reads both wordings. Along the way the grader learned how scorers really
 behave (§13a), and the anonymiser learned that one card view writes dismissals with nicknames.
+**A reopened match never got its result back.** On 4685 the scorer ended the match "won by 168
+runs", reopened it two seconds later and re-ended it "Abandoned." after the recording had closed. The
+result panel is shown once per load, so after a reopen no result card would ever return; it is now
+drawn again after a reopen and whenever the result text or the award changes. Found when CI replayed
+the recording at x60, where the two-second result no longer fit.
+
 The 20 recordings are committed gzipped in `sim/matches/` (1.2 MB) and replayed in CI.
 
 ## 2026-09-26

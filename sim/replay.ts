@@ -85,7 +85,7 @@ function expectations() {
     const exp: { t: number; type: string; about: string }[] = [];
     const marked = new Set<string>();
     let maxW = [0, 0, 0], prevOut = '', dipped = false, bat = new Map<string, number>(), bowl = new Map<string, number>();
-    let breakSeen = false, preSeen = false, endSeen = false, inns = 1, first = true;
+    let breakSeen = false, preSeen = false, endSeen = false, inns = 1, first = true, lastEnded = false;
     for (const r of frames.filter(r => r.view === 1 && r.data?.values && 'batsman1Name' in r.data.values)) {
         const v = r.data!.values!, balls = r.data!.balls ?? [];
         const chase = String(v.isSecondInningsStarted) === 'true';
@@ -119,8 +119,11 @@ function expectations() {
         const complete = !chase && (Number(v.t1Wickets) >= 10 || (total > 0 && ov1 >= total));
         if ((complete || (chase && !parseFloat(String(v.t2Overs ?? '0')) && !balls.length)) && !breakSeen && String(v.isMatchEnded) !== '1') { breakSeen = true; exp.push({ t: r.t, type: 'innings-summary', about: 'the break' }); }
         if (String(v.isMatchEnded) === '1' && !endSeen) { endSeen = true; exp.push({ t: r.t, type: 'match-summary', about: String(v.result ?? '') }); }
+        lastEnded = String(v.isMatchEnded) === '1';
     }
-    return exp;
+    // A result is due only if the match is still over when the recording stops: on 4685 the scorer
+    // ended it, reopened it two seconds later, and only re-ended it after the recording had closed.
+    return lastEnded ? exp : exp.filter(e => e.type !== 'match-summary');
 }
 
 class Cdp {
@@ -143,7 +146,8 @@ async function main() {
     const cleanup = () => { chrome.kill(); vite?.kill(); server.close(); };
     process.on('SIGINT', () => { cleanup(); process.exit(130); });
     try {
-        for (let i = 0; i < 40 && !(await reachable(`http://localhost:${CDP_PORT}/json/version`)); i++) await sleep(250);
+        // CI runners take longer than 10 s to start Chrome: wait up to a minute
+        for (let i = 0; i < 240 && !(await reachable(`http://localhost:${CDP_PORT}/json/version`)); i++) await sleep(250);
         const page = (await (await fetch(`http://localhost:${CDP_PORT}/json`)).json() as any[]).find(t => t.type === 'page');
         const cdp = await Cdp.connect(page.webSocketDebuggerUrl);
         await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
@@ -152,7 +156,14 @@ async function main() {
         await cdp.send('Page.navigate', { url });
         const realMs = Math.min(tEnd - t0, REAL_MS) + Math.max(0, tEnd - t0 - REAL_MS) / SPEED + 20_000;
         console.log(`replaying ${MATCH}: ${frames.length} frames, ${Math.round((tEnd - t0) / 60000)} min of match in ${Math.round(realMs / 1000)} s at x${SPEED}`);
-        await sleep(realMs);
+        await sleep(realMs - 20_000);
+        // Past the last frame, keep serving it until the result is queued (or 90 s): recordings keep
+        // only frames that change, so the result is near the very end, and a slow runner (CI, 4685)
+        // had not finished the end-of-match peeks when a fixed 20 s ran out.
+        const ended = frames.some(r => String(r.data?.values?.isMatchEnded) === '1');
+        const queuedResult = () => events.some(e => (e.detail as any)?.kind === 'card:queue' && (e.detail as any)?.detail?.type === 'match-summary');
+        for (let waited = 0; waited < (ended ? 90_000 : 20_000) && !(ended && queuedResult()); waited += 1000) await sleep(1000);
+        await sleep(2000);
         cdp.close();
     } finally { cleanup(); }
     grade();
