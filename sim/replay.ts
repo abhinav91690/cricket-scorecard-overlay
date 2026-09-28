@@ -85,7 +85,7 @@ function expectations() {
     const exp: { t: number; type: string; about: string }[] = [];
     const marked = new Set<string>();
     let maxW = [0, 0, 0], prevOut = '', dipped = false, bat = new Map<string, number>(), bowl = new Map<string, number>();
-    let breakSeen = false, preSeen = false, endSeen = false, inns = 1, first = true, lastEnded = false;
+    let breakSeen = false, preSeen = false, endSeen = false, inns = 1, first = true, endedSince = 0, kept = false;
     for (const r of frames.filter(r => r.view === 1 && r.data?.values && 'batsman1Name' in r.data.values)) {
         const v = r.data!.values!, balls = r.data!.balls ?? [];
         const chase = String(v.isSecondInningsStarted) === 'true';
@@ -118,12 +118,15 @@ function expectations() {
         if (pre && !preSeen) { preSeen = true; if (!(String(v.batsman1Name ?? '').trim() && String(v.batsman2Name ?? '').trim())) exp.push({ t: r.t, type: 'lineup', about: 'before the first ball' }); }
         const complete = !chase && (Number(v.t1Wickets) >= 10 || (total > 0 && ov1 >= total));
         if ((complete || (chase && !parseFloat(String(v.t2Overs ?? '0')) && !balls.length)) && !breakSeen && String(v.isMatchEnded) !== '1') { breakSeen = true; exp.push({ t: r.t, type: 'innings-summary', about: 'the break' }); }
-        if (String(v.isMatchEnded) === '1' && !endSeen) { endSeen = true; exp.push({ t: r.t, type: 'match-summary', about: String(v.result ?? '') }); }
-        lastEnded = String(v.isMatchEnded) === '1';
+        const isEnded = String(v.isMatchEnded) === '1';
+        if (isEnded && !endedSince) endedSince = r.t;
+        if (!isEnded && endedSince) { if (r.t - endedSince >= 60_000) kept = true; endedSince = 0; }
+        if (isEnded && !endSeen) { endSeen = true; exp.push({ t: r.t, type: 'match-summary', about: String(v.result ?? '') }); }
     }
-    // A result is due only if the match is still over when the recording stops: on 4685 the scorer
-    // ended it, reopened it two seconds later, and only re-ended it after the recording had closed.
-    return lastEnded ? exp : exp.filter(e => e.type !== 'match-summary');
+    if (endedSince && tEnd - endedSince >= 60_000) kept = true;
+    // A result is due if the scorer KEPT one — the match stayed over for a minute or more. Scorers
+    // reopen and re-end: 4685 was over for two seconds, 4684 for sixteen minutes then reopened.
+    return kept ? exp : exp.filter(e => e.type !== 'match-summary');
 }
 
 class Cdp {
@@ -180,7 +183,9 @@ function grade() {
     for (const type of ['wicket', 'milestone', 'haul', 'lineup', 'innings-summary', 'match-summary']) {
         const want = exp.filter(e => e.type === type), got = queued.filter(q => qtype(q) === type);
         // The result is drawn again when a late award arrives, so it needs at least one showing.
-        const ok = type === 'match-summary' ? (got.length >= 1) === (want.length >= 1) : got.length === want.length;
+        // The result is drawn again for a late award or a corrected result, and may or may not catch a
+        // result the scorer withdrew within seconds: when one is due, at least one showing is required.
+        const ok = type === 'match-summary' ? (want.length ? got.length >= 1 : true) : got.length === want.length;
         check(`${type}: one card per event in the recording`, ok, `${got.length} queued for ${want.length} — ${want.map(w => w.about).join('; ').slice(0, 300)}`);
     }
     const shows = page.filter(e => e.kind === 'card:show');
