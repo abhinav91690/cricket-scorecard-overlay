@@ -92,6 +92,64 @@ describe('POST /api/collect', () => {
     });
 });
 
+describe('session pings', () => {
+    const SID = 'a1b2c3d4e5f60718';
+    const ping = (extra: Record<string, unknown> = {}) =>
+        post({ event: 'overlay_ping', sessionId: SID, clubId: '1089463', matchId: '4670', theme: 'kkr', client: 'obs', clientVersion: '30.2', os: 'windows', screen: '1920x1080', ...extra });
+
+    it('upserts one session row and never writes to events', async () => {
+        const res = await worker.fetch(ping(), env({ VISITOR_SALT: 's' }));
+        expect(res.status).toBe(204);
+        // 🛑 The whole point of the separate table: 36 pings a match must not become 36 event rows.
+        expect(prepare).toHaveBeenCalledTimes(1);
+        expect(prepare.mock.calls[0][0]).toMatch(/INSERT INTO sessions/);
+        expect(prepare.mock.calls[0][0]).not.toMatch(/INSERT INTO events/);
+        expect(prepare.mock.calls[0][0]).toMatch(/ON CONFLICT \(session_id\) DO UPDATE/);
+
+        const args = bind.mock.calls[0] as unknown[];
+        expect(args).toHaveLength(14);
+        const [sessionId, ts, day, pings, clubId, matchId, theme, client, clientVersion, os, screen, country, city, visitor] = args;
+        expect(sessionId).toBe(SID);
+        expect(ts).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+        expect(day).toBe((ts as string).slice(0, 10));
+        expect(pings).toBe(1);
+        expect([clubId, matchId, theme, client, clientVersion, os, screen]).toEqual(['1089463', '4670', 'kkr', 'obs', '30.2', 'windows', '1920x1080']);
+        expect([country, city]).toEqual(['US', 'Austin']);
+        expect(visitor).toMatch(/^[0-9a-f]{16}$/);
+    });
+
+    it('seeds the session from overlay_start, leaving the events insert untouched', async () => {
+        const res = await worker.fetch(post({ event: 'overlay_start', sessionId: SID, clubId: '1089463', matchId: '4670', client: 'obs' }), env());
+        expect(res.status).toBe(204);
+        expect(prepare).toHaveBeenCalledTimes(2);
+        expect(prepare.mock.calls[0][0]).toMatch(/INSERT INTO events/);
+        expect(prepare.mock.calls[1][0]).toMatch(/INSERT INTO sessions/);
+        // The load itself is not a ping, so it must not inflate the count.
+        expect((bind.mock.calls[1] as unknown[])[3]).toBe(0);
+        // The events row still binds all 19 columns it always did.
+        expect(bind.mock.calls[0]).toHaveLength(19);
+    });
+
+    it('still writes the events row when a load carries no session id', async () => {
+        await worker.fetch(post({ event: 'overlay_start', clubId: '1', matchId: '2' }), env());
+        expect(prepare).toHaveBeenCalledTimes(1);
+        expect(prepare.mock.calls[0][0]).toMatch(/INSERT INTO events/);
+    });
+
+    it('rejects a ping with no usable session id before touching the database', async () => {
+        expect((await worker.fetch(post({ event: 'overlay_ping' }), env())).status).toBe(400);
+        expect((await worker.fetch(post({ event: 'overlay_ping', sessionId: 'A1B2C3D4E5F60718' }), env())).status).toBe(400);
+        expect(prepare).not.toHaveBeenCalled();
+    });
+
+    it('returns 500 when the session write fails, without leaking the error', async () => {
+        run.mockRejectedValueOnce(new Error('D1_ERROR: no such table: sessions'));
+        const res = await worker.fetch(ping(), env());
+        expect(res.status).toBe(500);
+        expect(await res.text()).toBe('Storage error');
+    });
+});
+
 describe('GET /stats authorisation', () => {
     it('is closed when neither Access nor a key is configured', async () => {
         const res = await worker.fetch(request('/stats?key=anything'), env());

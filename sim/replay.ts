@@ -7,6 +7,8 @@
  *
  * Serves the recording through the CricClubs endpoints, honouring the overlay's view switches:
  * a peek is answered with the data view the recording overlay received at about that moment.
+ * At most one recorded frame per poll and never before it is due, so no frame is skipped whatever
+ * the machine's speed, and the pace stays x`--speed` — see the cursor below.
  * Needs the Vite dev server (started if :5173 is not answering) and Google Chrome.
  * Output: sim/out/replay-<match>-<timestamp>/report.md and events.json.
  */
@@ -40,33 +42,87 @@ const reachable = async (url: string) => { try { const r = await fetch(url); ret
 
 // ---------- the recording as a fake CricClubs ----------
 let view = 1;
-// The clock starts at the overlay's FIRST request, not at launch: Chrome and Vite take a few seconds
-// to come up, and at x15 that alone skipped 45 s of the recording — the whole wait for the openers.
+
+/**
+ * Every scorebar frame in the recording, in order. A recording keeps only frames that CHANGED,
+ * so this is the exact sequence the recording overlay itself was served.
+ */
+const scorebar = frames.filter(r => r.view === 1 && r.data);
+
+/**
+ * 🛑 The cursor advances AT MOST ONE frame per poll, and only when that frame is due.
+ *
+ * Two rules, and both matter:
+ *
+ * 1. **Never skip.** It used to serve whichever frame the wall clock pointed at, so a poll slower
+ *    than `refresh` let the clock run ahead and skipped frames — and a skipped frame can carry the
+ *    only state a card would have come from. Measured on 4674 (2,380 frames): 342 skipped on an
+ *    idle laptop, passing only because no skip landed on a wicket, and 491 under load, giving 16
+ *    wicket cards for 20. The GitHub runner is that slow machine, which is why CI failed
+ *    `19 queued for 20` there while every local run passed. One step per poll cannot skip: a slow
+ *    machine falls behind the schedule and catches up a frame at a time, taking longer.
+ *
+ * 2. **Keep the pace.** ⚠ Dropping the schedule and simply stepping every poll is NOT x`SPEED`.
+ *    A recording holds only frames that CHANGED, so a sparse one flies: 4683 is 376 frames across
+ *    307 minutes, ~49 s of match per 100 ms poll — about x490. The overlay's panel holds and peek
+ *    waits are real-time, so its innings summary never fitted in the break and the card was lost.
+ *    The schedule below is the pace; the cursor is only allowed to reach a frame once it is due.
+ */
 let startWall = 0;
 // ⚠ The first minute plays in REAL time. The overlay's pre-match decisions (squad peeks, then the
 // line-up until the openers are in) run on real-time delays that do not scale with SPEED, so at x15
 // the peeks alone ate 14 s of match: on 4678 the openers were picked 18 s in and the line-up was
 // (correctly) skipped. After that minute the recording runs at SPEED.
 const REAL_MS = 60_000;
-const recNow = () => {
+/** Where the schedule has reached — the old wall clock, now an upper bound rather than a pointer. */
+const target = () => {
     const e = startWall ? Date.now() - startWall : 0;
     return t0 + (e < REAL_MS ? e : REAL_MS + (e - REAL_MS) * SPEED);
 };
+let cursor = Math.max(0, scorebar.findIndex(r => r.t >= t0));
+/** Consecutive peek answers, and how many are tolerated before the match moves on regardless. */
+let peeks = 0;
+const PEEK_GRACE = 50;
+const at = () => scorebar[Math.min(cursor, scorebar.length - 1)];
+const recNow = () => at().t;
+const done = () => cursor >= scorebar.length - 1;
+const due = () => !done() && scorebar[cursor + 1].t <= target();
+
 const events: { wall: number; rec: number; kind: string; detail: unknown }[] = [];
-const latest = (pred: (r: Row) => boolean, at: number) => { let hit: Row | undefined; for (const r of frames) { if (r.t > at) break; if (pred(r)) hit = r; } return hit; };
-function frameFor(v: number, at: number): Row {
-    const full = latest(r => r.view === 1, at) ?? frames.find(r => r.view === 1)!;
-    if (v === 1) return full;
-    // a peek: the data view the recording overlay got nearest to now, else nothing new (the overlay gives up)
+
+/**
+ * What to answer a poll with, and whether that answer is the scorebar.
+ *
+ * 🛑 `scorebar` is what advances the cursor — NOT `view === 1`. The overlay can be parked on a
+ * view the recording never contains (4683 sat on view 3), and the fallback below then serves it
+ * the scorebar anyway. Keying the advance on the view number froze the match at the innings
+ * break: the overlay was waiting for the second innings to start, the recording was waiting for
+ * a view-1 poll, and 172 of 376 frames were never served. Anything that hands back a scorebar
+ * frame must step the cursor.
+ */
+function frameFor(v: number): { row: Row; scorebar: boolean } {
+    const full = at();
+    if (v === 1) return { row: full, scorebar: true };
     const views = frames.filter(r => r.view === v);
-    if (!views.length) return full;
-    return views.reduce((best, r) => Math.abs(r.t - at) < Math.abs(best.t - at) ? r : best);
+    // the recording never got this view: the overlay gets the scorebar, and the match moves on
+    if (!views.length) return { row: full, scorebar: true };
+    // a peek: the data view the recording overlay got nearest to here
+    return { row: views.reduce((best, r) => Math.abs(r.t - full.t) < Math.abs(best.t - full.t) ? r : best), scorebar: false };
 }
 const server = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://x');
     const json = (body: unknown, status = 200) => { res.writeHead(status, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
     if (req.method === 'OPTIONS') { res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'GET,POST' }); return res.end(); }
-    if (url.pathname === '/liveScoreOverlayData.do') { startWall ||= Date.now(); return json(frameFor(view, recNow()).data); }
+    if (url.pathname === '/liveScoreOverlayData.do') {
+        startWall ||= Date.now();     // the schedule starts at the overlay's first poll, not at launch
+        const { row, scorebar: isBar } = frameFor(view);
+        // ⚠ The valve: a peek that camps on a recorded view would freeze the match, so after
+        // PEEK_GRACE consecutive peek answers the cursor moves anyway. A real peek is one or two
+        // reads, so this never fires in normal operation — it only refuses to deadlock.
+        peeks = isBar ? 0 : peeks + 1;
+        if ((isBar || peeks > PEEK_GRACE) && due()) cursor++;
+        return json(row.data);
+    }
     if (url.pathname === '/matchOverlayConfig.do') {
         const v = Number(url.searchParams.get('viewId'));
         if (v > 0) { view = v; events.push({ wall: Date.now(), rec: recNow(), kind: 'view', detail: { view } }); }
@@ -157,9 +213,20 @@ async function main() {
         const refresh = Math.max(100, Math.round(5000 / SPEED));
         const url = `${DEV}/?matchId=rec&clubId=rec&api=${encodeURIComponent(`http://localhost:${PORT}`)}&refresh=${refresh}&e2e&data=1`;
         await cdp.send('Page.navigate', { url });
-        const realMs = Math.min(tEnd - t0, REAL_MS) + Math.max(0, tEnd - t0 - REAL_MS) / SPEED + 20_000;
-        console.log(`replaying ${MATCH}: ${frames.length} frames, ${Math.round((tEnd - t0) / 60000)} min of match in ${Math.round(realMs / 1000)} s at x${SPEED}`);
-        await sleep(realMs - 20_000);
+        // The run ends when the overlay has been served the last frame, however long that takes.
+        // ⚠ The guard is a STALL check, not a time budget. A budget scaled to the recording length
+        // would be ~18 min for the longest file against CI's 20-minute job cap, so a merely slow
+        // runner would be killed rather than reporting — the machine-speed dependence this cursor
+        // removes, reintroduced one level up. Progress is what matters: if no frame has been served
+        // for STALL_MS the page has stopped polling, and nothing else can make the run finish.
+        const STALL_MS = 90_000;
+        const paced = Math.min(tEnd - t0, REAL_MS) + Math.max(0, tEnd - t0 - REAL_MS) / SPEED;
+        console.log(`replaying ${MATCH}: ${scorebar.length} scorebar frames, ${Math.round((tEnd - t0) / 60000)} min of match at x${SPEED} (~${Math.round(paced / 1000)} s), one frame per ${refresh} ms poll at most`);
+        for (let seen = cursor, since = Date.now(); !done() && Date.now() - since < STALL_MS; ) {
+            await sleep(250);
+            if (cursor !== seen) { seen = cursor; since = Date.now(); }
+        }
+        if (!done()) console.error(`⚠ stalled with ${scorebar.length - 1 - cursor} of ${scorebar.length} frames unserved — did the page stop polling?`);
         // Past the last frame, keep serving it until the result is queued (or 90 s): recordings keep
         // only frames that change, so the result is near the very end, and a slow runner (CI, 4685)
         // had not finished the end-of-match peeks when a fixed 20 s ran out.

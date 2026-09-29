@@ -131,8 +131,14 @@ re-measuring. → `data-code.md` §1
 `CLOUDFLARE_API_TOKEN` secret exists, and not adding it is a decision. Don't add it without
 asking. → `analytics.md` §4
 
-⚠ **Stream duration is not measurable**, and ~87% of loads point at matches that already
-finished. Treat raw load counts accordingly. → `analytics.md` §5
+⚠ **~87% of loads point at matches that already finished**, so a load count is opens, not use.
+Session length exists now, from a 5-minute ping — but every figure is a floor, measured to the
+last ping. → `analytics.md` §5
+
+🛑 **A mocked D1 cannot see SQL semantics.** A one-line mutation making the session `ON CONFLICT`
+overwrite `first_seen` — which zeroes every duration — passed the entire Worker suite.
+`worker/src/sessions.test.ts` runs the real statements against real SQLite; keep it that way.
+→ `analytics.md` §5d
 
 🛑 **Never record an untested platform restriction as a tripwire.** This slot used to say an
 unverified API project cannot publish publicly to YouTube. Google documents that, but it was
@@ -238,6 +244,13 @@ nickname in one dismissal string. `record.ts` does both; a hand-made file does n
 
 ⚠ **Run `sim/` after any change to `views.ts`, `cards.ts`, `events.ts` or `app.ts`** — unit tests
 did not catch the three bugs it found on its first runs. → `overlay.md` §13
+
+🛑 **The replay cursor moves at most one frame per poll, and only when that frame is due — and a
+"flaky" replay is a real bug.** Wall-clock sampling skipped 342 of 4674's 2,380 frames idle and 491
+under load, and a skipped frame can carry the only state a card would have come from, so CI failed
+`19 queued for 20` on the runner while every local run passed — it looked like flakiness for two
+runs on `main`. ⚠ But dropping the clock entirely is also wrong: a sparse recording then flies
+(4683 is ~x490), and real-time panel holds lose their cards. → `overlay.md` §13a
 
 🛑 **Decide which side is batting with `battingSecond()`, never `isSecondInningsStarted` directly.**
 During a super over that flag may stay the main match's, and four modules reading it on their own

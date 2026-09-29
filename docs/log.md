@@ -1,5 +1,87 @@
 # Update Log
 
+## 2026-09-28
+
+**Session length is measurable now — page loads became sessions.** A load count answered "how
+often was the overlay opened", never "was anyone watching", which matters because ~87% of loads
+point at matches that already finished. `startSessionPings()` sets one 300 s interval that sends
+`overlay_ping`; the Worker upserts one row per load in a new `sessions` table and duration is
+`last_seen - first_seen`. Measured cost for a three-hour match: 36 pings of 134 bytes against
+the 2,160 CricClubs polls the page makes anyway — +1.7% of requests, 4.7 KB uploaded, 0.48% of
+the D1 free daily write allowance. The 3 September decision that cut session tracking was about
+keeping the collector **off the poll path**, which an independent timer is not; §5b records that
+so the ping is not "re-fixed" away.
+
+The heartbeat starts **after** the first successful live `feed.read()`, not beside
+`overlay_start`. Started at page load it would have reported hours of use for a home view or a
+wrong `matchId` — precisely the reading the table exists to correct.
+
+**A mutation that zeroes every duration passed the entire Worker suite.** Making the session
+`ON CONFLICT` overwrite `first_seen` as well as `last_seen` is a one-line change that makes
+every session zero seconds long, and the mocked-D1 tests could not see it: they assert which
+statement was prepared and with what, never what SQLite does with it. `worker/src/sessions.test.ts`
+now runs the real migration and the real statements against real SQLite via `node:sqlite`. It
+caught the mutation five ways — and found a live bug on its first run.
+
+**`CAST` was quietly losing a second from every session.** `julianday` returns a float, so a
+30-minute session is 1799.9999… and `CAST(… AS INTEGER)` truncated it to **1799**. Every total
+built from those numbers was short. `ROUND` before `CAST`. Only the real-SQLite test could have
+found this; the mocked tests never execute the arithmetic.
+
+**`{ once: true }` does not prevent a listener leak.** The `pagehide` handler that sends a final
+mark was registered on every `startSessionPings()`, and a listener that never fires is never
+dropped — so each stop/start cycle left another handler attached and one `pagehide` sent a ping
+per cycle ever started. Found because a test expecting 2 beacons saw 5. `stopSessionPings()` now
+removes it.
+
+**The session queries run in their own D1 batch.** A batch fails as a unit, so folding them into
+`QUERIES` would have blanked the whole stats page in the window between deploying the Worker and
+applying the migration — two manual steps that are not simultaneous. `sessionData()` swallows a
+missing table and the page omits the section. The Worker test tsconfig also split in two, so
+`src/` still typechecks against `@cloudflare/workers-types` alone and cannot reach a Node API
+that does not exist in workerd.
+
+🛑 **Not deployed.** `worker/npm run db:migrate` and `npm run deploy` are manual by decision and
+are the owner's to run; until then the client sends pings that the deployed Worker rejects as an
+unknown event, which is harmless.
+
+**CI's "flaky" replay was a real bug: the harness skipped frames.** `Replay ...4674...` failed
+`19 queued for 20` on the GitHub runner while passing every local run, and it had already failed
+the same way on the default branch, so the first read was flakiness. It is not. `replay.ts` picked
+the frame to serve by wall clock (`t0 + elapsed * SPEED`), while the page is loaded with
+`refresh = 5000 / SPEED` — one poll per recorded frame by intent. Any poll slower than `refresh`
+let the clock run ahead and skip frames, and a skipped frame can carry the only state a card would
+have come from. Measured on 4674's 2,380 frames: **342 skipped on an idle laptop**, passing only
+because no skip landed on a wicket, and **491 under 16 busy cores, giving 16 cards for 20**. The
+cursor now advances one frame per scorebar poll, so nothing can be skipped and a slow machine
+merely takes longer; a peek does not advance it, which retires the "play the first minute in real
+time" hack. Under the load that made the old harness produce CI's exact `19 queued for 20`, the new
+one gave 20 of 20 twice.
+
+**Then the fix broke 4683, two ways, and the second was the interesting one.** Serving a frame
+per poll fixed 4674 and every other large recording on CI, and broke a match that had always
+passed. First fault: the advance was keyed on `view === 1`, but the overlay parks on views a
+recording never contains — 4683 sits on view 3 — and the fallback hands it the scorebar anyway, so
+the cursor never moved. The replay deadlocked at the innings break with 172 of 376 frames
+unserved: the overlay waiting for the second innings, the recording waiting for a view-1 poll.
+What advances the cursor is *serving the scorebar*, not the view number.
+
+Second fault, and the one worth remembering: **stepping on every poll is not x60.** A recording
+holds only frames that changed, so a sparse one flies — 4683 is 376 frames across 307 minutes,
+~49 s of match per 100 ms poll, about x490. Wickets were then all found (15 of 15, up from 6) but
+the innings summary was gone, because panel holds and peek waits are real-time and the break went
+past before the card could land. The cursor now advances at most one frame per poll AND only when
+the old schedule says that frame is due: no skipping, and the pace is x`speed` again. 4683, 4674,
+4685, 4670 and 4672 all clean, and 4674 stays 20 of 20 under the load that broke the old harness.
+
+⚠ The first attempt to prove this failed to break anything: 8 busy processes left the old harness
+passing, which would have been read as "it is just CI" if the run had stopped there. 16 broke it.
+The run to believe is the one that fails.
+
+The wait for the end of a run is now a 90 s stall check rather than a budget scaled to the
+recording, which for the longest file would have been ~18 min against CI's 20-minute job cap —
+the same machine-speed dependence one level up.
+
 ## 2026-09-27
 
 **A team with no logo flickered through four badges.** CricClubs answers a missing logo with a

@@ -95,11 +95,95 @@ function send(body: string): void {
     fetch(CONFIG.ANALYTICS_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }).catch(() => { /* ignore */ });
 }
 
+/**
+ * Identifies the pings of ONE page load, so `last_seen - first_seen` gives session length.
+ *
+ * ⚠ Generated once per load and NEVER persisted. No cookie, no localStorage. It cannot join
+ * two loads, follow an operator across days, or be tied to a person — the same property the
+ * daily `visitor` hash was built for. → analytics.md §5
+ */
+const SESSION_ID = ((): string => {
+    try {
+        const bytes = new Uint8Array(8);
+        crypto.getRandomValues(bytes);
+        return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    } catch {
+        // No crypto (very old engine): a non-unique id is worse than none, so send nothing
+        // and let the Worker reject the ping.
+        return '';
+    }
+})();
+
+/** Test hook: the id this load will report. */
+export function sessionId(): string {
+    return SESSION_ID;
+}
+
+/**
+ * How often a live overlay reports that it is still up. 🛑 Five minutes, not five seconds.
+ *
+ * The 3 September decision that removed session tracking was about keeping the collector off
+ * the POLL path — a per-poll event is 12 requests a minute. This is an independent timer at
+ * one request every 300 s: 36 over a three-hour match against the 2,160 CricClubs polls the
+ * page makes anyway, so +1.7% of requests and 4.7 KB uploaded. Do not shorten it without
+ * re-doing that arithmetic. → analytics.md §5
+ */
+export const PING_MS = 5 * 60 * 1000;
+
+let pingTimer: ReturnType<typeof setInterval> | null = null;
+let onPageHide: (() => void) | null = null;
+
+/**
+ * Starts the heartbeat. Safe to call repeatedly; only the first call takes effect.
+ *
+ * 🛑 Call this only once the overlay has actually reached a live match. Starting it at page
+ * load would report a session for a home view or a failed feed, which is precisely the
+ * "was anyone really watching" question this is meant to answer.
+ */
+export function startSessionPings(props: Record<string, string | null | undefined> = {}): void {
+    if (pingTimer !== null) return;
+    if (!SESSION_ID) return;
+    try {
+        if (!isTrackingEnabled(currentContext())) return;
+    } catch {
+        return;
+    }
+    // ⚠ The interval is the only mechanism. `pagehide` would give an exact end time in one
+    // request, but an OBS browser source does not reliably fire it when a scene is destroyed
+    // or OBS is killed, so it can be a bonus and never the source of truth.
+    pingTimer = setInterval(() => track('overlay_ping', props), PING_MS);
+    if (typeof window.addEventListener === 'function') {
+        onPageHide = () => {
+            stopSessionPings();
+            track('overlay_ping', props);          // best-effort final mark; often not delivered
+        };
+        window.addEventListener('pagehide', onPageHide, { once: true });
+    }
+}
+
+/**
+ * Stops the heartbeat and unhooks `pagehide`.
+ *
+ * ⚠ Removing the listener is the point, not tidiness. `{ once: true }` only drops it after it
+ * fires, so a stop/start cycle used to leave the old handler attached and one `pagehide` then
+ * sent a ping per cycle ever started.
+ */
+export function stopSessionPings(): void {
+    if (pingTimer !== null) {
+        clearInterval(pingTimer);
+        pingTimer = null;
+    }
+    if (onPageHide && typeof window.removeEventListener === 'function') {
+        window.removeEventListener('pagehide', onPageHide);
+    }
+    onPageHide = null;
+}
+
 /** Fire-and-forget. Any failure is swallowed: analytics must never affect the overlay. */
 export function track(event: string, props: Record<string, string | null | undefined> = {}): void {
     try {
         if (!isTrackingEnabled(currentContext())) return;
-        const body = JSON.stringify({ event, ...props, ...detectClient() });
+        const body = JSON.stringify({ event, sessionId: SESSION_ID || undefined, ...props, ...detectClient() });
         whenIdle(() => { try { send(body); } catch { /* ignore */ } });
     } catch {
         /* ignore */
@@ -115,7 +199,8 @@ export function trackOnce(event: string, props?: Record<string, string | null | 
     track(event, props);
 }
 
-/** Test hook: forget which once-only events have been sent. */
+/** Test hook: forget which once-only events have been sent, and stop any heartbeat. */
 export function resetTrackingForTests(): void {
     sent.clear();
+    stopSessionPings();
 }

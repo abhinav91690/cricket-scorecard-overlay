@@ -7,7 +7,7 @@ vi.mock('./dataQr', () => ({ ensureDataQr: vi.fn(async () => {}),
 vi.mock('./api', () => ({ fetchScoreData: vi.fn(), switchView: vi.fn() }));
 vi.mock('./ui', () => ({ updateScoreboard: vi.fn(), updateTeamLogos: vi.fn(async () => {}) }));
 vi.mock('./theme', () => ({ applyTheme: vi.fn(), updateLogo: vi.fn() }));
-vi.mock('./analytics', () => ({ track: vi.fn(), trackOnce: vi.fn() }));
+vi.mock('./analytics', () => ({ track: vi.fn(), trackOnce: vi.fn(), startSessionPings: vi.fn() }));
 vi.mock('./toast', () => ({ showToast: vi.fn() }));
 vi.mock('./events', () => ({ detectEvents: vi.fn(() => []) }));
 vi.mock('./cards', () => ({ enqueueCards: vi.fn(), showSampleCard: vi.fn(), dismissAll: vi.fn(), dismissPanel: vi.fn(), isIdle: vi.fn(() => true) }));
@@ -22,7 +22,7 @@ import { fetchScoreData, switchView } from './api';
 import { renderDataCode } from './dataQr';
 import { updateScoreboard, updateTeamLogos } from './ui';
 import { applyTheme, updateLogo } from './theme';
-import { track, trackOnce } from './analytics';
+import { track, trackOnce, startSessionPings } from './analytics';
 import { showToast } from './toast';
 import { detectEvents } from './events';
 import { enqueueCards, showSampleCard, dismissAll, dismissPanel } from './cards';
@@ -86,6 +86,7 @@ describe('updateScore mode switch', () => {
         }
         expect(fetchScoreData).not.toHaveBeenCalled();
         expect(trackOnce).not.toHaveBeenCalled();
+        expect(startSessionPings).not.toHaveBeenCalled();
         expect(instructions().style.display).toBe('none');
         expect(overlay().style.display).toBe('');
         expect(applyTheme).toHaveBeenCalledWith('kkr');
@@ -164,6 +165,9 @@ describe('updateScore mode switch', () => {
         // trackOnce is what de-duplicates; the app must route through it, not track()
         expect(trackOnce).toHaveBeenCalledWith('overlay_start', { clubId: '42', matchId: '2079', theme: 'rcb', logo: '1' });
         expect(track).not.toHaveBeenCalled();
+        // The heartbeat starts only because the feed answered; it is idempotent, so both polls call it.
+        expect(startSessionPings).toHaveBeenCalledWith({ clubId: '42', matchId: '2079', theme: 'rcb' });
+        expect(startSessionPings).toHaveBeenCalledTimes(2);
     });
 
     it('uses the default club id when none is given', async () => {
@@ -463,6 +467,19 @@ describe('updateScore error handling', () => {
         await updateScore();
         expect(DOM.teamName.textContent).toBe('Lions');
         expect(console.error).toHaveBeenCalled();
+    });
+
+    it('starts no heartbeat for a load whose feed never answers', async () => {
+        // 🛑 The session table is meant to answer "was anyone really watching". A wrong
+        // matchId that polls forever must contribute no session at all, which is why the
+        // heartbeat starts after the read rather than beside overlay_start.
+        setSearch('?matchId=9999999');
+        vi.mocked(fetchScoreData).mockRejectedValue(new Error('offline'));
+        await updateScore();
+        await updateScore();
+        expect(trackOnce).toHaveBeenCalledWith('overlay_start', expect.objectContaining({ matchId: '9999999' }));
+        expect(startSessionPings).not.toHaveBeenCalled();
+        expect(DOM.teamName.textContent).toBe('Error');
     });
 
     it('treats a logo failure like a fetch failure and does not paint half a frame', async () => {

@@ -1,0 +1,10 @@
+{
+    // The test files only. Same strictness, plus Node types for `node:sqlite` in
+    // sessions.test.ts. See the note in tsconfig.json for why this is a separate config.
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "types": ["@cloudflare/workers-types", "node"]
+    },
+    "include": ["src"],
+    "exclude": []
+}

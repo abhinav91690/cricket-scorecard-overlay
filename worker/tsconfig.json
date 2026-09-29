@@ -12,5 +12,10 @@
         "skipLibCheck": true,
         "isolatedModules": true
     },
-    "include": ["src"]
+    "include": ["src"],
+    // 🛑 Test files are checked by tsconfig.test.json instead, because they need @types/node.
+    // Keeping them out of here is what stops `types: ["@cloudflare/workers-types"]` from being
+    // widened with "node" — which would let src/ use a Node API that does not exist in workerd
+    // and still typecheck. Both configs run in `npm run typecheck`.
+    "exclude": ["src/**/*.test.ts"]
 }

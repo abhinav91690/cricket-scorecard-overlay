@@ -118,10 +118,13 @@ CricClubs received the request; the public feed can take up to a minute to show 
 
 The production site reports a few anonymous events to a first-party endpoint (`/api/collect`, a
 Cloudflare Worker in [`worker/`](worker/)) so we can see which matches, themes and streaming apps
-use the overlay: `overlay_start`, `home_view` and `link_stream_submit`.
+use the overlay: `overlay_start`, `home_view`, `link_stream_submit`, and `overlay_ping` every
+five minutes while a live overlay is on screen, which is what makes session length measurable.
 
-No cookies, no third parties, no persistent identifiers. Nothing is sent from `localhost`,
-`?debug=` modes or `?mode=replay`. Add **`?nostats=1`** to opt out; Do Not Track is honoured too.
+No cookies, no third parties, no persistent identifiers. The ping carries a random id generated
+per page load and **never stored** — no cookie, no `localStorage` — so it groups that load's own
+pings and nothing else. Nothing is sent from `localhost`, `?debug=` modes or `?mode=replay`. Add
+**`?nostats=1`** to opt out, which also stops the ping; Do Not Track is honoured too.
 
 Details, including what is stored and what deliberately is not, are in
 [`docs/analytics.md`](docs/analytics.md).
