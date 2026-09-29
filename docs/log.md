@@ -58,6 +58,22 @@ merely takes longer; a peek does not advance it, which retires the "play the fir
 time" hack. Under the load that made the old harness produce CI's exact `19 queued for 20`, the new
 one gave 20 of 20 twice.
 
+**Then the fix broke 4683, two ways, and the second was the interesting one.** Serving a frame
+per poll fixed 4674 and every other large recording on CI, and broke a match that had always
+passed. First fault: the advance was keyed on `view === 1`, but the overlay parks on views a
+recording never contains — 4683 sits on view 3 — and the fallback hands it the scorebar anyway, so
+the cursor never moved. The replay deadlocked at the innings break with 172 of 376 frames
+unserved: the overlay waiting for the second innings, the recording waiting for a view-1 poll.
+What advances the cursor is *serving the scorebar*, not the view number.
+
+Second fault, and the one worth remembering: **stepping on every poll is not x60.** A recording
+holds only frames that changed, so a sparse one flies — 4683 is 376 frames across 307 minutes,
+~49 s of match per 100 ms poll, about x490. Wickets were then all found (15 of 15, up from 6) but
+the innings summary was gone, because panel holds and peek waits are real-time and the break went
+past before the card could land. The cursor now advances at most one frame per poll AND only when
+the old schedule says that frame is due: no skipping, and the pace is x`speed` again. 4683, 4674,
+4685, 4670 and 4672 all clean, and 4674 stays 20 of 20 under the load that broke the old harness.
+
 ⚠ The first attempt to prove this failed to break anything: 8 busy processes left the old harness
 passing, which would have been read as "it is just CI" if the run had stopped there. 16 broke it.
 The run to believe is the one that fails.
