@@ -1,0 +1,22 @@
+{
+  "_note": "Per-match settings for reels.py --manifest. Keys are the flag names. An explicit flag on the command line beats anything here. PATHS ARE RELATIVE TO THIS FILE, so the manifest works from any working directory.",
+  "_captured": "2026-10-10",
+  "_video": "The merged recording: part 1 rebuilt by recover.py (the phone overheated 2 h 45 m in) from its 19:28 keyframe, then the complete part 2. The 19 minutes the phone was off — chase overs 2.5-6.1 — were never recorded.",
+  "video": "../../game footage/vs Ground breakers.mp4",
+  "events": "../../game footage/vs Ground breakers.events.json",
+  "out": "../reels-ground-breakers",
+  "batting-innings": 2,
+  "team": "Topguns United",
+  "match": "Topguns United vs Ground Breakers",
+  "league": "LPCL",
+  "ball": "leather",
+  "series": "T20 Fall 2026",
+  "_crop": "Measured for THIS camera position with crop.py at 2869 s (a delivery). Bowling is 1:1 at x=0.45, not 4:5: the bowler runs in from the left past the umpire and the keeper stands behind the right-hand stumps, and no 4:5 box holds the run-up and the keeper together — it loses one or the other, and with the keeper go the catches behind. Re-measure before reusing for another match.",
+  "aspect-bowl": "1:1",
+  "crop-x-bowl": 0.45,
+  "split-roles": true,
+  "align": true,
+  "overrides": "../overrides/vs-ground-breakers.json",
+  "contact-sheet": true,
+  "_batting": "Not cut. The chase is where the losses fell: the 19-minute gap, a scorecard that stalled for 17 minutes (26 balls) and froze for the last 15 balls on the overheating phone, and encoder smearing. Batting moments in those stretches cannot be timed from the data code."
+}
