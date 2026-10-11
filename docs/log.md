@@ -1,5 +1,35 @@
 # Update Log
 
+## 2026-10-11
+
+**A recording the phone died in the middle of came back whole.** Match 4691 (vs Ground Breakers,
+2026-10-10): the phone overheated and shut down 2 h 45 m in, and IRL Pro left a 16.9 GiB file with
+no index — it writes `moov` last — so nothing could open it. Every frame was still there. The new
+`highlights/recover.py` rebuilds the index from a complete recording by the same phone (the one
+made after it restarted): **2 h 46 m recovered, video samples exact, audio 99.98%, zero decoder
+errors across every keyframe**, and A/V sync within ~0.2 s typically. It was then cut to start at
+the first ball and joined to the second recording as one 3 h 52 m video. §15 in highlights.md.
+
+The tool **gates on its reference**: it must reproduce a complete file's real index exactly before
+it is trusted on a broken one, and its clock must fit. That gate, and the checks around it, caught
+the tool's own faults one after another — audio splits that merged pairs of frames (half the audio
+missing), a fake 2.4 MB "keyframe" that swallowed 80 real frames, video rounded run by run until it
+sat 6 s from the audio, a scan that stopped on in-band SPS/PPS and reported success with 23.7 GB
+unread, and a timing model that measured 40% long on a remuxed file and built it anyway. Each now
+has a synthetic test (`test_recover.py`, no footage) that was broken on purpose to prove it fails.
+
+⚠ **Audio is not a clock.** The phone dropped 17 minutes of audio across 84 minutes while hot, so
+counting AAC frames ran 17 minutes short. The muxer's own chunks — cut every ~1 s of wall time
+whatever the frame rate — are the clock.
+
+**The real cause was heat, and it cost more than the file.** At 4K60 the phone managed 56 fps cool
+and 40 hot; the encoder smeared moving players into the stream (which decodes *without errors* — a
+decoder count cannot see it), and the overlay's page was starved, so **the live scorecard stalled
+for 17 minutes and 26 balls** and froze for the last 15 balls. Viewers saw a stale score, and those
+balls carry no data code to cut highlights from. The new session analytics recorded it as it
+happened: 7 pings in 65 minutes. **Record at 1080p or 4K30.** The ~19 minutes the phone was off
+(chase overs 2.5-6.1) were never recorded at all.
+
 ## 2026-09-28
 
 **Session length is measurable now — page loads became sessions.** A load count answered "how

@@ -74,6 +74,8 @@ cd worker && npm run dev | test:run | typecheck | db:migrate | deploy
 cd highlights && .venv/bin/python qrscan.py "<video>" -o events.json
 # one argument per match; --contact-sheet writes a per-reel verification grid
 cd highlights && .venv/bin/python reels.py --manifest matches/<slug>.json
+# a recording cut short by a dead phone: rebuild its index from a complete one by the same phone
+cd highlights && .venv/bin/python recover.py BROKEN.mp4 --reference COMPLETE.mp4 -o RECOVERED.mp4
 git config core.hooksPath .githooks          # once: blocks a name reaching this public repo
 ```
 
@@ -228,6 +230,11 @@ confirmed by eye were the largest lag in their innings and nothing else was, so 
 drops them — floored at 30 s, because a uniformly slow scorer is not a mis-alignment. It
 catches the failure seen, not every one that exists; keep reviewing reel by reel.
 → `highlights.md` §6c
+
+🛑 **A recording cut short by a dead phone keeps every frame and loses only its index — rebuild it
+with `recover.py`, never by re-encoding.** It must reproduce a complete reference recording's index
+exactly, and its clock must fit, before it touches the broken file; that gate caught four of its
+own faults. ⚠ The cause was heat: **record 1080p or 4K30, not 4K60**. → `highlights.md` §15
 
 🛑 **Never cut a clip with raw ffmpeg — go through `cut.segments()`.** The `WINDOWS` are the
 only thing that knows the scorer's graphic lags the ball (a six by ~5 s, a wicket by ~35 s), so
