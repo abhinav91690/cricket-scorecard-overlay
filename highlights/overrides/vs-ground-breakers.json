@@ -1,0 +1,12 @@
+{
+  "note": "Hand-measured shot times for balls --align could not place, in the merged video (part 1 from its 19:28 keyframe, then part 2). Each was read frame by frame from pitch-cropped stills at 1.5 s spacing: run-up, delivery stride, bat on ball. Times are source seconds. Keyed on the payload ENTRY time, which is stable. Do NOT add an entry copied from the aligner's own output.",
+  "shots": {
+    "4358.6": 4328.3,
+    "5002.9": 4979.8
+  },
+  "measured": {
+    "4358.6": "aligner 4346 (12.6s lag), which is aftermath: no stance, the batter already apart from his crease, fielders gathering. True 4328.3 (30.3s lag, normal for a wicket): striker in his stance at the left-hand stumps from 4314; 4327.5 the bowler in his delivery stride at the right-hand stumps; 4329.0 the striker mid-swing with the non-striker leaving his crease; 4330.5-4333.5 the batters crossing.",
+    "5002.9": "omitted by the guards. True 4979.8 (23.1s lag): keeper crouched behind the left-hand stumps from 4973; 4977.5 the bowler running in from the right; 4979.0 the delivery stride; 4980.5 the striker stretching forward with the keeper standing right up behind him; 4982-4994 the batter walking and the fielders gathering. Nothing between 4994 and the entry at 5002.9 could be another delivery: no new batter could be in and facing within 9 s."
+  },
+  "drop": []
+}

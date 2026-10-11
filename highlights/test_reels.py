@@ -17,7 +17,7 @@ from __future__ import annotations
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from cut import crop_filter
-from reels import (attribute, breakdown, build_title, figures, metadata, over,
+from reels import (ball_line, load_dismissals, attribute, breakdown, build_title, figures, metadata, over,
                    parse_aspects, slug, tally, titlecase)
 
 
@@ -260,10 +260,13 @@ def test_description_separates_the_innings_from_what_the_reel_holds():
     assert "in this reel: 1 six" in body, body              # only what was captured
 
 
-def test_description_has_a_shorts_hashtag_for_discovery():
+def test_description_carries_the_club_tags_but_no_shorts_tag():
+    """No #Shorts since 2026-10-11, the owner's call: YouTube classifies a Short from the file
+    (square or vertical, under three minutes), and publish.py validates the shape."""
     ms = attribute([mo(10, ["six"], 1)], batting_innings=1)[("J. ROOT", "bat")]
     body = metadata("J. ROOT", ms, [[0.0, 10.0, "six"]], "", "Topguns")["description"]
-    assert "#Shorts" in body and "#Topguns" in body, body
+    assert "#Topguns" in body, body
+    assert "#Shorts" not in body, body
 
 
 def test_metadata_says_when_a_boundary_came_off_a_no_ball():
@@ -666,7 +669,8 @@ def test_the_tag_set_is_the_clubs_own():
     assert not any("vs" in x.lower() for x in t), "a per-fixture tag came back"
     assert "#cricket" in t and "#clubcricket" in t, t
     tape = hashtags("Topguns United", "LPCL", "tape", "", ["bowl"])
-    assert "#TapeBall" in tape and "#cricketbowling" in tape, tape
+    assert "#TapeBall" in tape and "#bowling" in tape, tape
+    assert "#cricketbowling" not in tape, "the owner replaced it with #bowling on 2026-10-11"
 
 
 def test_the_tag_set_degrades_without_the_new_flags():
@@ -676,6 +680,21 @@ def test_the_tag_set_degrades_without_the_new_flags():
     assert all(len(x) > 1 and x.startswith("#") for x in t), t
     assert "#Topguns" in t and "#cricket" in t, t
 
+
+
+def test_wicket_line_says_how_it_fell_when_the_scorecard_is_given():
+    """The payload carries no dismissal type, so without --dismissals a wicket line reads
+    "wicket, 34(32)". With it, the scorecard's words replace that — and never the batter's name."""
+    import json, tempfile
+    m = {"t": 2908.5, "ball": 57, "score": "64/1", "_role": "bowl", "_kinds": ["wicket"],
+         "strikerScore": "34(32)", "types": ["wicket"]}
+    assert ball_line(dict(m), 0) == "0:00  wicket, 34(32) (9.3 ov, 64/1)"
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
+        json.dump({"wickets": {"2908.5": "caught behind"}}, fh)
+    hows = load_dismissals(fh.name)
+    assert hows == {2908.5: "caught behind"}
+    assert ball_line({**m, "_how": hows[2908.5]}, 0) == "0:00  caught behind (9.3 ov, 64/1)"
+    assert load_dismissals(None) == {}
 
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]

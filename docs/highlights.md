@@ -783,14 +783,14 @@ pronouns, so a hook that reaches for one would be guessing.
 it costs nothing there, while YouTube shows it in full. One description serves both
 publishers, so it is written for the harsher of the two.
 
-⚠ **`#Shorts` makes six tags, not five.** It is a YouTube discovery token and means nothing on
-Instagram, but the same description feeds both. Pass `--hashtags` with four to land on five
-total if a strict set matters.
+⚠ **No `#Shorts` since 2026-10-11 — the owner's call.** YouTube decides a video is a Short
+from the file itself (square or vertical, under three minutes), not from the tag, and
+`publish.py` validates that shape before uploading; the tag also meant nothing on Instagram.
 
 #### The club's tag set, and what is deliberately absent
 
 ```
-#Topguns #LPCL #LeatherBall|#TapeBall #<series> #clubcricket #cricketbatting|bowling #cricket
+#Topguns #LPCL #LeatherBall|#TapeBall #<series> #clubcricket #cricketbatting|#bowling #cricket
 ```
 
 Set with `--league`, `--ball leather|tape` and `--series`. The club tag is the **first word**
@@ -917,8 +917,11 @@ with the title, description and tags, and `publish.py --meta <json>` uses it ver
     --meta reels/v-kohli-batting.json --privacy public --confirm
 ```
 
-Reels and their sidecars are **gitignored** (`highlights/reels*/`) — generated per match and
-uploaded, never source.
+Reels and their sidecars are **gitignored** — generated per match and uploaded, never source.
+Each manifest writes them to `game footage/reels-<opponent>/`, **beside the recording they were
+cut from**, so every file a match produced (footage, events, dismissals, reels, contact sheets,
+motion caches) is reviewed in one folder and deleted together once uploaded. The owner's call
+on 2026-10-11. `highlights/reels*/` stays ignored for an ad-hoc `-o`.
 
 ### 13c. Captions come from the scorecard, not from a template
 
@@ -961,11 +964,97 @@ only the first is under the code's control:
    with nothing useful in the log — see [publishing.md](./publishing.md) §3.
 4. **`--batting-innings` has to come off the scorecard.** Which innings the team batted is not
    in the payload and cannot be guessed; the wrong value inverts every attribution (§13).
+5. 🛑 **Record at 1080p, or 4K30 — not 4K60.** On 2026-10-10 the phone managed 56 fps while cool
+   and 40 once hot. Then the encoder began smearing moving players, audio dropped out for whole
+   seconds, the overlay's page was starved so the scorecard **stalled for 17 minutes (26 balls)**,
+   and finally the phone shut down mid-recording (§15). Every one of those is heat.
 
 ⚠ **Not yet exercised on a real match.** Everything above is verified against a 26-second
 fixture recording with two moments, one innings and replay names. What a real match will
 exercise for the first time: several players, both innings, real names, and `qrscan.py` on a
 4-hour 4K file — whose runtime has never been measured, unlike `detect.py`'s 40 seconds (§1).
+
+## 15. Recovering a recording cut short (`recover.py`)
+
+An MP4 holds `ftyp`, then `mdat` — every frame and audio packet back to back — then `moov`, the
+index that says where each sample is and when it plays. **IRL Pro writes `moov` last**, so when the
+phone dies mid-match every frame survives and only the index is lost. ffmpeg cannot open such a
+file, and `recover.py --inspect` shows the tell: an `mdat` whose size runs past the end of the file
+and no `moov` after it.
+
+```bash
+cd highlights
+.venv/bin/python recover.py --inspect BROKEN.mp4
+.venv/bin/python recover.py BROKEN.mp4 --reference COMPLETE.mp4 -o RECOVERED.mp4
+```
+
+`--reference` is a **complete recording by the same phone, app and settings** — usually the one
+made after the phone restarted. It supplies the codec boxes verbatim, the sample-size bounds, the
+AAC frame openings and the muxer's chunk clock. Nothing is re-encoded; the output is an APFS clone
+of the broken file with a corrected `mdat` size and a new `moov`, and **the broken file is never
+modified** (`test_recover.py` hashes it).
+
+🛑 **It gates on the reference before touching the broken file.** It scans the reference and must
+reproduce every video sample of its real index exactly, and its chunk clock must land the
+reference within 3% and 0.5 s of A/V sync, or it stops. A rebuild that cannot reproduce a file
+whose answer is known is not trusted on one whose answer is not. That gate caught four of the
+tool's own faults during development (below), each of which would otherwise have produced a
+plausible, wrong file.
+
+**Measured on 2026-10-10 (match 4691).** The first recording was 16.9 GiB with no index; 2 h 46 m
+came back, every keyframe decoding with zero errors. On the complete second recording used as
+reference: **video 204,203 of 204,203 samples exact; audio 99.98%** (99.975% on frames the learned
+openings never saw); A/V sync typically ~0.2 s off, p95 ~0.55 s. The last ~32 MB before the crash
+— half-written — was lost. On an artificially crashed copy of the full 3 h 52 m match, all 678,777
+video samples of the rebuilt index were identical to the real one.
+
+How a sample is recognised, all measured from the reference:
+
+- **Video:** one H.264 slice per sample — a 4-byte length, header `0x21` (P) or `0x65` (IDR), and
+  a valid slice header (`first_mb_in_slice` 0, `pic_parameter_set_id` 0, an IDR is an I slice) —
+  optionally after in-band SPS / PPS / SEI / AUD NALs.
+- **Audio:** raw AAC-LC frames are not self-delimiting. A run is split by dynamic programming over
+  positions that open like a real frame (3-byte prefixes learned from the reference, falling back
+  to 2-byte ones) and close with the AAC end code — `111` plus zero padding.
+- **Timing:** gone entirely. The muxer cuts a chunk every ~1 s of wall time (median 1.000 s,
+  p5–p95 0.97–1.10 s) however many frames it holds, so **time is chunks counted**.
+
+The traps, each found by a check failing:
+
+- 🛑 **Audio is not a clock.** The reference held 67.3 min of AAC across 84.5 min of video — the
+  phone dropped audio while throttling — so counting audio frames ran **17 min short**. The chunk
+  clock is right to 0.2%.
+- 🛑 **A merged AAC split always looks valid.** Two real frames glued together still open with a
+  frame start and close with an end code. Keeping the first split found recovered **half** the
+  expected frames; the DP prefers the split with the most frames.
+- 🛑 **Check the slice header, not just the NAL header.** Random bytes 799 bytes before a real frame
+  read as a 2.4 MB keyframe whose end landed exactly on a genuine frame boundary, swallowing ~80
+  frames near the 4 GiB mark. Exactly one such sample in 562,256 — found only because the decoder
+  rejected it.
+- 🛑 **A scan that stops early must fail loudly.** A keyframe with in-band SPS + PPS — which an
+  ffmpeg remux produced, and an encoder restart can — made the scan stop and report success with
+  23.7 GB unread. It now refuses to build with more than a crash tail (64 MB) left over.
+- ⚠ **The after-frame check uses the short AAC prefixes.** An audio packet whose opening the
+  reference never showed made the stricter check reject a real one-frame run, and the scan stopped
+  10.8 GiB in.
+- ⚠ **Round to 1/60 s ticks against the cumulative clock.** Rounding each chunk on its own
+  accumulated and put video 6 s away from the audio.
+- ⚠ **Set the video track to 90 kHz.** A template ticking at 10,240 Hz made every frame 8.79× long.
+- 🛑 **A remuxed file is not a valid reference.** ffmpeg re-chunks every ~28 ms, so the chunk clock
+  measured **40% long** on one — and the first version built the file anyway. The timing check is
+  now a gate.
+
+What recovery cannot fix, because it was never in the file:
+
+- ⚠ **Damage the encoder wrote.** On a hot phone, smearing around moving players decodes *without
+  a single error* — a decoder error count is blind to it. Look at a contact sheet.
+- ⚠ **A starved overlay.** When the phone throttles the browser source, the data code stops
+  updating — 17 minutes and 26 balls collapsed into one jump on 2026-10-10 — so those balls cannot
+  be timed from the code. The session analytics show it too: 7 pings in 65 minutes.
+
+The tests (`test_recover.py`) build synthetic recordings with the app's byte structure — no
+footage — and each one is a mistake above; every fix was broken on purpose to confirm its test
+fails.
 
 ## 12. Open work
 
