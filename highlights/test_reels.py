@@ -260,10 +260,13 @@ def test_description_separates_the_innings_from_what_the_reel_holds():
     assert "in this reel: 1 six" in body, body              # only what was captured
 
 
-def test_description_has_a_shorts_hashtag_for_discovery():
+def test_description_carries_the_club_tags_but_no_shorts_tag():
+    """No #Shorts since 2026-10-11, the owner's call: YouTube classifies a Short from the file
+    (square or vertical, under three minutes), and publish.py validates the shape."""
     ms = attribute([mo(10, ["six"], 1)], batting_innings=1)[("J. ROOT", "bat")]
     body = metadata("J. ROOT", ms, [[0.0, 10.0, "six"]], "", "Topguns")["description"]
-    assert "#Shorts" in body and "#Topguns" in body, body
+    assert "#Topguns" in body, body
+    assert "#Shorts" not in body, body
 
 
 def test_metadata_says_when_a_boundary_came_off_a_no_ball():
@@ -666,7 +669,8 @@ def test_the_tag_set_is_the_clubs_own():
     assert not any("vs" in x.lower() for x in t), "a per-fixture tag came back"
     assert "#cricket" in t and "#clubcricket" in t, t
     tape = hashtags("Topguns United", "LPCL", "tape", "", ["bowl"])
-    assert "#TapeBall" in tape and "#cricketbowling" in tape, tape
+    assert "#TapeBall" in tape and "#bowling" in tape, tape
+    assert "#cricketbowling" not in tape, "the owner replaced it with #bowling on 2026-10-11"
 
 
 def test_the_tag_set_degrades_without_the_new_flags():

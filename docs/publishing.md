@@ -507,8 +507,9 @@ batting ends (§13a in [highlights.md](./highlights.md)), so it is a per-platfor
 actually refuse: a 2 s clip → "under Instagram's 3s minimum"; a 3000×400 file → "exceeds
 the 1920 horizontal-pixel maximum"; the real 9:16 reel → accepted.
 
-⚠ `reels.py` writes `#Shorts` for YouTube discovery, which means nothing on Instagram.
-`caption_from()` swaps it for `#Reels` rather than maintaining two near-identical sidecars.
+⚠ `reels.py` no longer writes `#Shorts` (dropped 2026-10-11 — YouTube classifies a Short from
+the file's shape, not the tag). `caption_from()` still swaps a `#Shorts` for `#Reels` if an
+older sidecar carries one, so both kinds of sidecar publish correctly.
 
 🛑 **Ask Instagram for the permalink; never build one.** A reel's URL uses a **shortcode**,
 not the numeric media id, so `instagram.com/reel/<media_id>/` 404s — and it does so exactly

@@ -526,7 +526,8 @@ def hashtags(team: str, league: str = "", ball: str = "", series: str = "",
     if series:
         out.append(tag(series))
     out.append("#clubcricket")
-    out.append({"bat": "#cricketbatting", "bowl": "#cricketbowling"}
+    # ⚠ "#bowling", not "#cricketbowling": the owner's call on 2026-10-11.
+    out.append({"bat": "#cricketbatting", "bowl": "#bowling"}
                .get(roles[0] if len(roles) == 1 else "", "#allroundcricket"))
     out.append("#cricket")
     seen, uniq = set(), []
@@ -631,7 +632,9 @@ def metadata(player: str, moments: list[dict], segs: list, match: str, team: str
     tags = ([t if t.startswith("#") else "#" + t
              for t in tag_override.replace(",", " ").split()] if tag_override
             else hashtags(team, league, ball, series, rs))
-    body.append(" ".join(tags + ["#Shorts"]))     # #Shorts is what YouTube reads
+    # No "#Shorts" (the owner's call on 2026-10-11): YouTube classifies a Short from the file —
+    # square or vertical, under three minutes — not from the tag. publish.py checks the shape.
+    body.append(" ".join(tags))
 
     # YouTube's own tag field: plain keywords, not hashtags, and 6-8 is plenty.
     kw = ["cricket", "cricket highlights", "club cricket"]

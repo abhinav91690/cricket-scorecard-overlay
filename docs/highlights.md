@@ -783,14 +783,14 @@ pronouns, so a hook that reaches for one would be guessing.
 it costs nothing there, while YouTube shows it in full. One description serves both
 publishers, so it is written for the harsher of the two.
 
-⚠ **`#Shorts` makes six tags, not five.** It is a YouTube discovery token and means nothing on
-Instagram, but the same description feeds both. Pass `--hashtags` with four to land on five
-total if a strict set matters.
+⚠ **No `#Shorts` since 2026-10-11 — the owner's call.** YouTube decides a video is a Short
+from the file itself (square or vertical, under three minutes), not from the tag, and
+`publish.py` validates that shape before uploading; the tag also meant nothing on Instagram.
 
 #### The club's tag set, and what is deliberately absent
 
 ```
-#Topguns #LPCL #LeatherBall|#TapeBall #<series> #clubcricket #cricketbatting|bowling #cricket
+#Topguns #LPCL #LeatherBall|#TapeBall #<series> #clubcricket #cricketbatting|#bowling #cricket
 ```
 
 Set with `--league`, `--ball leather|tape` and `--series`. The club tag is the **first word**
