@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy</title>
+<meta name="description" content="Privacy policy for the cricket scorecard overlay at score.abhinav.dev and the Topguns Cricket Club highlights uploader.">
+<style>
+  :root { --bg: #f7f8fa; --surface: #fff; --text: #161a22; --muted: #5b6575; --line: #e1e5ec; --accent: #2563eb; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #0e1116; --surface: #161b23; --text: #e7eaf0; --muted: #9aa4b5; --line: #2a3240; --accent: #6b9bff; }
+  }
+  :root[data-theme="dark"] { --bg: #0e1116; --surface: #161b23; --text: #e7eaf0; --muted: #9aa4b5; --line: #2a3240; --accent: #6b9bff; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 40px 16px 64px; }
+  h1 { font-size: 30px; margin: 0 0 4px; letter-spacing: -.01em; }
+  .updated { color: var(--muted); margin: 0 0 28px; }
+  h2 { font-size: 19px; margin: 32px 0 8px; }
+  p, li { color: var(--text); }
+  ul { padding-left: 20px; }
+  li + li { margin-top: 4px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px 20px 12px; }
+  a { color: var(--accent); overflow-wrap: anywhere; }
+  code { font-size: .92em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated 11 October 2026</p>
+
+  <p>This policy covers two things run by the Topguns Cricket Club: the cricket scorecard overlay
+    at <a href="https://score.abhinav.dev">score.abhinav.dev</a>, and the club's highlights
+    uploader, which publishes match highlights to the club's own YouTube channel.</p>
+
+  <h2>The scorecard overlay</h2>
+  <div class="card">
+    <p>The overlay shows live scores from CricClubs inside streaming apps. To understand how it is
+      used, it records a small number of anonymous usage events on our own server:</p>
+    <ul>
+      <li>the type of event (for example, the overlay opening for a match), the CricClubs club and
+        match it was opened for, and the display theme and logo settings;</li>
+      <li>the streaming app or browser, its version, the operating system, the screen size, the
+        browser's user-agent string and the page that linked to the overlay;</li>
+      <li>the approximate country and city of the request, as supplied by our hosting provider;</li>
+      <li>if you use Link Live Stream, the YouTube video ID you submitted and whether it worked;</li>
+      <li>an approximate viewer count, from a salted hash of the network address and browser that
+        changes every day. The network address itself is not stored, and the daily change means a
+        visitor cannot be followed from one day to the next;</li>
+      <li>while an overlay is showing a live match, a short signal every five minutes so we can
+        measure how long it stays on screen. It carries a random number created for that page
+        load alone, which is never stored on your device.</li>
+    </ul>
+    <p>The overlay sets <strong>no cookies</strong> and uses <strong>no third-party analytics or
+      advertising</strong>. Nothing is recorded when you add <code>?nostats=1</code> to the
+      address, when your browser sends Do Not Track, or in test and replay modes. The data is used
+      only to produce usage statistics for the people who run the overlay, and it is not sold or
+      shared.</p>
+  </div>
+
+  <h2>The highlights uploader</h2>
+  <div class="card">
+    <p>The highlights uploader is a tool the club's volunteers run on their own computer to publish
+      highlight clips of the club's matches.</p>
+    <ul>
+      <li>It requests a single Google permission, <code>youtube.upload</code>, used only to upload
+        the club's highlight videos to the club's own YouTube channel.</li>
+      <li>The sign-in token Google issues is stored only on that volunteer's computer, in its
+        system keychain. It is never sent anywhere except to Google.</li>
+      <li>It does not read, store or share any information about other YouTube users or Google
+        accounts.</li>
+    </ul>
+  </div>
+
+  <h2>Players</h2>
+  <div class="card">
+    <p>Highlight captions name the club's own players and their figures from the match scorecard.
+      Players from opposing teams are not named. Contact details that scoring systems hold about
+      players are never displayed or stored by either tool.</p>
+  </div>
+
+  <h2>Contact and changes</h2>
+  <p>Questions or requests about this policy, including removing a highlight, can be raised on the
+    project's public repository at
+    <a href="https://github.com/abhinav91690/cricket-scorecard-overlay/issues">github.com/abhinav91690/cricket-scorecard-overlay/issues</a>.
+    If this policy changes, the date at the top of the page will change with it.</p>
+</main>
+</body>
+</html>
