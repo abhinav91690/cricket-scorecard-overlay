@@ -4,7 +4,7 @@
   "_video": "The merged recording: part 1 rebuilt by recover.py (the phone overheated 2 h 45 m in) from its 19:28 keyframe, then the complete part 2. The 19 minutes the phone was off — chase overs 2.5-6.1 — were never recorded.",
   "video": "../../game footage/vs Ground breakers.mp4",
   "events": "../../game footage/vs Ground breakers.events.json",
-  "out": "../reels-ground-breakers",
+  "out": "../../game footage/reels-ground-breakers",
   "batting-innings": 2,
   "team": "Topguns United",
   "match": "Topguns United vs Ground Breakers",

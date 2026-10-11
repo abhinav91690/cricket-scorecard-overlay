@@ -3,7 +3,7 @@
   "_captured": "2026-09-27",
   "video": "../../game footage/vs ATX Panthers.mp4",
   "events": "../events.json",
-  "out": "../reels-aligned",
+  "out": "../../game footage/reels-atx-panthers",
   "batting-innings": 1,
   "team": "Topguns United",
   "match": "Topguns United vs ATX Panthers",

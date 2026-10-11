@@ -917,8 +917,11 @@ with the title, description and tags, and `publish.py --meta <json>` uses it ver
     --meta reels/v-kohli-batting.json --privacy public --confirm
 ```
 
-Reels and their sidecars are **gitignored** (`highlights/reels*/`) — generated per match and
-uploaded, never source.
+Reels and their sidecars are **gitignored** — generated per match and uploaded, never source.
+Each manifest writes them to `game footage/reels-<opponent>/`, **beside the recording they were
+cut from**, so every file a match produced (footage, events, dismissals, reels, contact sheets,
+motion caches) is reviewed in one folder and deleted together once uploaded. The owner's call
+on 2026-10-11. `highlights/reels*/` stays ignored for an ad-hoc `-o`.
 
 ### 13c. Captions come from the scorecard, not from a template
 
