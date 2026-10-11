@@ -125,6 +125,26 @@ def load_overrides(path: str | None) -> dict:
     return {"shots": shots, "drop": {float(x) for x in (doc.get("drop") or [])}}
 
 
+def load_dismissals(path: str | None) -> dict[float, str]:
+    """How each wicket fell, read off the match scorecard -> {entry time: "caught behind"}.
+
+    The payload carries no dismissal type — only that a wicket fell — so the caption said
+    "wicket, 34(32)". This file supplies the scorecard's words instead, keyed on the payload
+    ENTRY time like the overrides (stable, and not a name).
+
+    🛑 Keep it LOCAL, never in this repo: a dismissal line names the fielder and the bowler, and
+    the repository is public. Describe the dismissal, never the dismissed batter — that is an
+    opposition player.
+
+        {"wickets": {"2908.5": "caught behind", "5841.3": "bowled"}, "note": "..."}
+    """
+    if not path:
+        return {}
+    with open(path) as fh:
+        raw = json.load(fh)
+    return {float(k): str(v) for k, v in (raw.get("wickets") or {}).items()}
+
+
 def apply_overrides(shots: dict, ov: dict) -> tuple[dict, int]:
     """Replace aligned shot times with hand-measured ones. -> (shots, n applied).
 
@@ -534,9 +554,9 @@ def ball_line(m: dict, t: float) -> str:
         if str(m.get("outcome", "")).endswith("nb"):
             detail += ", off a no-ball"
     else:
-        # The score without the name: "wicket, 5(4)".
+        # How it fell, off the scorecard (--dismissals); else the score without the name.
         sc = m.get("strikerScore", "")
-        detail = f"wicket, {sc}" if sc else "wicket"
+        detail = m.get("_how") or (f"wicket, {sc}" if sc else "wicket")
     return f"{stamp}  {detail} ({where})"
 
 
@@ -676,6 +696,9 @@ def main():
     ap.add_argument("--overrides", metavar="JSON",
                     help="hand-measured shot times for balls the video cannot place, and "
                          "moments to drop. See load_overrides()")
+    ap.add_argument("--dismissals", metavar="JSON",
+                    help="how each wicket fell, off the scorecard, keyed on entry time — "
+                         "LOCAL only, it names players. See load_dismissals()")
     ap.add_argument("--widen", action="store_true",
                     help="🛑 widen a clip when the delivery is uncertain instead of omitting "
                          "the ball. Measured worse on `vs ATX Panthers`: wide clips showed the "
@@ -739,6 +762,16 @@ def main():
         moments = [m for m in moments
                    if not any(abs(m["t"] - d) < 0.6 for d in _drop)]
         print(f"  dropped {before - len(moments)} moment(s) listed in {a.overrides}")
+    hows = load_dismissals(getattr(a, "dismissals", None))
+    if hows:
+        n_how = 0
+        for m in moments:
+            if "wicket" in m.get("types", []):
+                hit = next((v for k, v in hows.items() if abs(m["t"] - k) < 0.6), None)
+                if hit:
+                    m["_how"] = hit
+                    n_how += 1
+        print(f"  {n_how} wicket(s) described from {a.dismissals}")
     if n_dup:
         print(f"  dropped {n_dup} duplicate moment(s) — the scorer retracted and re-entered "
               f"the same ball, and the re-entry's timestamp is not the ball's")

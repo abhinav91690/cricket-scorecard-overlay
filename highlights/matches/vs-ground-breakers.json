@@ -17,6 +17,8 @@
   "split-roles": true,
   "align": true,
   "overrides": "../overrides/vs-ground-breakers.json",
+  "dismissals": "../../game footage/vs Ground breakers.dismissals.json",
+  "_dismissals": "How each wicket fell, read off the CricClubs scorecard. LOCAL and gitignored: it names players.",
   "contact-sheet": true,
   "_batting": "Not cut. The chase is where the losses fell: the 19-minute gap, a scorecard that stalled for 17 minutes (26 balls) and froze for the last 15 balls on the overheating phone, and encoder smearing. Batting moments in those stretches cannot be timed from the data code."
 }

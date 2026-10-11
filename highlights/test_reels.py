@@ -17,7 +17,7 @@ from __future__ import annotations
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from cut import crop_filter
-from reels import (attribute, breakdown, build_title, figures, metadata, over,
+from reels import (ball_line, load_dismissals, attribute, breakdown, build_title, figures, metadata, over,
                    parse_aspects, slug, tally, titlecase)
 
 
@@ -676,6 +676,21 @@ def test_the_tag_set_degrades_without_the_new_flags():
     assert all(len(x) > 1 and x.startswith("#") for x in t), t
     assert "#Topguns" in t and "#cricket" in t, t
 
+
+
+def test_wicket_line_says_how_it_fell_when_the_scorecard_is_given():
+    """The payload carries no dismissal type, so without --dismissals a wicket line reads
+    "wicket, 34(32)". With it, the scorecard's words replace that — and never the batter's name."""
+    import json, tempfile
+    m = {"t": 2908.5, "ball": 57, "score": "64/1", "_role": "bowl", "_kinds": ["wicket"],
+         "strikerScore": "34(32)", "types": ["wicket"]}
+    assert ball_line(dict(m), 0) == "0:00  wicket, 34(32) (9.3 ov, 64/1)"
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
+        json.dump({"wickets": {"2908.5": "caught behind"}}, fh)
+    hows = load_dismissals(fh.name)
+    assert hows == {2908.5: "caught behind"}
+    assert ball_line({**m, "_how": hows[2908.5]}, 0) == "0:00  caught behind (9.3 ov, 64/1)"
+    assert load_dismissals(None) == {}
 
 if __name__ == "__main__":
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
