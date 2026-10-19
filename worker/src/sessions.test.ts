@@ -22,6 +22,8 @@ import { SESSION_QUERIES } from './stats';
 // ⚠ A path, not a `new URL(...)`: workers-types declares its own global URL, which does not
 // match the one @types/node's readFileSync overloads expect.
 const MIGRATION = join(import.meta.dirname, '../migrations/0002_sessions.sql');
+// 0003 alters `events` too, so a minimal events table stands in for 0001 here.
+const AUDIENCE = join(import.meta.dirname, '../migrations/0003_audience.sql');
 
 let db: DatabaseSync;
 
@@ -30,6 +32,7 @@ function touch(sessionId: string, ts: string, pings: 0 | 1, ctx: Partial<Record<
     const DEFAULTS: Record<string, string | null> = {
         clubId: '1089463', matchId: '4670', theme: 'kkr', client: 'obs', clientVersion: '30.2',
         os: 'windows', screen: '1920x1080', country: 'US', city: 'Austin', visitor: 'a1b2c3d4e5f60718',
+        asnOrg: null, timezone: null, language: null, app: null, viewport: null,
     };
     // ⚠ `??` would turn an explicit null back into the default, which is how the first draft
     // of the no-context test passed while asserting the opposite of what it ran.
@@ -38,6 +41,7 @@ function touch(sessionId: string, ts: string, pings: 0 | 1, ctx: Partial<Record<
         sessionId, ts, ts.slice(0, 10), pings,
         v('clubId'), v('matchId'), v('theme'), v('client'), v('clientVersion'),
         v('os'), v('screen'), v('country'), v('city'), v('visitor'),
+        v('asnOrg'), v('timezone'), v('language'), v('app'), v('viewport'),
     );
 }
 
@@ -50,6 +54,18 @@ const query = (name: keyof typeof SESSION_QUERIES, since = '2000-01-01') =>
 beforeEach(() => {
     db = new DatabaseSync(':memory:');
     db.exec(readFileSync(MIGRATION, 'utf8'));
+    db.exec('CREATE TABLE events (id INTEGER PRIMARY KEY)');
+    db.exec(readFileSync(AUDIENCE, 'utf8'));
+});
+
+describe('migration 0003', () => {
+    it('adds the audience columns, which a session keeps from its first event', () => {
+        touch('a1b2c3d4e5f60718', '2026-10-18T11:32:00.000Z', 0, { asnOrg: 'Sri Lanka Telecom', timezone: 'Asia/Colombo', language: 'si-LK', app: null, viewport: '1920x1080' });
+        touch('a1b2c3d4e5f60718', '2026-10-18T11:37:00.000Z', 1, { asnOrg: 'Other', timezone: 'UTC' });
+        expect(row()).toMatchObject({ asn_org: 'Sri Lanka Telecom', timezone: 'Asia/Colombo', language: 'si-LK', viewport: '1920x1080', pings: 1 });
+        const cols = (db.prepare('PRAGMA table_info(events)').all() as { name: string }[]).map(c => c.name);
+        expect(cols).toEqual(expect.arrayContaining(['asn', 'asn_org', 'timezone', 'language', 'app', 'viewport', 'source']));
+    });
 });
 
 describe('migration 0002', () => {

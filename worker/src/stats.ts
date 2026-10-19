@@ -71,12 +71,57 @@ export const SESSION_QUERIES = {
         GROUP BY club_id, match_id ORDER BY total_secs DESC LIMIT 50`,
 };
 
+/**
+ * Who is behind the loads: network, locale, embedding app and referring site, from the columns
+ * migration 0003 adds.
+ *
+ * 🛑 A third batch, for the same reason SESSION_QUERIES is a second one: these name columns that
+ * do not exist until 0003 runs, and a failed batch fails whole. Each query filters on its own
+ * columns being set, so rows from before the migration are left out rather than shown as "?".
+ */
+export const AUDIENCE_QUERIES = {
+    networks: `
+        SELECT asn_org, asn, COALESCE(country, '?') AS country, COALESCE(city, '') AS city,
+               COUNT(*) AS loads, COUNT(DISTINCT visitor) AS visitors
+        FROM events WHERE event = 'overlay_start' AND asn IS NOT NULL AND day >= ?1
+        GROUP BY asn, asn_org, country, city ORDER BY loads DESC LIMIT 50`,
+    locales: `
+        SELECT COALESCE(timezone, '?') AS timezone, COALESCE(language, '?') AS language,
+               COUNT(*) AS loads, COUNT(DISTINCT visitor) AS visitors
+        FROM events WHERE event = 'overlay_start' AND (timezone IS NOT NULL OR language IS NOT NULL) AND day >= ?1
+        GROUP BY timezone, language ORDER BY loads DESC LIMIT 50`,
+    apps: `
+        SELECT COALESCE(app, '(none)') AS app, COALESCE(client, '?') AS client, COALESCE(os, '?') AS os,
+               viewport, COUNT(*) AS loads
+        FROM events WHERE event = 'overlay_start' AND viewport IS NOT NULL AND day >= ?1
+        GROUP BY app, client, os, viewport ORDER BY loads DESC LIMIT 50`,
+    sources: `
+        SELECT source, SUM(event = 'home_view') AS home_views, SUM(event = 'overlay_start') AS loads,
+               MAX(ts) AS last_seen
+        FROM events WHERE source IS NOT NULL AND day >= ?1
+        GROUP BY source ORDER BY home_views + loads DESC LIMIT 50`,
+};
+
+export type AudienceData = Record<keyof typeof AUDIENCE_QUERIES, Row[]> | null;
+
+/** Audience aggregates, or null before migration 0003 (see AUDIENCE_QUERIES). */
+export async function audienceData(env: Env, since: string): Promise<AudienceData> {
+    const names = Object.keys(AUDIENCE_QUERIES) as (keyof typeof AUDIENCE_QUERIES)[];
+    try {
+        const results = await env.DB.batch(names.map(n => env.DB.prepare(AUDIENCE_QUERIES[n]).bind(since)));
+        return Object.fromEntries(names.map((n, i) => [n, (results[i].results ?? []) as Row[]])) as Record<keyof typeof AUDIENCE_QUERIES, Row[]>;
+    } catch (error) {
+        console.error('audience queries failed (migration 0003 applied?)', error);
+        return null;
+    }
+}
+
 export async function renderStats(env: Env, days: number): Promise<string> {
     const since = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
     const names = Object.keys(QUERIES) as (keyof typeof QUERIES)[];
     const results = await env.DB.batch(names.map(n => env.DB.prepare(QUERIES[n]).bind(since)));
     const data = Object.fromEntries(names.map((n, i) => [n, (results[i].results ?? []) as Row[]])) as Record<keyof typeof QUERIES, Row[]>;
-    return page(days, data, await sessionData(env, since));
+    return page(days, data, await sessionData(env, since), await audienceData(env, since));
 }
 
 export type SessionData = Record<keyof typeof SESSION_QUERIES, Row[]> | null;
@@ -137,7 +182,7 @@ export function sessionSummary(rows: Row[]): { sessions: number; live: number; m
     };
 }
 
-function page(days: number, d: Record<keyof typeof QUERIES, Row[]>, sess: SessionData): string {
+function page(days: number, d: Record<keyof typeof QUERIES, Row[]>, sess: SessionData, aud: AudienceData = null): string {
     const s = d.summary[0] ?? {};
     const sum = sess && sess.durations.length ? sessionSummary(sess.durations) : null;
     const stat = (label: string, value: unknown) => `<div class="stat"><div class="n">${esc(value ?? 0)}</div><div class="l">${esc(label)}</div></div>`;
@@ -183,6 +228,31 @@ ${sess && sum ? `
     { key: 'country', label: 'Country' },
  ])}</div></div>
 </div>
+` : ''}
+
+${aud ? `
+<div class="grid2">
+ <div><h2>Networks</h2><div class="wrap">${table(aud.networks, [
+    { key: 'asn_org', label: 'Network' }, { key: 'asn', label: 'AS' }, { key: 'country', label: 'Country' },
+    { key: 'city', label: 'City' }, { key: 'loads', label: 'Loads' }, { key: 'visitors', label: 'Viewers' },
+ ])}</div></div>
+ <div><h2>Time zones and languages</h2><div class="wrap">${table(aud.locales, [
+    { key: 'timezone', label: 'Time zone' }, { key: 'language', label: 'Language' },
+    { key: 'loads', label: 'Loads' }, { key: 'visitors', label: 'Viewers' },
+ ])}</div></div>
+</div>
+<div class="grid2">
+ <div><h2>Embedded in</h2><div class="wrap">${table(aud.apps, [
+    { key: 'app', label: 'App' }, { key: 'client', label: 'Client' }, { key: 'os', label: 'OS' },
+    { key: 'viewport', label: 'Viewport' }, { key: 'loads', label: 'Loads' },
+ ])}</div></div>
+ <div><h2>Came from</h2><div class="wrap">${table(aud.sources, [
+    { key: 'source', label: 'Site' }, { key: 'home_views', label: 'Home views' }, { key: 'loads', label: 'Overlay loads' },
+    { key: 'last_seen', label: 'Last seen', format: when },
+ ])}</div></div>
+</div>
+<p class="note">Network, time zone, language, app and referring site are recorded from migration 0003 on;
+ earlier loads are not counted here.</p>
 ` : ''}
 
 <h2>Matches</h2><div class="wrap">${table(d.matches, [

@@ -45,7 +45,6 @@ previews, the Link Live Stream form, and a reference table of every parameter.
 | `quiet` | No | Turns off the event cards; bar only. | `?quiet` |
 | `logo` | No | Shows a sponsor logo. | `?logo=1` |
 | `data` | No | Draws a small machine-readable code for highlights. Off by default. | `?data=1` |
-| `nostats` | No | Opts out of anonymous usage analytics. | `?nostats=1` |
 
 In debug mode, `&card=wicket` (or `milestone`, `partnership`, `four`, `six`) holds a sample
 event card so you can position it.
@@ -123,8 +122,10 @@ five minutes while a live overlay is on screen, which is what makes session leng
 
 No cookies, no third parties, no persistent identifiers. The ping carries a random id generated
 per page load and **never stored** — no cookie, no `localStorage` — so it groups that load's own
-pings and nothing else. Nothing is sent from `localhost`, `?debug=` modes or `?mode=replay`. Add
-**`?nostats=1`** to opt out, which also stops the ping; Do Not Track is honoured too.
+pings and nothing else. Nothing is sent from `localhost`, `?debug=` modes or `?mode=replay`, and Do Not Track is
+honoured. There is no URL opt-out. Each event also carries the drawn size, time zone, language,
+in-app container and referring site's host, and the Worker adds the network's name from
+Cloudflare, so the stats page can say who is behind a load without identifying anyone.
 
 Details, including what is stored and what deliberately is not, are in
 [`docs/analytics.md`](docs/analytics.md).

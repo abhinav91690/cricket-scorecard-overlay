@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderStats, dur, sessionSummary } from './stats';
+import { renderStats, dur, sessionSummary, AUDIENCE_QUERIES } from './stats';
 import type { Env } from './env';
 
 type Row = Record<string, unknown>;
@@ -13,15 +13,20 @@ type Row = Record<string, unknown>;
  * `sessions: 'missing'` makes the second batch throw, which is a database without 0002.
  */
 function fakeEnv(results: Row[][], captured: { sql: string; since: string }[] = [],
-                 sessions: Row[][] | 'missing' = [[], [], []]): Env {
+                 sessions: Row[][] | 'missing' = [[], [], []], audience: Row[][] | 'missing' = 'missing'): Env {
     let call = 0;
     return {
         DB: {
             prepare: (sql: string) => ({ bind: (since: string) => { captured.push({ sql, since }); return { sql }; } }),
             batch: async () => {
-                if (call++ === 0) return results.map(r => ({ results: r, success: true }));
-                if (sessions === 'missing') throw new Error('no such table: sessions');
-                return sessions.map(r => ({ results: r, success: true }));
+                const n = call++;
+                if (n === 0) return results.map(r => ({ results: r, success: true }));
+                if (n === 1) {
+                    if (sessions === 'missing') throw new Error('no such table: sessions');
+                    return sessions.map(r => ({ results: r, success: true }));
+                }
+                if (audience === 'missing') throw new Error('no such column: asn');
+                return audience.map(r => ({ results: r, success: true }));
             },
         } as unknown as D1Database,
         ACCESS_TEAM_DOMAIN: '', ACCESS_AUD: '',
@@ -34,7 +39,7 @@ describe('renderStats', () => {
     it('runs every aggregate with the same since-date', async () => {
         const captured: { sql: string; since: string }[] = [];
         await renderStats(fakeEnv(empty, captured), 30);
-        expect(captured).toHaveLength(10);          // 7 event aggregates + 3 session ones
+        expect(captured).toHaveLength(14);          // 7 event aggregates + 3 session + 4 audience
         expect(new Set(captured.map(c => c.since)).size).toBe(1);
         expect(captured[0].since).toMatch(/^\d{4}-\d{2}-\d{2}$/);
         const expected = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
@@ -134,5 +139,32 @@ describe('renderStats session section', () => {
         const html = await renderStats(fakeEnv(empty, [], [[], [], []]), 30);
         expect(html).not.toContain('Session length');
         expect(html).not.toContain('overlay hours');
+    });
+});
+
+describe('renderStats audience section', () => {
+    const networks = [{ asn_org: 'Sri Lanka Telecom', asn: 9329, country: 'LK', city: 'Colombo', loads: 24, visitors: 1 }];
+    const locales = [{ timezone: 'Asia/Colombo', language: 'si-LK', loads: 24, visitors: 1 }];
+    const apps = [{ app: 'android-webview', client: 'browser', os: 'android', viewport: '640x400', loads: 29 }];
+    const sources = [{ source: 'l.facebook.com', home_views: 3, loads: 1, last_seen: '2026-10-18T10:30:00.000Z' }];
+
+    it('renders networks, locales, apps and referring sites', async () => {
+        const html = await renderStats(fakeEnv(empty, [], [[], [], []], [networks, locales, apps, sources]), 30);   // AUDIENCE_QUERIES order
+        expect(Object.keys(AUDIENCE_QUERIES)).toEqual(['networks', 'locales', 'apps', 'sources']);
+        for (const text of ['Networks', 'Sri Lanka Telecom', '<td>9329</td>', 'Asia/Colombo', 'si-LK', 'android-webview', '640x400', 'l.facebook.com', '2026-10-18 10:30']) {
+            expect(html, text).toContain(text);
+        }
+    });
+
+    it('omits the section, not the page, before migration 0003', async () => {
+        const html = await renderStats(fakeEnv(empty), 30);
+        expect(html).toContain('overlay loads');
+        expect(html).not.toContain('Networks');
+    });
+
+    it('escapes a hostile network name', async () => {
+        const html = await renderStats(fakeEnv(empty, [], [[], [], []], [[{ asn_org: '<img src=x onerror=1>', asn: 1, country: 'US', city: '', loads: 1, visitors: 1 }], [], [], []]), 30);
+        expect(html).not.toContain('<img src=x');
+        expect(html).toContain('&lt;img src=x onerror=1&gt;');
     });
 });

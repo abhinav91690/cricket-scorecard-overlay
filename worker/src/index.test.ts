@@ -63,7 +63,7 @@ describe('POST /api/collect', () => {
         expect(prepare.mock.calls[0][0]).toMatch(/INSERT INTO events/);
 
         const args = bind.mock.calls[0] as unknown[];
-        expect(args).toHaveLength(19);
+        expect(args).toHaveLength(26);
         const [ts, day, event, clubId, matchId, theme, logo, client, clientVersion, os, screen, videoId, outcome, country, city, colo, visitor, ua, referer] = args;
         expect(ts).toMatch(/^\d{4}-\d{2}-\d{2}T/);
         expect(day).toBe((ts as string).slice(0, 10));
@@ -72,7 +72,18 @@ describe('POST /api/collect', () => {
         expect(visitor).toMatch(/^[0-9a-f]{16}$/);
         expect(ua).toBe('UA/1 OBS/30.2');
         expect(referer).toBe('https://score.abhinav.dev/?matchId=1');
+        expect(args.slice(19)).toEqual([null, null, null, null, null, null, null]);   // no audience fields sent
         expect(run).toHaveBeenCalled();
+    });
+
+    it('stores network, locale, app, viewport and source after the original 19 columns', async () => {
+        const body = { event: 'overlay_start', clubId: '11707', matchId: '9407', timezone: 'Asia/Colombo', language: 'si-LK',
+                       app: 'android-webview', viewport: '640x400', source: 'L.Facebook.com' };
+        const req = request('/api/collect', { method: 'POST', body: JSON.stringify(body) },
+                            { country: 'LK', city: 'Colombo', colo: 'BOM', asn: 9329, asOrganization: 'Sri Lanka Telecom' });
+        expect((await worker.fetch(req, env())).status).toBe(204);
+        const args = bind.mock.calls[0] as unknown[];
+        expect(args.slice(19)).toEqual([9329, 'Sri Lanka Telecom', 'Asia/Colombo', 'si-LK', 'android-webview', '640x400', 'l.facebook.com']);
     });
 
     it('copes with missing cf metadata, referer and salt', async () => {
@@ -107,7 +118,7 @@ describe('session pings', () => {
         expect(prepare.mock.calls[0][0]).toMatch(/ON CONFLICT \(session_id\) DO UPDATE/);
 
         const args = bind.mock.calls[0] as unknown[];
-        expect(args).toHaveLength(14);
+        expect(args).toHaveLength(19);
         const [sessionId, ts, day, pings, clubId, matchId, theme, client, clientVersion, os, screen, country, city, visitor] = args;
         expect(sessionId).toBe(SID);
         expect(ts).toMatch(/^\d{4}-\d{2}-\d{2}T/);
@@ -126,8 +137,8 @@ describe('session pings', () => {
         expect(prepare.mock.calls[1][0]).toMatch(/INSERT INTO sessions/);
         // The load itself is not a ping, so it must not inflate the count.
         expect((bind.mock.calls[1] as unknown[])[3]).toBe(0);
-        // The events row still binds all 19 columns it always did.
-        expect(bind.mock.calls[0]).toHaveLength(19);
+        // The events row binds the original 19 columns plus 0003's seven.
+        expect(bind.mock.calls[0]).toHaveLength(26);
     });
 
     it('still writes the events row when a load carries no session id', async () => {

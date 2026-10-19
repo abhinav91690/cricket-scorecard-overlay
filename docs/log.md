@@ -1,5 +1,20 @@
 # Update Log
 
+## 2026-10-19
+
+**Who is behind a load, and no more `?nostats`.** A weekend of international use — a Sri
+Lankan operator in OBS on Pakistan v Sri Lanka, an Android WebView in Bergen, a 14-hour OBS
+session from Lahore — could not be explained from country, city and screen size. Every event now
+carries `timezone`, `language`, `viewport`, `app` (in-app browser or bare WebView) and `source`
+(the linking site's host only), and the Worker adds `asn` / `asn_org` from Cloudflare. Migration
+0003 adds the columns; the stats page grows Networks, Time zones and languages, Embedded in and
+Came from, in a third batch so it survives the deploy window. 🛑 Migrate before deploying the
+Worker — the other order fails every insert (analytics.md §4).
+
+`?nostats` is gone. Do Not Track, `?debug=`, `?mode=replay` and localhost still send nothing;
+the recorder, which relied on the flag, now blocks `/api/collect` over CDP. The privacy page says
+both.
+
 ## 2026-10-11
 
 **A recording the phone died in the middle of came back whole.** Match 4691 (vs Ground Breakers,

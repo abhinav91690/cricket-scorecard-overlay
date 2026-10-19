@@ -14,23 +14,38 @@ export interface ClientInfo {
     screen: string;
 }
 
+/**
+ * The app a page is embedded in, when the user agent says so. Mobile streaming apps draw a
+ * browser source in a plain system WebView, so they surface as `android-webview` /
+ * `ios-webview` rather than by name; social apps announce themselves.
+ */
+export type AppKind = 'facebook' | 'instagram' | 'tiktok' | 'snapchat' | 'line' | 'android-webview' | 'ios-webview';
+
+/** Where and how the page is being shown — sent alongside `ClientInfo`. Nothing here is stored on the device. */
+export interface PageContext {
+    app: AppKind | null;
+    viewport: string;
+    timezone: string | null;
+    language: string | null;
+    /** Host of the page that linked here, or null for a direct load or our own pages. */
+    source: string | null;
+}
+
 export type LinkOutcome = 'submitted' | 'invalid_url' | 'popup_blocked' | 'error';
 
 interface TrackingContext {
     hostname: string;
     debug: string | null;
     mode: string | null;
-    nostats: string | null;
     doNotTrack: string | null | undefined;
 }
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '0.0.0.0']);
 
-/** Nothing is sent from local dev, mock/replay modes, or when the viewer opted out. */
+/** Nothing is sent from local dev, mock/replay modes, or when the browser sends Do Not Track. */
 export function isTrackingEnabled(ctx: TrackingContext): boolean {
     if (LOCAL_HOSTS.has(ctx.hostname)) return false;
     if (ctx.debug || ctx.mode === 'replay') return false;
-    if (ctx.nostats !== null) return false;
     if (ctx.doNotTrack === '1') return false;
     return true;
 }
@@ -70,13 +85,48 @@ export function detectClient(win: Window = window): ClientInfo {
     return { client, clientVersion, os: detectOs(ua), screen: `${win.screen.width}x${win.screen.height}` };
 }
 
+/** Specific apps first: Facebook's and Instagram's in-app browsers are also Android WebViews. */
+export function detectApp(ua: string): AppKind | null {
+    if (/FBAN|FBAV|FB_IAB/.test(ua)) return 'facebook';
+    if (/Instagram/.test(ua)) return 'instagram';
+    if (/BytedanceWebview|musical_ly|TikTok/i.test(ua)) return 'tiktok';
+    if (/Snapchat/.test(ua)) return 'snapchat';
+    if (/\bLine\//.test(ua)) return 'line';
+    if (/Android/.test(ua) && /; wv\)/.test(ua)) return 'android-webview';
+    // iOS Safari and every iOS browser carry `Safari/`; an embedded WKWebView does not.
+    if (/iPhone|iPad|iPod/.test(ua) && /AppleWebKit/.test(ua) && !/Safari\//.test(ua)) return 'ios-webview';
+    return null;
+}
+
+/** The referring page's host, dropping our own so a home → overlay click is not a "source". */
+export function referrerHost(referrer: string, ownHost: string): string | null {
+    if (!referrer) return null;
+    try {
+        const host = new URL(referrer).hostname.toLowerCase();
+        return host && host !== ownHost.toLowerCase() ? host : null;
+    } catch {
+        return null;
+    }
+}
+
+export function detectContext(win: Window = window): PageContext {
+    let timezone: string | null = null;
+    try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || null; } catch { /* very old engine */ }
+    return {
+        app: detectApp(win.navigator.userAgent || ''),
+        viewport: `${win.innerWidth}x${win.innerHeight}`,
+        timezone,
+        language: win.navigator.language || null,
+        source: referrerHost(win.document?.referrer ?? '', win.location?.hostname ?? ''),
+    };
+}
+
 function currentContext(): TrackingContext {
     const params = new URLSearchParams(window.location.search);
     return {
         hostname: window.location.hostname,
         debug: params.get('debug'),
         mode: params.get('mode'),
-        nostats: params.get('nostats'),
         doNotTrack: navigator.doNotTrack,
     };
 }
@@ -183,7 +233,7 @@ export function stopSessionPings(): void {
 export function track(event: string, props: Record<string, string | null | undefined> = {}): void {
     try {
         if (!isTrackingEnabled(currentContext())) return;
-        const body = JSON.stringify({ event, sessionId: SESSION_ID || undefined, ...props, ...detectClient() });
+        const body = JSON.stringify({ event, sessionId: SESSION_ID || undefined, ...props, ...detectClient(), ...detectContext() });
         whenIdle(() => { try { send(body); } catch { /* ignore */ } });
     } catch {
         /* ignore */

@@ -47,6 +47,23 @@ describe('normalizeEvent', () => {
     });
 });
 
+describe('audience fields', () => {
+    it('keeps well-formed values', () => {
+        const e = normalizeEvent({ event: 'overlay_start', app: 'android-webview', viewport: '640x400',
+                                   timezone: 'America/Argentina/Buenos_Aires', language: 'si-LK', source: 'M.YouTube.com' });
+        expect(e).toMatchObject({ app: 'android-webview', viewport: '640x400', timezone: 'America/Argentina/Buenos_Aires',
+                                  language: 'si-LK', source: 'm.youtube.com' });
+        expect(normalizeEvent({ event: 'home_view', timezone: 'Etc/GMT+5' })?.timezone).toBe('Etc/GMT+5');
+    });
+
+    it('drops anything not in the expected shape instead of storing it', () => {
+        const e = normalizeEvent({ event: 'overlay_start', app: 'chrome', viewport: '640 x 400', timezone: '<b>',
+                                   language: 'english please', source: 'https://evil.example/path?q=1' });
+        expect(e).toMatchObject({ app: null, viewport: null, timezone: null, language: null, source: null });
+        expect(normalizeEvent({ event: 'overlay_start', source: 42, language: 7 })).toMatchObject({ source: null, language: null });
+    });
+});
+
 describe('session ids', () => {
     it('accepts exactly the 16 lowercase hex characters analytics.ts issues', () => {
         expect(normalizeEvent({ event: 'home_view', sessionId: 'a1b2c3d4e5f60718' })?.sessionId).toBe('a1b2c3d4e5f60718');
