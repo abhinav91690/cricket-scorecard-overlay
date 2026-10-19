@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { detectClient, isTrackingEnabled, track, trackOnce, resetTrackingForTests,
+import { detectClient, detectApp, detectContext, referrerHost, isTrackingEnabled, track, trackOnce, resetTrackingForTests,
          startSessionPings, stopSessionPings, sessionId, PING_MS } from './analytics';
 
 function fakeWindow(userAgent: string, extra: Record<string, unknown> = {}): Window {
@@ -27,19 +27,63 @@ describe('detectClient', () => {
     });
 });
 
+describe('detectApp', () => {
+    it('names the social apps that announce themselves', () => {
+        expect(detectApp('Mozilla/5.0 (Linux; Android 14; wv) [FBAN/EMA;FBAV/430.0]')).toBe('facebook');
+        expect(detectApp('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Instagram 300.0')).toBe('instagram');
+        expect(detectApp('Mozilla/5.0 (Linux; Android 13) BytedanceWebview/d8a21c6')).toBe('tiktok');
+        expect(detectApp('Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 Snapchat/12.0')).toBe('snapchat');
+        expect(detectApp('Mozilla/5.0 (Linux; Android 12) Line/13.0.0')).toBe('line');
+    });
+
+    it('reports a plain system WebView, which is how mobile streaming apps show a browser source', () => {
+        // The real user agent behind 29 loads from one device on 18 Oct 2026.
+        expect(detectApp('Mozilla/5.0 (Linux; Android 10; DE106 Build/QKQ1.210702.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/138.0.7204.181 Mobile Safari/537.36')).toBe('android-webview');
+        expect(detectApp('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148')).toBe('ios-webview');
+    });
+
+    it('leaves real browsers and OBS alone', () => {
+        expect(detectApp('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1')).toBeNull();
+        expect(detectApp('Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36')).toBeNull();
+        expect(detectApp('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/127.0 OBS/32.2.2 Safari/537.36')).toBeNull();
+    });
+});
+
+describe('referrerHost', () => {
+    it('keeps only the host of another site', () => {
+        expect(referrerHost('https://l.facebook.com/l.php?u=https%3A%2F%2Fscore.abhinav.dev', 'score.abhinav.dev')).toBe('l.facebook.com');
+        expect(referrerHost('https://WWW.Google.com/search?q=overlay', 'score.abhinav.dev')).toBe('www.google.com');
+    });
+
+    it('drops our own pages, empty and malformed referrers', () => {
+        expect(referrerHost('https://score.abhinav.dev/?matchId=1', 'score.abhinav.dev')).toBeNull();
+        expect(referrerHost('', 'score.abhinav.dev')).toBeNull();
+        expect(referrerHost('not a url', 'score.abhinav.dev')).toBeNull();
+    });
+});
+
+describe('detectContext', () => {
+    it('reports viewport, language, time zone, app and source', () => {
+        const win = { navigator: { userAgent: 'Mozilla/5.0 (Linux; Android 10; wv)', language: 'si-LK' },
+                      innerWidth: 640, innerHeight: 400, document: { referrer: 'https://m.youtube.com/' },
+                      location: { hostname: 'score.abhinav.dev' } } as unknown as Window;
+        const ctx = detectContext(win);
+        expect(ctx).toMatchObject({ app: 'android-webview', viewport: '640x400', language: 'si-LK', source: 'm.youtube.com' });
+        expect(typeof ctx.timezone).toBe('string');
+    });
+});
+
 describe('isTrackingEnabled', () => {
-    const base = { hostname: 'score.abhinav.dev', debug: null, mode: null, nostats: null, doNotTrack: null };
+    const base = { hostname: 'score.abhinav.dev', debug: null, mode: null, doNotTrack: null };
 
     it('is on for a normal production load', () => {
         expect(isTrackingEnabled(base)).toBe(true);
     });
 
-    it('is off for localhost, debug, replay, nostats and Do Not Track', () => {
+    it('is off for localhost, debug, replay and Do Not Track', () => {
         expect(isTrackingEnabled({ ...base, hostname: 'localhost' })).toBe(false);
         expect(isTrackingEnabled({ ...base, debug: '1' })).toBe(false);
         expect(isTrackingEnabled({ ...base, mode: 'replay' })).toBe(false);
-        expect(isTrackingEnabled({ ...base, nostats: '' })).toBe(false);
-        expect(isTrackingEnabled({ ...base, nostats: '1' })).toBe(false);
         expect(isTrackingEnabled({ ...base, doNotTrack: '1' })).toBe(false);
     });
 });
@@ -85,6 +129,9 @@ describe('track', () => {
         const body = JSON.parse((blob as unknown as { parts: string[] }).parts[0]); // FakeBlob records its parts
         expect(body).toMatchObject({ event: 'overlay_start', clubId: '1089463', matchId: '2079', theme: 'kkr', client: 'browser' });
         expect(body.screen).toMatch(/^\d+x\d+$/);
+        expect(body.viewport).toMatch(/^\d+x\d+$/);
+        expect(body).toHaveProperty('timezone');
+        expect(body).toHaveProperty('language');
     });
 
     it('falls back to a keepalive fetch when beacons are unavailable or refused', () => {
@@ -191,7 +238,7 @@ describe('session heartbeat', () => {
     });
 
     it('starts no heartbeat where tracking is off', () => {
-        for (const search of ['?debug=1', '?mode=replay', '?nostats', '?matchId=1&nostats=1']) {
+        for (const search of ['?debug=1', '?mode=replay', '?matchId=1&debug=1']) {
             resetTrackingForTests();
             beacon.mockClear();
             Object.defineProperty(window, 'location', { value: { hostname: 'score.abhinav.dev', search }, writable: true });

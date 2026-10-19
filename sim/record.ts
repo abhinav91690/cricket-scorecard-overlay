@@ -53,7 +53,7 @@ async function recordMatch(match: string) {
     const file = `${DIR}/${match}-${new Date().toISOString().slice(0, 10)}.jsonl`;
     const anon = new Anonymiser(loadSalt());
     const write = (entry: Record<string, unknown>) => appendFileSync(file, JSON.stringify({ t: Date.now(), ...entry }) + '\n');
-    const url = `${SITE}/?matchId=${match}&clubId=${CLUB}&data=1&nostats=1`;
+    const url = `${SITE}/?matchId=${match}&clubId=${CLUB}&data=1`;
     // Chrome can take a while to come up when several recorders start together: retry, don't give up.
     let tab: { id: string; webSocketDebuggerUrl: string } | undefined;
     for (let i = 0; !tab; i++) {
@@ -84,6 +84,8 @@ async function recordMatch(match: string) {
     });
     cdp.on('Runtime.exceptionThrown', p => write({ kind: 'error', text: p.exceptionDetails?.exception?.description ?? p.exceptionDetails?.text }));
     await cdp.send('Network.enable');
+    // Keep recordings out of the usage stats. There is no URL opt-out, so block the collector here.
+    await cdp.send('Network.setBlockedURLs', { urls: ['*/api/collect*'] });
     await cdp.send('Runtime.enable');
     await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
     await cdp.send('Page.navigate', { url });

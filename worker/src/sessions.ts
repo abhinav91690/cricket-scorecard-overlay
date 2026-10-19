@@ -24,11 +24,24 @@ import type { NormalizedEvent } from './collect';
  */
 export const SESSION_UPSERT = `
     INSERT INTO sessions (session_id, first_seen, last_seen, day, pings, club_id, match_id,
-                          theme, client, client_version, os, screen, country, city, visitor)
-    VALUES (?1, ?2, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+                          theme, client, client_version, os, screen, country, city, visitor,
+                          asn_org, timezone, language, app, viewport)
+    VALUES (?1, ?2, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)
     ON CONFLICT (session_id) DO UPDATE SET
         last_seen = excluded.last_seen,
         pings     = sessions.pings + excluded.pings`;
+
+/** The network's AS number, from Cloudflare. A number or nothing. */
+export function asn(cf: IncomingRequestCfProperties | undefined): number | null {
+    const n = Number(cf?.asn);
+    return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+/** The network's name ("Sri Lanka Telecom", "Hetzner Online GmbH"), capped. */
+export function asnOrg(cf: IncomingRequestCfProperties | undefined): string | null {
+    const s = typeof cf?.asOrganization === 'string' ? cf.asOrganization.trim() : '';
+    return s ? s.slice(0, 64) : null;
+}
 
 export async function touchSession(env: Env, event: NormalizedEvent, ts: string, day: string,
                                    visitor: string, cf: IncomingRequestCfProperties | undefined): Promise<void> {
@@ -36,6 +49,7 @@ export async function touchSession(env: Env, event: NormalizedEvent, ts: string,
     await env.DB.prepare(SESSION_UPSERT)
         .bind(event.sessionId, ts, day, event.event === 'overlay_ping' ? 1 : 0,
               event.clubId, event.matchId, event.theme, event.client, event.clientVersion,
-              event.os, event.screen, cf?.country ?? null, cf?.city ?? null, visitor)
+              event.os, event.screen, cf?.country ?? null, cf?.city ?? null, visitor,
+              asnOrg(cf), event.timezone, event.language, event.app, event.viewport)
         .run();
 }

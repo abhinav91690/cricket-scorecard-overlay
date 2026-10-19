@@ -3,6 +3,8 @@
 export const EVENTS = ['overlay_start', 'home_view', 'link_stream_submit', 'overlay_ping'] as const;
 export const CLIENTS = ['obs', 'vmix', 'streamlabs', 'prism', 'browser'] as const;
 export const OUTCOMES = ['submitted', 'invalid_url', 'popup_blocked', 'error'] as const;
+/** Mirrors `AppKind` in src/analytics.ts. */
+export const APPS = ['facebook', 'instagram', 'tiktok', 'snapchat', 'line', 'android-webview', 'ios-webview'] as const;
 
 export type EventName = typeof EVENTS[number];
 
@@ -24,6 +26,12 @@ export interface NormalizedEvent {
     screen: string | null;
     videoId: string | null;
     outcome: string | null;
+    app: string | null;
+    viewport: string | null;
+    timezone: string | null;
+    language: string | null;
+    /** Host only. A path or query would carry whatever the linking page put in it. */
+    source: string | null;
 }
 
 /** Max accepted request body, in bytes. Real payloads are ~300 bytes. */
@@ -33,6 +41,12 @@ function str(value: unknown, max: number): string | null {
     if (typeof value !== 'string') return null;
     const trimmed = value.trim();
     return trimmed ? trimmed.slice(0, max) : null;
+}
+
+/** `value` if it is a string matching `shape` after trimming and capping, else null. */
+function shaped(value: unknown, max: number, shape: RegExp): string | null {
+    const s = str(value, max);
+    return s && shape.test(s) ? s : null;
 }
 
 function oneOf<T extends readonly string[]>(value: unknown, allowed: T): T[number] | null {
@@ -79,6 +93,11 @@ export function normalizeEvent(input: unknown): NormalizedEvent | null {
         screen: str(body.screen, 16),
         videoId: null,
         outcome: null,
+        app: oneOf(body.app, APPS),
+        viewport: shaped(body.viewport, 16, /^\d{1,5}x\d{1,5}$/),
+        timezone: shaped(body.timezone, 64, /^[A-Za-z][A-Za-z0-9_+\-/]*$/),
+        language: shaped(body.language, 16, /^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8}){0,3}$/),
+        source: shaped(typeof body.source === 'string' ? body.source.toLowerCase() : null, 64, /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/),
     };
 
     // 🛑 A ping exists only to move one session's `last_seen`. Without a usable session id it

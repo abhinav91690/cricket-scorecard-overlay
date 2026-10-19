@@ -1,6 +1,6 @@
 import type { Env } from './env';
 import { normalizeEvent, visitorHash, MAX_BODY_BYTES } from './collect';
-import { touchSession } from './sessions';
+import { touchSession, asn, asnOrg } from './sessions';
 import { extractAccessToken, verifyAccessJwt } from './access';
 import { renderStats } from './stats';
 
@@ -46,12 +46,15 @@ async function handleCollect(request: Request<unknown, IncomingRequestCfProperti
         } else {
             await env.DB.prepare(`
                 INSERT INTO events (ts, day, event, club_id, match_id, theme, logo, client, client_version, os, screen,
-                                    video_id, outcome, country, city, colo, visitor, ua, referer)
-                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)`)
+                                    video_id, outcome, country, city, colo, visitor, ua, referer,
+                                    asn, asn_org, timezone, language, app, viewport, source)
+                VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19,
+                        ?20, ?21, ?22, ?23, ?24, ?25, ?26)`)
                 .bind(ts, day, event.event, event.clubId, event.matchId, event.theme, event.logo, event.client,
                       event.clientVersion, event.os, event.screen, event.videoId, event.outcome,
                       cf?.country ?? null, cf?.city ?? null, cf?.colo ?? null, visitor, ua,
-                      (request.headers.get('referer') ?? '').slice(0, 256) || null)
+                      (request.headers.get('referer') ?? '').slice(0, 256) || null,
+                      asn(cf), asnOrg(cf), event.timezone, event.language, event.app, event.viewport, event.source)
                 .run();
             // An overlay_start seeds the session row so a stream that ends before its first
             // ping still has a duration of zero rather than no row at all.

@@ -27,7 +27,7 @@ per-poll event**: the only repeating call is the 5-minute session ping of §5, a
 event fires at most once per load.
 
 `isTrackingEnabled()` returns false on **localhost**, with **`?debug=`**, with
-**`?mode=replay`**, with **`?nostats`**, and when **Do Not Track** is on. Nothing you do locally
+**`?mode=replay`**, and when **Do Not Track** is on. Nothing you do locally
 is recorded.
 
 ⚠ **A LAN IP is not localhost.** Testing from a phone against `http://10.x.x.x:5173` would
@@ -36,12 +36,25 @@ report, so use `?debug=1` or `?mode=replay`, which suppress it anyway.
 `detectClient()` identifies OBS via the injected `window.obsstudio` object or the
 `OBS/<version>` user-agent token, and vMix / Streamlabs / Prism by user agent.
 
+`detectContext()` adds where and how the page is shown, on every event:
+
+- **`app`** — `facebook`, `instagram`, `tiktok`, `snapchat` or `line` when an in-app browser
+  names itself, else `android-webview` / `ios-webview` for a bare system WebView. ⚠ Mobile
+  streaming apps (IRL Pro among them) draw a browser source in a plain WebView and do not name
+  themselves, so they read as `android-webview`, not by product.
+- **`viewport`** — the drawn size (`innerWidth`×`innerHeight`), which for a browser source is the
+  source's size, not the monitor's. `screen` is still sent and is the monitor.
+- **`timezone`** and **`language`** — as the browser reports them.
+- **`source`** — the **host only** of the page that linked here (`l.facebook.com`), never its path
+  or query. Our own host is dropped, so the home → overlay click is not a source. OBS sends no
+  referrer, so this mostly fills on `home_view`.
+
 ## 2. Events
 
 | Event | When | Recorded |
 |---|---|---|
-| `overlay_start` | once per page load with a real `matchId` | club ID, match ID, theme, logo, client and version, OS, screen size |
-| `home_view` | the home screen is shown | client, OS, screen size |
+| `overlay_start` | once per page load with a real `matchId` | club ID, match ID, theme, logo, client and version, OS, screen size, plus the §1 context |
+| `home_view` | the home screen is shown | client, OS, screen size, plus the §1 context |
 | `link_stream_submit` | the Link Live Stream form is submitted | club ID, match ID, YouTube video ID, outcome |
 | `overlay_ping` | every 5 minutes while a live overlay is on screen, plus a best-effort mark on `pagehide` | session ID, club ID, match ID, theme, client and version, OS, screen size |
 
@@ -60,7 +73,11 @@ to Netlify. Widening those routes would put the Worker in front of the site.
 `normalizeEvent()` allow-lists event names, clients and outcomes, requires numeric IDs and caps
 string lengths before a single `INSERT` into the D1 `events` table.
 
-Cloudflare's request metadata supplies country, city and colo. A salted `sha256(ip|ua|day)`
+Cloudflare's request metadata supplies country, city and colo, and since migration 0003 the
+network: **`asn`** and **`asn_org`** (`cf.asn`, `cf.asOrganization` — "Sri Lanka Telecom",
+"Hetzner Online GmbH"). That is what separates a home connection from a server restreaming the
+overlay. The new columns are appended after the original 19 in the `INSERT`, and sessions keep
+`asn_org`, `timezone`, `language`, `app` and `viewport` from their first event. A salted `sha256(ip|ua|day)`
 gives a per-day distinct-viewer count without identifying anyone — **the salt rotates daily**,
 so the hash cannot be joined across days by design.
 
@@ -70,6 +87,12 @@ The D1 database id in `wrangler.toml` is the real one.
 
 After changing anything under `worker/`, run `npm run deploy` there — and
 `npm run db:migrate` first if you added a migration.
+
+🛑 **Migrate before deploying, never after.** The Worker writes every column it knows about, so
+a Worker deployed ahead of its migration fails every `INSERT` with `no such column` and returns
+500 — each load in that window is lost, not delayed. The stats page survives either order (its
+newer sections run in their own batches and drop out), the collector does not. The client is
+the safe side: an old Worker ignores fields it does not know.
 
 `.github/workflows/deploy-worker.yml` exists but **skips itself** until a
 `CLOUDFLARE_API_TOKEN` repository secret is added. That is deliberate until the data proves
