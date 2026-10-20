@@ -131,7 +131,8 @@ re-measuring. → `data-code.md` §1
 
 🛑 **The Worker deploy is manual on purpose.** `deploy-worker.yml` skips itself until a
 `CLOUDFLARE_API_TOKEN` secret exists, and not adding it is a decision. Don't add it without
-asking. → `analytics.md` §4
+asking. ⚠ With a new migration, `db:migrate` goes **before** `deploy` — the other order fails
+every collector insert and loses those loads. → `analytics.md` §4
 
 ⚠ **~87% of loads point at matches that already finished**, so a load count is opens, not use.
 Session length exists now, from a 5-minute ping — but every figure is a floor, measured to the
